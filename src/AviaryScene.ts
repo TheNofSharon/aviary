@@ -7,6 +7,7 @@ import {
   playVictoryChirp,
   playFoodDropSound,
   playBirdEatSound,
+  playBirdChirpSound,
   playCoinCollectSound,
   playGemCollectSound,
   playEggDropSound,
@@ -204,6 +205,7 @@ export class Bird {
   mentalState: string;
   additionalNotes: string;
   private wasHungry = false;
+  chirpTimer = 3.5 + Math.random() * 6.5;
 
   constructor(
     private scene: AviaryScene,
@@ -552,6 +554,22 @@ export class Bird {
             this.body.clearTint();
             this.wing.clearTint();
           }
+        }
+      }
+    }
+    // Periodic natural bird chirps & melodic trills
+    if (!this.dead && !this.hidden && this.sick <= 0) {
+      this.chirpTimer -= dt;
+      if (this.chirpTimer <= 0) {
+        this.chirpTimer = 5.0 + Math.random() * 9.0;
+        if (this.stage === 0) {
+          playBirdChirpSound('peep', 0.85);
+        } else if (this.state === 'rest') {
+          playBirdChirpSound('trill', 0.9);
+          const noteChar = Math.random() < 0.5 ? '♪' : '♫';
+          this.scene.floatText(this.spr.x + Phaser.Math.Between(-12, 12), this.spr.y - 32, noteChar, '#fde047', '#854d0e');
+        } else {
+          playBirdChirpSound(Math.random() < 0.5 ? 'chirp' : 'warble', 0.8);
         }
       }
     }
@@ -3044,10 +3062,27 @@ export class AviaryScene extends Phaser.Scene {
               return;
             }
             const displayName = b.name ? b.name : b.species.name;
+            playBirdChirpSound('warble', 1.0);
             playPettingSound();
             this.floatText(b.spr.x, b.spr.y - 25, `♥ ${displayName} ♥`, '#ff69b4', '#4a0e2e');
             this.burst(b.spr.x, b.spr.y, 0xff69b4, 6);
             return;
+          }
+        }
+      } else {
+        // In Campaign mode, clicking near a bird causes a joyful hop & chirp
+        for (const b of this.birds) {
+          if (b.dead || b.hidden) continue;
+          if (Phaser.Math.Distance.Between(p.x, p.y, b.spr.x, b.spr.y) < 38 * b.scale) {
+            playBirdChirpSound(b.stage === 0 ? 'peep' : 'chirp', 0.95);
+            this.burst(b.spr.x, b.spr.y, 0xffe45e, 4);
+            this.tweens.add({
+              targets: b.flip,
+              y: -8,
+              duration: 90,
+              yoyo: true,
+            });
+            break;
           }
         }
       }
@@ -6308,6 +6343,7 @@ export class AviaryScene extends Phaser.Scene {
   eatFood(f: Food, bird: Bird) {
     if (f.eaten) return;
     playBirdEatSound();
+    playBirdChirpSound(bird.stage === 0 ? 'peep' : 'happy', 0.85);
     this.burst(f.img.x, f.img.y, 0xffe45e, 5);
     this.removeFood(f);
 
@@ -6657,6 +6693,7 @@ export class AviaryScene extends Phaser.Scene {
   }
 
   birdChirp(canary: Bird) {
+    playBirdChirpSound('warble', 1.1);
     playVictoryChirp();
     const x = canary.spr.x;
     const y = canary.spr.y;
@@ -6689,6 +6726,7 @@ export class AviaryScene extends Phaser.Scene {
   }
 
   sing(x: number, y: number) {
+    playBirdChirpSound('warble', 1.0);
     for (let i = 0; i < 6; i++) {
       const n = this.add.text(x + Phaser.Math.Between(-30, 30), y - 20, i % 2 ? '\u266A' : '\u266B', { fontFamily: FONT, fontSize: '34px', color: '#ffffff', stroke: '#6b4aa0', strokeThickness: 4 }).setDepth(60);
       this.tweens.add({ targets: n, y: n.y - 90 - Math.random() * 40, x: n.x + Phaser.Math.Between(-60, 60), alpha: 0, duration: 1600, delay: i * 120, onComplete: () => n.destroy() });

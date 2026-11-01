@@ -186,6 +186,16 @@ function scheduleNextBgmCycle() {
     playChimeDroplet(now + delay, chimeFreq);
   }
 
+  // 45% chance of a gentle, distant ambient songbird call in the forest
+  if (Math.random() < 0.45) {
+    const birdDelay = 1.2 + Math.random() * (chordDuration - 3.0);
+    window.setTimeout(() => {
+      if (bgmIsPlaying && isMusicEnabled) {
+        playBirdChirpSound(Math.random() < 0.5 ? 'warble' : 'trill', 0.45);
+      }
+    }, birdDelay * 1000);
+  }
+
   // Next chord trigger slightly overlapped for smooth crossfade
   const nextDelayMs = Math.round((chordDuration - 0.8) * 1000);
   bgmTimer = window.setTimeout(() => {
@@ -353,9 +363,113 @@ export function playEggDropSound() {
   gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
 
   osc.connect(gain);
-  gain.connect(sfxGainNode);
+  gain.connect(sfxGainNode!);
   osc.start(now);
   osc.stop(now + 0.08);
+}
+
+/**
+ * Natural Bird Chirping & Songbird Melodic Trills
+ * Uses frequency-modulated sine/triangle waves for realistic avian syrinx acoustics
+ */
+export function playBirdChirpSound(style: 'peep' | 'chirp' | 'trill' | 'warble' | 'happy' = 'chirp', volumeScale = 1.0) {
+  if (!isSoundEnabled) return;
+  const c = getAudioContext();
+  if (!c || !sfxGainNode) return;
+  const now = c.currentTime;
+
+  if (style === 'peep') {
+    // Cute high-pitched double peep (baby chick / fledgling)
+    [0, 0.07].forEach((offset, idx) => {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      const startF = idx === 0 ? 2500 : 2800;
+      const endF = idx === 0 ? 3200 : 3500;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(startF, now + offset);
+      osc.frequency.exponentialRampToValueAtTime(endF, now + offset + 0.025);
+      osc.frequency.exponentialRampToValueAtTime(startF * 0.88, now + offset + 0.055);
+
+      gain.gain.setValueAtTime(0.001, now + offset);
+      gain.gain.linearRampToValueAtTime(0.12 * volumeScale, now + offset + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.06);
+
+      osc.connect(gain);
+      gain.connect(sfxGainNode!);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.065);
+    });
+  } else if (style === 'trill') {
+    // Fast 3-to-4-note frequency flutter (sparrow / finch perched on a branch)
+    const pitches = [2200, 2700, 2400, 2900];
+    pitches.forEach((f, idx) => {
+      const offset = idx * 0.04;
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, now + offset);
+      osc.frequency.linearRampToValueAtTime(f + 300, now + offset + 0.02);
+      osc.frequency.linearRampToValueAtTime(f - 80, now + offset + 0.038);
+
+      gain.gain.setValueAtTime(0.001, now + offset);
+      gain.gain.linearRampToValueAtTime(0.11 * volumeScale, now + offset + 0.006);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.042);
+
+      osc.connect(gain);
+      gain.connect(sfxGainNode!);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.045);
+    });
+  } else if (style === 'warble') {
+    // Sweet lyrical songbird warble with fast avian vibrato
+    const baseFreq = 2000 + Math.random() * 350;
+    const osc = c.createOscillator();
+    const vibrato = c.createOscillator();
+    const vibratoGain = c.createGain();
+    const gain = c.createGain();
+
+    vibrato.frequency.setValueAtTime(24, now); // 24Hz bird syrinx vibrato
+    vibratoGain.gain.setValueAtTime(160, now);
+    vibrato.connect(osc.frequency);
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(baseFreq, now);
+    osc.frequency.linearRampToValueAtTime(baseFreq + 550, now + 0.07);
+    osc.frequency.linearRampToValueAtTime(baseFreq - 150, now + 0.17);
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.12 * volumeScale, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.19);
+
+    vibrato.start(now);
+    vibrato.stop(now + 0.2);
+    osc.connect(gain);
+    gain.connect(sfxGainNode!);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  } else {
+    // Default bright cheerful songbird chirp / happy peck
+    const startF = 1900 + Math.random() * 300;
+    const peakF = startF + 750 + Math.random() * 350;
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(startF, now);
+    osc.frequency.exponentialRampToValueAtTime(peakF, now + 0.035);
+    osc.frequency.exponentialRampToValueAtTime(startF * 0.9, now + 0.09);
+
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.linearRampToValueAtTime(0.13 * volumeScale, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.095);
+
+    osc.connect(gain);
+    gain.connect(sfxGainNode!);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  }
 }
 
 /** Sweet Petting Warble Chirp (When clicking on a bird in My Aviary) */
