@@ -92,6 +92,31 @@ if (!GProto.quadraticCurveTo) {
   };
 }
 
+// Safeguard Phaser Frame.prototype.updateUVs against null/destroyed data in WebGL text rendering
+const FrameProto = (Phaser.Textures.Frame as any)?.prototype;
+if (FrameProto && !FrameProto.__uvs_safeguarded) {
+  FrameProto.__uvs_safeguarded = true;
+  const origUpdateUVs = FrameProto.updateUVs;
+  FrameProto.updateUVs = function () {
+    if (!this.data) {
+      this.data = {
+        cut: { x: this.cutX || 0, y: this.cutY || 0, w: this.cutWidth || 0, h: this.cutHeight || 0, r: 0, b: 0 },
+        trim: false,
+        sourceSize: { w: this.width || 0, h: this.height || 0 },
+        spriteSourceSize: { x: 0, y: 0, w: this.cutWidth || 0, h: this.cutHeight || 0, r: 0, b: 0 },
+        radius: 0,
+        drawImage: { x: 0, y: 0, width: this.cutWidth || 0, height: this.cutHeight || 0 },
+        is3Slice: false,
+        scale9: false,
+        scale9Borders: { x: 0, y: 0, w: 0, h: 0 },
+      };
+    } else if (!this.data.drawImage) {
+      this.data.drawImage = { x: 0, y: 0, width: this.cutWidth || 0, height: this.cutHeight || 0 };
+    }
+    return origUpdateUVs.call(this);
+  };
+}
+
 /** Registers fluid sprite sheet animations for the normal bird (sparrow) evolution sequence. */
 export function registerSparrowAnims(scene: Phaser.Scene) {
   for (let s = 0; s <= 2; s++) {

@@ -2735,6 +2735,24 @@ export class AviaryScene extends Phaser.Scene {
     this.modalItems = [];
     this.gemText = undefined;
     this.topGemText = undefined;
+    this.coinText = undefined;
+    this.birdText = undefined as any;
+    this.hint = undefined;
+    this.shops = [];
+    this.clouds = [];
+    this.birds = [];
+    this.foods = [];
+    this.coinList = [];
+    this.predators = [];
+    this.pets = [];
+    this.gliders = [];
+    this.missiles = [];
+    this.webs = [];
+    this.pinecones = [];
+    this.sceneryImages = [];
+    this.spots = [];
+    this.pauseModalContainer = undefined;
+    this.warningContainer = undefined;
     this.sunbeams = undefined;
     this.ambientMotes = [];
     this.foregroundVines = undefined;
@@ -2857,6 +2875,23 @@ export class AviaryScene extends Phaser.Scene {
   }
 
   create() {
+    this.coinText = undefined;
+    this.gemText = undefined;
+    this.topGemText = undefined;
+    this.birdText = undefined as any;
+    this.shops = [];
+    this.birds = [];
+    this.foods = [];
+    this.coinList = [];
+    this.predators = [];
+    this.pets = [];
+    this.gliders = [];
+    this.missiles = [];
+    this.webs = [];
+    this.pinecones = [];
+    this.sceneryImages = [];
+    this.spots = [];
+
     const save = loadSave();
     makeTextures(this);
 
@@ -6071,31 +6106,53 @@ export class AviaryScene extends Phaser.Scene {
   }
 
   refreshUi() {
-    if (this.coinText) {
-      this.coinText.setText(this.coins.toLocaleString());
-      this.coinText.setScale(Math.min(1, 88 / Math.max(1, this.coinText.width)));
+    if (this.coinText && this.coinText.scene && this.coinText.active) {
+      try {
+        this.coinText.setText(this.coins.toLocaleString());
+        this.coinText.setScale(Math.min(1, 88 / Math.max(1, this.coinText.width)));
+      } catch (e) {
+        console.warn('refreshUi coinText error:', e);
+      }
     }
-    if (this.gemText) {
-      this.gemText.setText(this.gems.toLocaleString());
-      this.gemText.setScale(Math.min(1, 88 / Math.max(1, this.gemText.width)));
+    if (this.gemText && this.gemText.scene && this.gemText.active) {
+      try {
+        this.gemText.setText(this.gems.toLocaleString());
+        this.gemText.setScale(Math.min(1, 88 / Math.max(1, this.gemText.width)));
+      } catch (e) {
+        console.warn('refreshUi gemText error:', e);
+      }
     }
-    if (this.topGemText) {
-      this.topGemText.setText(this.gems.toLocaleString());
-      this.topGemText.setScale(Math.min(1, 80 / Math.max(1, this.topGemText.width)));
+    if (this.topGemText && this.topGemText.scene && this.topGemText.active) {
+      try {
+        this.topGemText.setText(this.gems.toLocaleString());
+        this.topGemText.setScale(Math.min(1, 80 / Math.max(1, this.topGemText.width)));
+      } catch (e) {
+        console.warn('refreshUi topGemText error:', e);
+      }
     }
-    if (this.sandbox) {
-      const petCount = this.birds.filter((b) => !b.isFeeder).length;
-      const feederCount = this.birds.filter((b) => b.isFeeder).length;
-      this.birdText?.setText(feederCount > 0 ? `Flock ${petCount} (+${feederCount})` : `Flock ${petCount}`);
-    } else {
-      this.birdText?.setText(`Flock ${this.birds.length}`);
+    if (this.birdText && this.birdText.scene && this.birdText.active) {
+      try {
+        if (this.sandbox) {
+          const petCount = this.birds.filter((b) => !b.isFeeder).length;
+          const feederCount = this.birds.filter((b) => b.isFeeder).length;
+          this.birdText.setText(feederCount > 0 ? `Flock ${petCount} (+${feederCount})` : `Flock ${petCount}`);
+        } else {
+          this.birdText.setText(`Flock ${this.birds.length}`);
+        }
+      } catch (e) {
+        console.warn('refreshUi birdText error:', e);
+      }
     }
     for (const s of this.shops) {
       const t = s.texts();
-      s.sub?.setText(t.sub);
-      s.tiny?.setText(t.tiny);
-      if (t.icon) s.icon?.setTexture(t.icon);
-      if (t.title) s.title?.setText(t.title);
+      try {
+        if (s.sub && s.sub.scene && s.sub.active) s.sub.setText(t.sub);
+        if (s.tiny && s.tiny.scene && s.tiny.active) s.tiny.setText(t.tiny);
+        if (t.icon && s.icon && s.icon.scene && s.icon.active) s.icon.setTexture(t.icon);
+        if (t.title && s.title && s.title.scene && s.title.active) s.title.setText(t.title);
+      } catch (e) {
+        console.warn('refreshUi shop error:', e);
+      }
     }
   }
 
