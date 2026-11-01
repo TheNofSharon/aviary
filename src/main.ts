@@ -9,9 +9,19 @@ const save = loadSave();
 setAudioSettings(save.soundEnabled ?? true, save.musicEnabled ?? true);
 
 const unlockAudio = () => {
-  getAudioContext();
-  if (save.musicEnabled ?? true) {
-    startAmbientBgm();
+  const c = getAudioContext();
+  if (c && c.state === 'suspended') {
+    c.resume()
+      .then(() => {
+        if (save.musicEnabled ?? true) {
+          startAmbientBgm();
+        }
+      })
+      .catch(() => {});
+  } else if (c) {
+    if (save.musicEnabled ?? true) {
+      startAmbientBgm();
+    }
   }
   window.removeEventListener('pointerdown', unlockAudio);
   window.removeEventListener('keydown', unlockAudio);
@@ -31,6 +41,9 @@ const game = new Phaser.Game({
     antialiasGL: true,
     roundPixels: false,
     powerPreference: 'high-performance',
+  },
+  audio: {
+    noAudio: true,
   },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   scene: [MenuScene, AviaryScene],
