@@ -1189,7 +1189,7 @@ export class MenuScene extends Phaser.Scene {
     bgmBg.fillRoundedRect(-180, -16, 360, 32, 10);
     bgmBg.lineStyle(2, bgmOn ? 0x14b8a6 : 0x9ca3af, 1);
     bgmBg.strokeRoundedRect(-180, -16, 360, 32, 10);
-    const bgmTxt = this.add.text(0, 0, `🎵  Ambient Music: ${bgmOn ? 'ON' : 'MUTED'}`, {
+    const bgmTxt = this.add.text(0, 0, `🎵  Music (Harp & Nature): ${bgmOn ? 'ON' : 'MUTED'}`, {
       fontFamily: FONT,
       fontSize: '13px',
       fontStyle: 'bold',

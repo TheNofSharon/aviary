@@ -84,33 +84,131 @@ export function toggleMusic(): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// CALM, AMBIENT PROCEDURAL BACKGROUND MUSIC
-// Gentle nature pentatonic chords + soft wind chime / harp droplets
+// CALM CELTIC HARP & AMBIENT FOREST BGM
+// Acoustic plucked harp arpeggios + subtle warm nature pad
 // ---------------------------------------------------------------------------
 
-// Peaceful woodland chord progressions in F Major / D Minor (warm & grounding)
-const CHORD_PROGRESSIONS = [
-  // Fmaj7: F3, A3, C4, E4
-  [174.61, 220.0, 261.63, 329.63],
-  // Cmaj: C3, G3, C4, E4
-  [130.81, 196.0, 261.63, 329.63],
-  // Dm7: D3, A3, C4, F4
-  [146.83, 220.0, 261.63, 349.23],
-  // Bbmaj7: Bb2, F3, A3, D4
-  [116.54, 174.61, 220.0, 293.66],
-];
+// Standard tuning frequencies for folk harp strings
+const H: Record<string, number> = {
+  F2: 87.31,
+  G2: 98.0,
+  A2: 110.0,
+  Bb2: 116.54,
+  C3: 130.81,
+  D3: 146.83,
+  E3: 164.81,
+  F3: 174.61,
+  G3: 196.0,
+  A3: 220.0,
+  Bb3: 233.08,
+  C4: 261.63,
+  D4: 293.66,
+  E4: 329.63,
+  F4: 349.23,
+  G4: 392.0,
+  A4: 440.0,
+  Bb4: 466.16,
+  C5: 523.25,
+  D5: 587.33,
+  E5: 659.25,
+  F5: 698.46,
+  G5: 783.99,
+  A5: 880.0,
+  C6: 1046.5,
+};
 
-// Pentatonic droplet note frequencies (gentle acoustic glockenspiel / harp)
-const CHIME_NOTES = [
-  349.23, // F4
-  392.0,  // G4
-  440.0,  // A4
-  523.25, // C5
-  587.33, // D5
-  698.46, // F5
-  783.99, // G5
-  880.0,  // A5
-  1046.5, // C6
+// Soothing, melodic harp phrase compositions
+const HARP_COMPOSITIONS: Array<{
+  padNotes: number[];
+  plucks: Array<{ freq: number; delay: number; vel?: number; dur?: number }>;
+  duration: number;
+}> = [
+  // 1. "Canopy Morning" (F Major Blossom Arpeggio)
+  {
+    padNotes: [H.F3, H.C4, H.A4],
+    duration: 8.5,
+    plucks: [
+      { freq: H.F2, delay: 0.1, vel: 0.9, dur: 3.2 },
+      { freq: H.C3, delay: 0.5, vel: 0.75, dur: 2.8 },
+      { freq: H.F3, delay: 0.9, vel: 0.8, dur: 2.6 },
+      { freq: H.A3, delay: 1.3, vel: 0.85, dur: 2.4 },
+      { freq: H.C4, delay: 1.75, vel: 0.9, dur: 2.4 },
+      { freq: H.F4, delay: 2.2, vel: 0.95, dur: 2.5 },
+      { freq: H.A4, delay: 2.75, vel: 0.9, dur: 2.6 },
+      { freq: H.C5, delay: 3.4, vel: 1.0, dur: 3.0 },
+      { freq: H.A4, delay: 4.2, vel: 0.75, dur: 2.4 },
+      { freq: H.F4, delay: 5.0, vel: 0.7, dur: 2.6 },
+    ],
+  },
+  // 2. "Forest Stream" (D Minor / F Pentatonic Falling Ripple)
+  {
+    padNotes: [H.D3, H.A3, H.F4],
+    duration: 8.2,
+    plucks: [
+      { freq: H.D3, delay: 0.1, vel: 0.95, dur: 3.0 },
+      { freq: H.A3, delay: 0.45, vel: 0.8, dur: 2.8 },
+      { freq: H.D4, delay: 0.85, vel: 0.85, dur: 2.6 },
+      { freq: H.F4, delay: 1.25, vel: 0.9, dur: 2.5 },
+      { freq: H.A4, delay: 1.7, vel: 0.95, dur: 2.6 },
+      { freq: H.D5, delay: 2.2, vel: 1.0, dur: 3.0 },
+      { freq: H.C5, delay: 2.9, vel: 0.85, dur: 2.6 },
+      { freq: H.A4, delay: 3.6, vel: 0.8, dur: 2.4 },
+      { freq: H.F4, delay: 4.3, vel: 0.75, dur: 2.4 },
+      { freq: H.D4, delay: 5.1, vel: 0.7, dur: 2.8 },
+    ],
+  },
+  // 3. "Sunlit Meadow" (Bb Major 7 Peaceful Pastoral)
+  {
+    padNotes: [H.Bb2, H.F3, H.D4],
+    duration: 8.4,
+    plucks: [
+      { freq: H.Bb2, delay: 0.1, vel: 0.9, dur: 3.2 },
+      { freq: H.F3, delay: 0.5, vel: 0.75, dur: 2.8 },
+      { freq: H.Bb3, delay: 0.9, vel: 0.8, dur: 2.6 },
+      { freq: H.D4, delay: 1.35, vel: 0.85, dur: 2.5 },
+      { freq: H.F4, delay: 1.8, vel: 0.9, dur: 2.6 },
+      { freq: H.A4, delay: 2.3, vel: 0.95, dur: 2.7 },
+      { freq: H.D5, delay: 2.95, vel: 1.0, dur: 3.0 },
+      { freq: H.Bb4, delay: 3.8, vel: 0.8, dur: 2.5 },
+      { freq: H.F4, delay: 4.6, vel: 0.7, dur: 2.5 },
+    ],
+  },
+  // 4. "Evening Songbird" (C Major 9 Gentle Lullaby)
+  {
+    padNotes: [H.C3, H.G3, H.E4],
+    duration: 8.6,
+    plucks: [
+      { freq: H.C3, delay: 0.1, vel: 0.9, dur: 3.2 },
+      { freq: H.G3, delay: 0.5, vel: 0.75, dur: 2.8 },
+      { freq: H.C4, delay: 0.95, vel: 0.8, dur: 2.6 },
+      { freq: H.E4, delay: 1.4, vel: 0.85, dur: 2.6 },
+      { freq: H.G4, delay: 1.85, vel: 0.9, dur: 2.7 },
+      { freq: H.C5, delay: 2.35, vel: 0.95, dur: 2.8 },
+      { freq: H.D5, delay: 3.0, vel: 1.0, dur: 3.2 },
+      { freq: H.G4, delay: 3.9, vel: 0.8, dur: 2.4 },
+      { freq: H.E4, delay: 4.8, vel: 0.75, dur: 2.6 },
+      { freq: H.C4, delay: 5.6, vel: 0.7, dur: 2.8 },
+    ],
+  },
+  // 5. "Wind Through the Leaves" (F Pentatonic Harp Glissando Wave)
+  {
+    padNotes: [H.F3, H.C4, H.F4],
+    duration: 8.8,
+    plucks: [
+      { freq: H.F2, delay: 0.1, vel: 0.95, dur: 3.5 },
+      { freq: H.C3, delay: 0.8, vel: 0.7, dur: 2.6 },
+      { freq: H.F3, delay: 1.0, vel: 0.72, dur: 2.6 },
+      { freq: H.G3, delay: 1.2, vel: 0.75, dur: 2.6 },
+      { freq: H.A3, delay: 1.4, vel: 0.78, dur: 2.6 },
+      { freq: H.C4, delay: 1.6, vel: 0.82, dur: 2.7 },
+      { freq: H.D4, delay: 1.8, vel: 0.86, dur: 2.8 },
+      { freq: H.F4, delay: 2.0, vel: 0.9, dur: 2.9 },
+      { freq: H.A4, delay: 2.25, vel: 0.95, dur: 3.0 },
+      { freq: H.C5, delay: 2.55, vel: 1.0, dur: 3.4 },
+      { freq: H.A4, delay: 3.6, vel: 0.75, dur: 2.6 },
+      { freq: H.F4, delay: 4.6, vel: 0.7, dur: 2.8 },
+    ],
+  },
 ];
 
 let chordIndex = 0;
@@ -145,50 +243,47 @@ function scheduleNextBgmCycle() {
   if (!c || !bgmGainNode) return;
 
   const now = c.currentTime;
-  const chord = CHORD_PROGRESSIONS[chordIndex % CHORD_PROGRESSIONS.length];
+  const comp = HARP_COMPOSITIONS[chordIndex % HARP_COMPOSITIONS.length];
   chordIndex++;
 
-  const chordDuration = 7.0; // 7 seconds per breathing ambient chord
+  const cycleDuration = comp.duration;
 
-  // Create warm, warm low-passed chord pad
-  const filter = c.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.setValueAtTime(450, now);
-  filter.frequency.linearRampToValueAtTime(750, now + chordDuration * 0.5);
-  filter.frequency.linearRampToValueAtTime(400, now + chordDuration);
+  // 1. Soft warm ambient background pad (very quiet bed of air, gain ~0.02)
+  const padFilter = c.createBiquadFilter();
+  padFilter.type = 'lowpass';
+  padFilter.frequency.setValueAtTime(360, now);
+  padFilter.frequency.linearRampToValueAtTime(520, now + cycleDuration * 0.5);
+  padFilter.frequency.linearRampToValueAtTime(340, now + cycleDuration);
 
   const padGain = c.createGain();
   padGain.gain.setValueAtTime(0.001, now);
-  padGain.gain.linearRampToValueAtTime(0.045, now + 2.0); // Gentle 2s attack
-  padGain.gain.linearRampToValueAtTime(0.045, now + chordDuration - 1.8);
-  padGain.gain.linearRampToValueAtTime(0.001, now + chordDuration);
+  padGain.gain.linearRampToValueAtTime(0.022, now + 1.8);
+  padGain.gain.linearRampToValueAtTime(0.022, now + cycleDuration - 1.6);
+  padGain.gain.linearRampToValueAtTime(0.001, now + cycleDuration);
 
-  filter.connect(padGain);
+  padFilter.connect(padGain);
   padGain.connect(bgmGainNode);
 
   const newOscs: OscillatorNode[] = [];
-  for (const freq of chord) {
+  for (const freq of comp.padNotes) {
     const osc = c.createOscillator();
-    osc.type = 'sine'; // pure, mellow harmonic
+    osc.type = 'sine';
     osc.frequency.setValueAtTime(freq, now);
-    osc.connect(filter);
+    osc.connect(padFilter);
     osc.start(now);
-    osc.stop(now + chordDuration);
+    osc.stop(now + cycleDuration);
     newOscs.push(osc);
   }
   bgmChordOscs = newOscs;
 
-  // Schedule 2 to 4 tranquil wind chime droplets during this chord
-  const numChimes = 2 + Math.floor(Math.random() * 3);
-  for (let i = 0; i < numChimes; i++) {
-    const delay = 0.8 + Math.random() * (chordDuration - 2.5);
-    const chimeFreq = CHIME_NOTES[Math.floor(Math.random() * CHIME_NOTES.length)];
-    playChimeDroplet(now + delay, chimeFreq);
+  // 2. Schedule acoustic harp pluck melody
+  for (const p of comp.plucks) {
+    playHarpPluck(now + p.delay, p.freq, p.vel ?? 0.85, p.dur ?? 2.8);
   }
 
-  // 45% chance of a gentle, distant ambient songbird call in the forest
-  if (Math.random() < 0.45) {
-    const birdDelay = 1.2 + Math.random() * (chordDuration - 3.0);
+  // 3. 50% chance of a gentle distant songbird warble drifting through the harp notes
+  if (Math.random() < 0.5) {
+    const birdDelay = 1.5 + Math.random() * (cycleDuration - 3.5);
     window.setTimeout(() => {
       if (bgmIsPlaying && isMusicEnabled) {
         playBirdChirpSound(Math.random() < 0.5 ? 'warble' : 'trill', 0.45);
@@ -196,32 +291,62 @@ function scheduleNextBgmCycle() {
     }, birdDelay * 1000);
   }
 
-  // Next chord trigger slightly overlapped for smooth crossfade
-  const nextDelayMs = Math.round((chordDuration - 0.8) * 1000);
+  // Next harp phrase scheduled with breathing crossfade
+  const nextDelayMs = Math.round((cycleDuration - 0.7) * 1000);
   bgmTimer = window.setTimeout(() => {
     scheduleNextBgmCycle();
   }, nextDelayMs);
 }
 
-function playChimeDroplet(time: number, freq: number) {
+/**
+ * Organic Acoustic Harp String Pluck
+ * Models the fingernail pluck attack, wooden soundboard damping, and reverberant string ring
+ */
+function playHarpPluck(time: number, freq: number, velocity = 1.0, duration = 2.8) {
   const c = getAudioContext();
   if (!c || !bgmGainNode) return;
 
-  const osc = c.createOscillator();
+  // 1. Dynamic lowpass damping filter (wooden harp body resonance + string damping)
+  const filter = c.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(Math.min(4800, freq * 5.0), time);
+  filter.frequency.exponentialRampToValueAtTime(Math.max(340, freq * 1.2), time + 0.55);
+
+  // 2. Main pluck envelope (crisp 8ms finger pluck attack + natural exponential string ring)
   const gain = c.createGain();
+  const peakVol = 0.08 * velocity;
+  gain.gain.setValueAtTime(0.0001, time);
+  gain.gain.linearRampToValueAtTime(peakVol, time + 0.008);
+  gain.gain.exponentialRampToValueAtTime(peakVol * 0.42, time + 0.25);
+  gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
 
-  osc.type = 'triangle'; // warm acoustic bell/rhodes timbre
-  osc.frequency.setValueAtTime(freq, time);
+  // 3. Dual string oscillators for acoustic warm wood resonance
+  const osc1 = c.createOscillator();
+  osc1.type = 'triangle'; // rich fundamental
+  osc1.frequency.setValueAtTime(freq, time);
 
-  gain.gain.setValueAtTime(0.001, time);
-  gain.gain.linearRampToValueAtTime(0.032, time + 0.04); // soft attack
-  gain.gain.exponentialRampToValueAtTime(0.0001, time + 2.2); // long lingering decay
+  const osc2 = c.createOscillator();
+  osc2.type = 'sine'; // warm octave overtone
+  osc2.frequency.setValueAtTime(freq * 2, time);
 
-  osc.connect(gain);
+  const harmGain = c.createGain();
+  harmGain.gain.setValueAtTime(0.3, time);
+  harmGain.gain.exponentialRampToValueAtTime(0.01, time + 0.4);
+
+  // Connect graph
+  osc1.connect(filter);
+  osc2.connect(harmGain);
+  harmGain.connect(filter);
+
+  filter.connect(gain);
   gain.connect(bgmGainNode);
 
-  osc.start(time);
-  osc.stop(time + 2.3);
+  osc1.start(time);
+  osc1.stop(time + duration);
+  osc2.start(time);
+  osc2.stop(time + duration);
+
+  bgmChordOscs.push(osc1, osc2);
 }
 
 // ---------------------------------------------------------------------------
