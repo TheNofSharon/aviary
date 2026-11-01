@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Production build output
+dist/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Logs and scratch output
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.vite/
+scratch/*.png
+scratch/*.jpg

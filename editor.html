@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Insaterrarium • Level Designer Studio</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎨</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg-main: #0b0f19;
+        --bg-panel: #111827;
+        --bg-panel-header: #1f2937;
+        --border-color: #374151;
+        --accent: #38bdf8;
+        --accent-hover: #0284c7;
+        --text-primary: #f3f4f6;
+        --text-secondary: #9ca3af;
+        --text-muted: #6b7280;
+        --danger: #ef4444;
+        --success: #22c55e;
+        --warning: #f59e0b;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: 'Inter', -apple-system, sans-serif;
+        background: var(--bg-main);
+        color: var(--text-primary);
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* TOP HEADER */
+      #topbar {
+        height: 54px;
+        background: var(--bg-panel);
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px;
+        z-index: 50;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        font-size: 16px;
+        color: var(--accent);
+      }
+      .toolbar-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      button.btn {
+        background: #1f2937;
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s ease;
+      }
+      button.btn:hover { background: #374151; border-color: #4b5563; }
+      button.btn-primary { background: #0284c7; border-color: #38bdf8; color: #ffffff; }
+      button.btn-primary:hover { background: #0369a1; }
+      button.btn-success { background: #166534; border-color: #22c55e; color: #ffffff; }
+      button.btn-success:hover { background: #14532d; }
+      button.btn-danger { background: #991b1b; border-color: #ef4444; color: #ffffff; }
+      button.btn-danger:hover { background: #7f1d1d; }
+
+      select.select-input {
+        background: #1f2937;
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        outline: none;
+      }
+
+      /* MAIN WORKSPACE */
+      #workspace {
+        flex: 1;
+        display: flex;
+        height: calc(100vh - 54px);
+        overflow: hidden;
+      }
+
+      /* LEFT PANEL: HIERARCHY */
+      #left-panel {
+        width: 290px;
+        background: var(--bg-panel);
+        border-right: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+      }
+      .panel-header {
+        padding: 10px 14px;
+        background: var(--bg-panel-header);
+        border-bottom: 1px solid var(--border-color);
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-secondary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .hierarchy-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .tree-node {
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #1a2234;
+        border: 1px solid transparent;
+        transition: all 0.1s;
+      }
+      .tree-node:hover { background: #242f47; }
+      .tree-node.selected { background: #0c4a6e; border-color: var(--accent); color: #ffffff; font-weight: 600; }
+      .tree-node-sub {
+        margin-left: 18px;
+        font-size: 12px;
+        padding: 6px 10px;
+        background: #131b2e;
+      }
+
+      /* CENTER VIEWPORT */
+      #viewport-container {
+        flex: 1;
+        background: #030712;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+      }
+      #game-canvas-wrap {
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+        border: 1px solid #374151;
+        border-radius: 8px;
+        overflow: hidden;
+        position: relative;
+        width: 1280px;
+        height: 720px;
+      }
+      #editor-phaser-root,
+      #editor-phaser-root canvas {
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
+      }
+      #viewport-hud {
+        position: absolute;
+        top: 14px;
+        left: 20px;
+        background: rgba(15, 23, 42, 0.9);
+        backdrop-filter: blur(8px);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-family: 'Fira Code', monospace;
+        color: var(--accent);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        pointer-events: auto;
+        z-index: 25;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .hud-btn {
+        background: #1e293b;
+        border: 1px solid rgba(56, 189, 248, 0.5);
+        color: var(--accent);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-family: 'Fira Code', monospace;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .hud-btn:hover {
+        background: #0284c7;
+        color: #ffffff;
+        border-color: #38bdf8;
+      }
+
+      /* RIGHT PANEL: INSPECTOR */
+      #right-panel {
+        width: 330px;
+        background: var(--bg-panel);
+        border-left: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+      }
+      .inspector-content {
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .prop-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: #161f30;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid #232f48;
+      }
+      .prop-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .prop-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      input[type="number"], input[type="text"] {
+        flex: 1;
+        background: #0f172a;
+        color: #f8fafc;
+        border: 1px solid #334155;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-family: 'Fira Code', monospace;
+        outline: none;
+      }
+      input[type="number"]:focus, input[type="text"]:focus {
+        border-color: var(--accent);
+      }
+      input[type="range"] {
+        flex: 1;
+        accent-color: var(--accent);
+      }
+      .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+
+      /* TOAST */
+      #toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: #0f172a;
+        color: #38bdf8;
+        border: 1px solid #38bdf8;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+        opacity: 0;
+        transform: translateY(10px);
+        transition: all 0.25s ease;
+        pointer-events: none;
+        z-index: 1000;
+      }
+      #toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* MODAL */
+      #json-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.75);
+        backdrop-filter: blur(4px);
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+      }
+      #json-modal.open { display: flex; }
+      .modal-box {
+        width: 700px;
+        max-width: 90vw;
+        background: #111827;
+        border: 1px solid #374151;
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      textarea#json-textarea {
+        width: 100%;
+        height: 380px;
+        background: #030712;
+        color: #38bdf8;
+        border: 1px solid #374151;
+        border-radius: 8px;
+        padding: 12px;
+        font-family: 'Fira Code', monospace;
+        font-size: 12px;
+        resize: none;
+        outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- TOP BAR -->
+    <header id="topbar">
+      <div class="brand">
+        <span>🎨</span>
+        <span>INSATERRARIUM LEVEL STUDIO</span>
+      </div>
+
+      <div class="toolbar-group">
+        <label style="font-size:12px; color:#9ca3af; font-weight:600;">STAGE:</label>
+        <select id="stage-select" class="select-input">
+          <optgroup label="World 1: Sunny Meadow">
+            <option value="world_1_stage_1">World 1-1 (Welcome)</option>
+            <option value="world_1_stage_2">World 1-2 (Hawks)</option>
+            <option value="world_1_stage_3">World 1-3 (Golden Plumage)</option>
+            <option value="world_1_stage_4">World 1-4 (Meadow Finale)</option>
+          </optgroup>
+          <optgroup label="World 2: Rainforest Canopy">
+            <option value="world_2_stage_1">World 2-1 (Falcon Hunters)</option>
+            <option value="world_2_stage_2">World 2-2 (Thieving Crows)</option>
+            <option value="world_2_stage_3">World 2-3 (Food Chain)</option>
+            <option value="world_2_stage_4">World 2-4 (Canopy Finale)</option>
+          </optgroup>
+          <optgroup label="World 3: Blossom Sanctuary">
+            <option value="world_3_stage_1">World 3-1 (Nest Mother)</option>
+            <option value="world_3_stage_2">World 3-2 (Breeder Symbiosis)</option>
+            <option value="world_3_stage_3">World 3-3 (Sanctuary Incursion)</option>
+            <option value="world_3_stage_4">World 3-4 (Sanctuary Finale)</option>
+          </optgroup>
+          <optgroup label="World 4: Volcanic Mystic Peaks">
+            <option value="world_4_stage_1">World 4-1 (Sugar Glider)</option>
+            <option value="world_4_stage_2">World 4-2 (Circle of Rebirth)</option>
+            <option value="world_4_stage_3">World 4-3 (Volcanic Wyvern)</option>
+            <option value="world_4_stage_4">World 4-4 (Ascendance Boss)</option>
+          </optgroup>
+          <optgroup label="Special Modes">
+            <option value="sandbox">My Aviary (Virtual Terrarium)</option>
+            <option value="challenge_night_bats">🦇 Secret Night of the Bats</option>
+          </optgroup>
+        </select>
+
+        <button id="btn-add-tree" class="btn">🌳 Tree</button>
+        <button id="btn-add-branch" class="btn">🌿 Branch</button>
+        <button id="btn-add-nest" class="btn">🪺 Nest</button>
+        <button id="btn-add-perch" class="btn">🐦 Perch</button>
+        <button id="btn-add-leaves" class="btn">🍃 Leaves</button>
+        <button id="btn-add-prop" class="btn">🪨 Prop</button>
+      </div>
+
+      <div class="toolbar-group">
+        <button id="btn-save" class="btn btn-success">💾 Save to Game</button>
+        <button id="btn-play" class="btn btn-primary">🎮 Launch Game</button>
+        <button id="btn-export" class="btn">📋 JSON</button>
+        <button id="btn-reset" class="btn btn-danger">↺ Reset</button>
+      </div>
+    </header>
+
+    <!-- WORKSPACE -->
+    <div id="workspace">
+      <!-- LEFT: HIERARCHY OUTLINER -->
+      <aside id="left-panel">
+        <div class="panel-header">
+          <span>Hierarchy Outliner</span>
+          <span id="obj-count" style="font-size:11px; color:#38bdf8;">0 objects</span>
+        </div>
+        <div id="hierarchy-tree" class="hierarchy-list">
+          <!-- Dynamically populated -->
+        </div>
+      </aside>
+
+      <!-- CENTER: CANVAS VIEWPORT -->
+      <main id="viewport-container">
+        <div id="viewport-hud">
+          <span>1280 × 720</span>
+          <span style="opacity:0.35;">|</span>
+          <span>Zoom: <strong id="hud-zoom-val" style="color:#ffffff;">100%</strong></span>
+          <button id="btn-reset-view" class="hud-btn" title="Reset View (Double-click Scrollwheel)">↺ 100%</button>
+          <span style="opacity:0.35;">|</span>
+          <span style="font-size:11px; color:#94a3b8;">🖱️ Scroll: Zoom • Click-Wheel: Pan</span>
+        </div>
+        <div id="game-canvas-wrap">
+          <div id="editor-phaser-root"></div>
+        </div>
+      </main>
+
+      <!-- RIGHT: INSPECTOR PROPERTIES -->
+      <aside id="right-panel">
+        <div class="panel-header">
+          <span>Object Inspector</span>
+          <span id="selected-type-badge" style="font-size:11px; color:#f59e0b;">Select an object</span>
+        </div>
+        <div id="inspector-body" class="inspector-content">
+          <div style="color:#6b7280; font-size:13px; text-align:center; padding:30px 0;">
+            Click on any tree, branch, or scenery prop on the canvas or hierarchy to edit its exact properties.
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast">Changes Saved!</div>
+
+    <!-- JSON EXPORT / IMPORT MODAL -->
+    <div id="json-modal">
+      <div class="modal-box">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3 style="font-size:16px; font-weight:700; color:#38bdf8;">Level Layout JSON</h3>
+          <button id="btn-modal-close" class="btn">✖ Close</button>
+        </div>
+        <textarea id="json-textarea"></textarea>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <button id="btn-copy-clipboard" class="btn btn-primary">📋 Copy to Clipboard</button>
+          <button id="btn-apply-json" class="btn btn-success">📥 Apply Pasted JSON</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/editor/main.ts"></script>
+  </body>
+</html>
