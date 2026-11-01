@@ -681,6 +681,9 @@ export interface Save {
   challenges?: Record<string, 'unlocked' | 'completed'>;
   /** Persistent session saved when leaving mid-game to menu */
   suspendedSession?: SuspendedSession;
+  /** Audio toggles */
+  soundEnabled?: boolean;
+  musicEnabled?: boolean;
 }
 
 /**

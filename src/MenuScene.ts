@@ -4,6 +4,7 @@ import { PETS, WORLDS, getUnlockedPets, getWorldAndStage, loadSave, maxPets, pat
 import { LogbookUI } from './LogbookUI';
 import { AviaryScene } from './AviaryScene';
 import { ACHIEVEMENTS, getUnlockedCount, isAchievementUnlocked } from './achievements';
+import { isSoundOn, isMusicOn, toggleSound, toggleMusic, playButtonClickSound } from './audio';
 
 const W = 1280;
 const H = 720;
@@ -1134,74 +1135,125 @@ export class MenuScene extends Phaser.Scene {
     });
 
     // Aspect Ratio Toggle: 16:9 / 4:3
-    const aspectBtn = this.add.container(0, 10);
+    const aspectBtn = this.add.container(0, -5);
     const abg = this.add.graphics();
     abg.fillStyle(0x1a4563, 1);
-    abg.fillRoundedRect(-180, -18, 360, 36, 12);
+    abg.fillRoundedRect(-180, -16, 360, 32, 10);
     abg.lineStyle(2, 0x38bdf8, 1);
-    abg.strokeRoundedRect(-180, -18, 360, 36, 12);
+    abg.strokeRoundedRect(-180, -16, 360, 32, 10);
     const aspectTxt = this.add.text(0, 0, `📐  Background: ${this.aspectRatio === '16:9' ? '16:9 Widescreen (Bg 1)' : '4:3 Classic (Bg 2)'}`, {
       fontFamily: FONT,
-      fontSize: '14px',
+      fontSize: '13px',
       fontStyle: 'bold',
       color: '#7df9ff',
     }).setOrigin(0.5);
     aspectBtn.add([abg, aspectTxt]);
-    aspectBtn.setSize(360, 36).setInteractive({ useHandCursor: true });
+    aspectBtn.setSize(360, 32).setInteractive({ useHandCursor: true });
     aspectBtn.on('pointerdown', () => {
+      playButtonClickSound();
       this.aspectRatio = this.aspectRatio === '16:9' ? '4:3' : '16:9';
       patchSave({ aspectRatio: this.aspectRatio });
       this.switchView('options');
     });
     rightCard.add(aspectBtn);
 
+    // Sound FX Toggle Button
+    const sfxBtn = this.add.container(0, 34);
+    const sfxBg = this.add.graphics();
+    const sfxOn = isSoundOn();
+    sfxBg.fillStyle(sfxOn ? 0x14532d : 0x374151, 1);
+    sfxBg.fillRoundedRect(-180, -16, 360, 32, 10);
+    sfxBg.lineStyle(2, sfxOn ? 0x22c55e : 0x9ca3af, 1);
+    sfxBg.strokeRoundedRect(-180, -16, 360, 32, 10);
+    const sfxTxt = this.add.text(0, 0, `🔊  Sound Effects: ${sfxOn ? 'ON' : 'MUTED'}`, {
+      fontFamily: FONT,
+      fontSize: '13px',
+      fontStyle: 'bold',
+      color: sfxOn ? '#86efac' : '#d1d5db',
+    }).setOrigin(0.5);
+    sfxBtn.add([sfxBg, sfxTxt]);
+    sfxBtn.setSize(360, 32).setInteractive({ useHandCursor: true });
+    sfxBtn.on('pointerdown', () => {
+      const nowOn = toggleSound();
+      patchSave({ soundEnabled: nowOn });
+      if (nowOn) playButtonClickSound();
+      this.switchView('options');
+    });
+    rightCard.add(sfxBtn);
+
+    // Ambient Music Toggle Button
+    const bgmBtn = this.add.container(0, 73);
+    const bgmBg = this.add.graphics();
+    const bgmOn = isMusicOn();
+    bgmBg.fillStyle(bgmOn ? 0x115e59 : 0x374151, 1);
+    bgmBg.fillRoundedRect(-180, -16, 360, 32, 10);
+    bgmBg.lineStyle(2, bgmOn ? 0x14b8a6 : 0x9ca3af, 1);
+    bgmBg.strokeRoundedRect(-180, -16, 360, 32, 10);
+    const bgmTxt = this.add.text(0, 0, `🎵  Ambient Music: ${bgmOn ? 'ON' : 'MUTED'}`, {
+      fontFamily: FONT,
+      fontSize: '13px',
+      fontStyle: 'bold',
+      color: bgmOn ? '#5eead4' : '#d1d5db',
+    }).setOrigin(0.5);
+    bgmBtn.add([bgmBg, bgmTxt]);
+    bgmBtn.setSize(360, 32).setInteractive({ useHandCursor: true });
+    bgmBtn.on('pointerdown', () => {
+      const nowOn = toggleMusic();
+      patchSave({ musicEnabled: nowOn });
+      playButtonClickSound();
+      this.switchView('options');
+    });
+    rightCard.add(bgmBtn);
+
     // Restore / Unlock All Stages Button (Instant Recovery)
-    const unlockBtn = this.add.container(0, 60);
+    const unlockBtn = this.add.container(0, 115);
     const ubg = this.add.graphics();
     ubg.fillStyle(0x166534, 1);
-    ubg.fillRoundedRect(-180, -20, 360, 40, 12);
+    ubg.fillRoundedRect(-180, -16, 360, 32, 10);
     ubg.lineStyle(2, 0x4ade80, 1);
-    ubg.strokeRoundedRect(-180, -20, 360, 40, 12);
+    ubg.strokeRoundedRect(-180, -16, 360, 32, 10);
 
     const uTxt = this.add.text(0, 0, '👑  Unlock All 16 Campaign Stages', {
       fontFamily: FONT,
-      fontSize: '15px',
+      fontSize: '13px',
       fontStyle: 'bold',
       color: '#ffffff',
     }).setOrigin(0.5);
 
     unlockBtn.add([ubg, uTxt]);
-    unlockBtn.setSize(360, 40).setInteractive({ useHandCursor: true });
+    unlockBtn.setSize(360, 32).setInteractive({ useHandCursor: true });
     unlockBtn.on('pointerdown', () => {
+      playButtonClickSound();
       patchSave({ level: 16 });
       this.switchView('stage_briefing', 16);
     });
 
     // Reset Campaign Progress Button
-    const resetBtn = this.add.container(0, 108);
+    const resetBtn = this.add.container(0, 154);
     const rbg = this.add.graphics();
     rbg.fillStyle(0x7f1d1d, 1);
-    rbg.fillRoundedRect(-180, -20, 360, 40, 12);
+    rbg.fillRoundedRect(-180, -16, 360, 32, 10);
     rbg.lineStyle(2, 0xef4444, 1);
-    rbg.strokeRoundedRect(-180, -20, 360, 40, 12);
+    rbg.strokeRoundedRect(-180, -16, 360, 32, 10);
 
     const rTxt = this.add.text(0, 0, '⚠️  Reset Campaign to World 1-1', {
       fontFamily: FONT,
-      fontSize: '15px',
+      fontSize: '13px',
       fontStyle: 'bold',
       color: '#ffffff',
     }).setOrigin(0.5);
 
     resetBtn.add([rbg, rTxt]);
-    resetBtn.setSize(360, 40).setInteractive({ useHandCursor: true });
+    resetBtn.setSize(360, 32).setInteractive({ useHandCursor: true });
     resetBtn.on('pointerdown', () => {
+      playButtonClickSound();
       patchSave({ level: 1 });
       this.switchView('stage_briefing', 1);
     });
 
-    const resetHint = this.add.text(0, 150, 'Safe Reset: Preserves your gems & sandbox aviary birds.', {
+    const resetHint = this.add.text(0, 186, 'Safe Reset: Preserves your gems & sandbox aviary birds.', {
       fontFamily: FONT,
-      fontSize: '12px',
+      fontSize: '11px',
       color: '#f87171',
     }).setOrigin(0.5);
 

@@ -1,7 +1,28 @@
 import Phaser from 'phaser';
 import { drawBranchLeaves, drawTreeCrownFront, drawStandaloneLeafCluster, renderWholeTreeStructure } from './BranchFoliage';
 import { makeTextures } from './art';
-import { playSirenSound, playWeaponSound, playVictoryChirp } from './audio';
+import {
+  playSirenSound,
+  playWeaponSound,
+  playVictoryChirp,
+  playFoodDropSound,
+  playBirdEatSound,
+  playCoinCollectSound,
+  playGemCollectSound,
+  playEggDropSound,
+  playPettingSound,
+  playBirdEvolveSound,
+  playHungryChirpSound,
+  playShopBuySound,
+  playShopErrorSound,
+  playEggPieceSound,
+  playStageClearFanfare,
+  playPredatorSpawnSound,
+  playPredatorHurtSound,
+  playPredatorDefeatedSound,
+  playMissileExplosionSound,
+  playButtonClickSound,
+} from './audio';
 import { unlockAchievement } from './achievements';
 import { LogbookUI } from './LogbookUI';
 import {
@@ -182,6 +203,7 @@ export class Bird {
   purchaseDate: string;
   mentalState: string;
   additionalNotes: string;
+  private wasHungry = false;
 
   constructor(
     private scene: AviaryScene,
@@ -347,6 +369,7 @@ export class Bird {
     if (!this.isBreeder && this.stage < 2 && this.units >= STAGE_UNITS[this.stage]) {
       this.stage++;
       this.updateTextures();
+      playBirdEvolveSound();
       this.scene.burst(this.spr.x, this.spr.y, 0xffe45e, 14);
       this.scene.floatText(this.spr.x, this.spr.y - 40, 'Grew up!', '#fff3c4', '#8a5a00');
       if (this.stage === 2) {
@@ -516,12 +539,19 @@ export class Bird {
       } else {
         this.sick = 0;
         if (this.fullness < 50) {
+          if (!this.wasHungry) {
+            playHungryChirpSound();
+            this.wasHungry = true;
+          }
           // Insaniquarium hungry warning: distinct vibrant lime green!
           this.body.setTint(0x84cc16);
           this.wing.setTint(0x84cc16);
-        } else if (!this.easterEgg) {
-          this.body.clearTint();
-          this.wing.clearTint();
+        } else {
+          this.wasHungry = false;
+          if (!this.easterEgg) {
+            this.body.clearTint();
+            this.wing.clearTint();
+          }
         }
       }
     }
@@ -1129,6 +1159,7 @@ export class Predator {
       }
     }
     this.hp -= dmg;
+    playPredatorHurtSound();
     this.stun = 0.16;
     if (this.kind === 'hawk' && this.hawkState === 'swoop') {
       this.hawkState = 'climb';
@@ -3013,6 +3044,7 @@ export class AviaryScene extends Phaser.Scene {
               return;
             }
             const displayName = b.name ? b.name : b.species.name;
+            playPettingSound();
             this.floatText(b.spr.x, b.spr.y - 25, `♥ ${displayName} ♥`, '#ff69b4', '#4a0e2e');
             this.burst(b.spr.x, b.spr.y, 0xff69b4, 6);
             return;
@@ -3802,8 +3834,15 @@ export class AviaryScene extends Phaser.Scene {
     const x = startX + index * spacing;
     const btn = this.makeButton(x, 676, w, 78, () => {
       if (this.ended || this.modal) return;
-      if (!def.enabled()) return this.toast(this.reason(def.texts().tiny));
-      if ((def.gem ? this.gems : this.coins) < def.cost()) return this.toast(def.gem ? 'Not enough gems!' : 'Not enough coins!');
+      if (!def.enabled()) {
+        playShopErrorSound();
+        return this.toast(this.reason(def.texts().tiny));
+      }
+      if ((def.gem ? this.gems : this.coins) < def.cost()) {
+        playShopErrorSound();
+        return this.toast(def.gem ? 'Not enough gems!' : 'Not enough coins!');
+      }
+      playShopBuySound();
       def.buy();
       this.refreshUi();
     });
@@ -4078,6 +4117,7 @@ export class AviaryScene extends Phaser.Scene {
           const cost = eggPieceCost(this.level, this.eggs);
           this.coins -= cost;
           this.eggs++;
+          playEggPieceSound(this.eggs);
           this.burst(W / 2, H / 2, 0xffd700, 16);
           if (this.eggs < 3) {
             this.toast(`Egg piece ${this.eggs}/3 acquired!`);
@@ -6199,6 +6239,7 @@ export class AviaryScene extends Phaser.Scene {
     }
     const qLevel = forcedQuality ?? this.quality;
     const q = Math.max(0, Math.min(2, qLevel - 1));
+    playFoodDropSound(q);
     const img = this.add.image(x, y, FOOD_TEX[q]).setDepth(8);
     if (q === 0) {
       img.setOrigin(0.225, 0.5);
@@ -6266,6 +6307,7 @@ export class AviaryScene extends Phaser.Scene {
 
   eatFood(f: Food, bird: Bird) {
     if (f.eaten) return;
+    playBirdEatSound();
     this.burst(f.img.x, f.img.y, 0xffe45e, 5);
     this.removeFood(f);
 
@@ -6345,6 +6387,7 @@ export class AviaryScene extends Phaser.Scene {
     if (laterInGame && bird.stage === 2 && !bird.isBreeder && f.units >= 3 && nearCompletedNest) {
       bird.stage = 3;
       bird.updateTextures();
+      playBirdEvolveSound();
       this.burst(bird.spr.x, bird.spr.y, 0xffd700, 26);
       this.burst(bird.spr.x, bird.spr.y - 20, 0xffffff, 16);
       this.floatText(bird.spr.x, bird.spr.y - 45, '👑 CORONATION! KING SONGBIRD! 👑', '#ffd700', '#78350f');
@@ -6520,6 +6563,7 @@ export class AviaryScene extends Phaser.Scene {
   }
 
   dropCoin(x: number, y: number, value: number, texOverride?: string) {
+    playEggDropSound();
     const tex = texOverride ?? this.coinKey(value);
     const img = this.add.image(x, y, tex).setDepth(12);
     if (value < 100 && !texOverride) img.setScale(0.9);
@@ -6536,6 +6580,7 @@ export class AviaryScene extends Phaser.Scene {
   }
 
   dropGem(x: number, y: number, value: number, texKey = 'gem') {
+    playEggDropSound();
     const img = this.add.image(x, y, texKey).setDepth(12);
     if (texKey === 'gem') img.setScale(1.1);
     this.coinList.push({ img, value, landed: false, groundY: 596 + Math.random() * 20, life: 7.0, collected: false, isGem: true });
@@ -6582,12 +6627,14 @@ export class AviaryScene extends Phaser.Scene {
     const x = fx ?? c.img.x;
     const y = fy ?? c.img.y;
     if (c.isGem || this.sandbox) {
+      playGemCollectSound();
       this.gems += c.value;
       this.saveSandbox();
       this.burst(c.img.x, c.img.y, 0x00f0ff, 6);
       this.floatText(x, y - 10, '+' + c.value + ' Gems', '#7df9ff', '#004d66');
       this.tweens.add({ targets: c.img, x: 40, y: 676, scale: 0.3, duration: 350, ease: 'Quad.easeIn', onComplete: () => c.img.destroy() });
     } else {
+      playCoinCollectSound();
       this.coins += c.value;
       if (this.coins >= 1000) {
         unlockAchievement('coin_hoarder', this);
@@ -6601,6 +6648,7 @@ export class AviaryScene extends Phaser.Scene {
   }
 
   layEgg(spot: Spot, mother?: Bird) {
+    playEggDropSound();
     spot.egg = this.add.image(spot.x, spot.y - 4, 'egg').setDepth(5).setScale(0.9);
     spot.eggT = 15;
     spot.eggMother = mother;
@@ -6609,6 +6657,7 @@ export class AviaryScene extends Phaser.Scene {
   }
 
   birdChirp(canary: Bird) {
+    playVictoryChirp();
     const x = canary.spr.x;
     const y = canary.spr.y;
     for (let i = 0; i < 3; i++) {
@@ -6839,12 +6888,14 @@ export class AviaryScene extends Phaser.Scene {
   }
 
   spawnPredator(kind: PredatorKind, hp: number): Predator {
+    playPredatorSpawnSound(kind);
     const p = new Predator(this, kind, hp);
     this.predators.push(p);
     return p;
   }
 
   onPredatorDown(p: Predator) {
+    playPredatorDefeatedSound();
     let reward = 40;
     let label = 'The predator was chased away!';
     if (p.kind === 'wyvern') {
@@ -6958,6 +7009,7 @@ export class AviaryScene extends Phaser.Scene {
   interceptMissile(m: Missile) {
     if (m.destroyed) return;
     m.destroyed = true;
+    playMissileExplosionSound();
     const mx = m.img.x;
     const my = m.img.y;
     m.img.destroy();
@@ -7003,11 +7055,15 @@ export class AviaryScene extends Phaser.Scene {
     g.fillRoundedRect(-120, -28, 240, 64, 18);
     btn.add([g, this.add.text(0, 4, label, { fontFamily: FONT, fontSize: '30px', fontStyle: 'bold', color: '#fff', stroke: '#2a6b25', strokeThickness: 5 }).setOrigin(0.5)]);
     btn.setSize(240, 64).setInteractive({ useHandCursor: true });
-    btn.on('pointerdown', onClick);
+    btn.on('pointerdown', () => {
+      playButtonClickSound();
+      onClick();
+    });
   }
 
   private win() {
     this.ended = true;
+    playStageClearFanfare();
     if (this.timeTrial) {
       this.endTimeTrial();
       return;
