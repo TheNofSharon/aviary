@@ -119,9 +119,8 @@ export class MenuScene extends Phaser.Scene {
     const save = loadSave();
     const ws = getWorldAndStage(this.maxUnlockedLevel);
 
-    const isSleeping = this.scene.isSleeping('Aviary');
     const suspended = AviaryScene.suspendedGame;
-    const hasSuspended = (isSleeping && !!suspended) || !!save.suspendedSession;
+    const hasSuspended = !!suspended || !!save.suspendedSession;
     const timeTrialUnlocked = this.maxUnlockedLevel > 4;
 
     // -------------------------------------------------------------------------
@@ -393,14 +392,10 @@ export class MenuScene extends Phaser.Scene {
     // 4. THE AVIARY (Deep Forest Emerald Sanctuary)
     const aviarySub = `${save.gems} GEMS`;
     this.createNatureCapsuleButton(plateX, plateY + 75, 'THE AVIARY', aviarySub, 'emerald', () => {
-      if (hasSuspended && suspended?.mode === 'sandbox') {
-        this.resumeActiveGame();
-      } else {
-        if (this.scene.isSleeping('Aviary')) this.scene.stop('Aviary');
-        AviaryScene.suspendedGame = undefined;
-        patchSave({ suspendedSession: undefined });
-        this.scene.start('Aviary', { sandbox: true });
-      }
+      this.scene.stop('Aviary');
+      AviaryScene.suspendedGame = undefined;
+      patchSave({ suspendedSession: undefined });
+      this.scene.start('Aviary', { sandbox: true });
     });
 
     // -------------------------------------------------------------------------
@@ -626,15 +621,10 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private resumeActiveGame() {
-    if (this.scene.isSleeping('Aviary')) {
-      this.scene.stop('Menu');
-      this.scene.wake('Aviary');
-      return;
-    }
+    this.scene.stop('Aviary');
     const save = loadSave();
     if (save.suspendedSession) {
       const s = save.suspendedSession;
-      this.scene.stop('Menu');
       this.scene.start('Aviary', {
         level: s.level,
         restoredCoins: s.coins,
@@ -648,7 +638,6 @@ export class MenuScene extends Phaser.Scene {
     }
     if (AviaryScene.suspendedGame) {
       const s = AviaryScene.suspendedGame;
-      this.scene.stop('Menu');
       this.scene.start('Aviary', {
         level: s.level,
         restoredCoins: s.coins,
@@ -952,9 +941,7 @@ export class MenuScene extends Phaser.Scene {
     ]);
     btn.setSize(240, 56).setInteractive({ useHandCursor: true });
     btn.on('pointerdown', () => {
-      if (this.scene.isSleeping('Aviary')) {
-        this.scene.stop('Aviary');
-      }
+      this.scene.stop('Aviary');
       AviaryScene.suspendedGame = undefined;
       patchSave({ suspendedSession: undefined });
       this.scene.start('Aviary', { level: this.level, pets: [...this.chosen] });

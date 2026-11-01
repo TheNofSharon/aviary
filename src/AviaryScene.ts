@@ -2721,6 +2721,7 @@ export class AviaryScene extends Phaser.Scene {
   init(data: SceneData) {
     this.initData = data;
     this.gamePaused = false;
+    this.ended = false;
     this.sandbox = !!data.sandbox;
     this.timeTrial = !!data.timeTrial;
     this.challengeId = data.challengeId;
@@ -2751,6 +2752,9 @@ export class AviaryScene extends Phaser.Scene {
     this.pinecones = [];
     this.sceneryImages = [];
     this.spots = [];
+    this.treeTrunkGfx = undefined;
+    this.treeCanopyGfx = undefined;
+    this.treeFgGfx = undefined;
     this.pauseModalContainer = undefined;
     this.warningContainer = undefined;
     this.sunbeams = undefined;
@@ -2891,6 +2895,12 @@ export class AviaryScene extends Phaser.Scene {
     this.pinecones = [];
     this.sceneryImages = [];
     this.spots = [];
+    this.treeTrunkGfx = undefined;
+    this.treeCanopyGfx = undefined;
+    this.treeFgGfx = undefined;
+    this.ended = false;
+    this.gamePaused = false;
+    this.modal = false;
 
     const save = loadSave();
     makeTextures(this);
@@ -3461,9 +3471,9 @@ export class AviaryScene extends Phaser.Scene {
     const ws = getWorldAndStage(this.level);
     const worldId = this.sandbox ? 1 : ws.worldId;
 
-    if (!this.treeTrunkGfx) this.treeTrunkGfx = this.add.graphics().setDepth(2);
-    if (!this.treeCanopyGfx) this.treeCanopyGfx = this.add.graphics().setDepth(3);
-    if (!this.treeFgGfx) this.treeFgGfx = this.add.graphics().setDepth(4);
+    if (!this.treeTrunkGfx || !this.treeTrunkGfx.scene) this.treeTrunkGfx = this.add.graphics().setDepth(2);
+    if (!this.treeCanopyGfx || !this.treeCanopyGfx.scene) this.treeCanopyGfx = this.add.graphics().setDepth(3);
+    if (!this.treeFgGfx || !this.treeFgGfx.scene) this.treeFgGfx = this.add.graphics().setDepth(4);
 
     const canopy = this.treeCanopyGfx;
     const trunkGfx = this.treeTrunkGfx;
@@ -7301,8 +7311,8 @@ export class AviaryScene extends Phaser.Scene {
       });
     }
 
-    this.scene.sleep();
-    this.scene.run('Menu', { view: 'main_menu' });
+    this.scene.stop('Aviary');
+    this.scene.start('Menu', { view: 'main_menu' });
   }
 
   winNightChallenge() {
