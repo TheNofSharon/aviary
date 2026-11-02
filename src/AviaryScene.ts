@@ -116,6 +116,8 @@ interface Coin {
   life: number;
   collected: boolean;
   isGem?: boolean;
+  isBeetle?: boolean;
+  isPearl?: boolean;
   phase?: number;
 }
 
@@ -647,6 +649,12 @@ export class Bird {
           this.leaveSpot();
           this.state = 'seek';
         }
+      } else if (this.species.key === 'toucan') {
+        const beetle = this.scene.nearestBeetle(this.spr.x, this.spr.y);
+        if (beetle || (this.fullness < 35 && this.scene.foods.some((f) => !f.eaten && f.units >= 3))) {
+          this.leaveSpot();
+          this.state = 'seek';
+        }
       } else if (this.scene.foods.some((f) => !f.eaten && (this.species.behavior !== 'gourmet' || f.units >= 3))) {
         this.leaveSpot();
         this.state = 'seek';
@@ -670,6 +678,36 @@ export class Bird {
           // Hunters (Falcon & Owl) only hunt live birds; they never eat grain or seeds!
           this.state = 'wander';
           this.pause = 0.6;
+          break;
+        }
+        if (this.species.key === 'toucan') {
+          const beetle = this.scene.nearestBeetle(this.spr.x, this.spr.y);
+          if (beetle) {
+            const isDescending = beetle.img.y > this.spr.y + 25;
+            const seekSpeed = isDescending ? 280 : 210;
+            const reached = this.moveTo(beetle.img.x, beetle.img.y - 8 * this.scale, seekSpeed, dt);
+            if (reached || Phaser.Math.Distance.Between(this.spr.x, this.spr.y, beetle.img.x, beetle.img.y) < 28) {
+              this.scene.eatBeetle(this, beetle);
+              this.state = 'wander';
+              this.pause = 0.8;
+            }
+            break;
+          }
+          // Toucan fallback to gourmet berries if starving and no beetles around
+          if (this.fullness < 35) {
+            const f = this.scene.nearestFood(this.spr.x, this.spr.y, true);
+            if (f) {
+              const reached = this.moveTo(f.img.x, f.img.y - 10 * this.scale, 200, dt);
+              if (reached || Phaser.Math.Distance.Between(this.spr.x, this.spr.y, f.img.x, f.img.y) < 22) {
+                this.scene.eatFood(f, this);
+                this.state = 'wander';
+                this.pause = 1.0;
+              }
+              break;
+            }
+          }
+          this.state = 'wander';
+          this.pause = 0.5;
           break;
         }
         const f = this.scene.nearestFood(this.spr.x, this.spr.y, this.species.behavior === 'gourmet');
@@ -1821,6 +1859,11 @@ export class Pet {
   pause = 0;
   dir = 1;
   wy = 0;
+  baseY = 618;
+  baseScaleX = 0.85;
+  baseScaleY = 0.85;
+  walkPhase = Math.random() * Math.PI * 2;
+  stepDustTimer = 0;
   flyer?: ReturnType<typeof makeFlyer>;
 
   constructor(private scene: AviaryScene, key: string) {
@@ -1924,6 +1967,41 @@ export class Pet {
       }
     }
     this.tx = this.img.x;
+    this.baseY = this.img.y;
+    this.baseScaleX = this.img.scaleX;
+    this.baseScaleY = this.img.scaleY;
+
+    // Interactive Petting Click (Reactions like Sugar Glider!)
+    this.img.setInteractive({ useHandCursor: true });
+    this.img.on('pointerdown', () => {
+      this.scene.burst(this.img.x, this.img.y - 12, 0xfef08a, 10);
+      const petSounds: Record<string, string> = {
+        hedgehog: '🦔 SNORT! ✨',
+        badger: '🦡 GRUFF! 🍄',
+        porcupine: '🦔* RUSTLE! ⚡',
+        hound: '🐕 RUFF! ❤️',
+        ferret: '🐾 DOOK! ⚡',
+        squirrel: '🐿️ CHIRP! 🌰',
+        hen: '🐔 CLUCK! 🥚',
+        phoenix_chick: '🔥 PEEP! ✨',
+        frog: '🐸 RIBBIT! 💧',
+        snail: '🐌 SLIME! 🌟',
+        butterfly: '🦋 FLUTTER! 🌸',
+        magpie: '🪶 CAW! 💎',
+        owl: '🦉 HOOT! 🌙',
+      };
+      const soundText = petSounds[this.key] ?? '❤️ FRIEND! ✨';
+      this.scene.floatText(this.img.x, this.img.y - 30, soundText, '#fef08a', '#451a03');
+      this.scene.tweens.add({
+        targets: this.img,
+        scaleY: this.baseScaleY * 1.25,
+        scaleX: this.baseScaleX * 0.8,
+        y: this.baseY - 16,
+        duration: 150,
+        yoyo: true,
+        ease: 'Quad.easeOut',
+      });
+    });
   }
 
   shadow?: Phaser.GameObjects.Image;
@@ -1986,10 +2064,44 @@ export class Pet {
 
   private walk(tx: number, speed: number, dt: number, t: number) {
     const dx = tx - this.img.x;
-    if (Math.abs(dx) < 4) return true;
-    this.img.x += Math.sign(dx) * Math.min(Math.abs(dx), speed * dt);
-    this.img.setFlipX(dx < 0);
-    this.img.y += Math.sin(t * 0.02) * 0.4;
+    if (Math.abs(dx) < 5) {
+      // Idle Breathing / Sniffing
+      this.img.y = this.baseY;
+      this.img.rotation = Phaser.Math.Linear(this.img.rotation, 0, 0.2);
+      this.img.scaleX = this.baseScaleX * (1 + Math.sin(t * 0.005) * 0.03);
+      this.img.scaleY = this.baseScaleY * (1 - Math.sin(t * 0.005) * 0.03);
+      return true;
+    }
+
+    const dir = Math.sign(dx);
+    const stepMove = Math.min(Math.abs(dx), speed * dt);
+    this.img.x += dir * stepMove;
+    this.img.setFlipX(dir < 0);
+
+    // Advance gait phase in proportion to actual distance moved
+    const gaitSpeed = speed / 8.5;
+    this.walkPhase += dt * gaitSpeed;
+
+    // 1. Stride Vertical Bounce (Paws planting and pushing off ground)
+    const strideBounce = Math.abs(Math.sin(this.walkPhase)) * 5.2;
+    this.img.y = this.baseY - strideBounce;
+
+    // 2. Dynamic Pitch / Forward Lean rocking with stride
+    const strideTilt = Math.sin(this.walkPhase) * 0.09 * dir;
+    this.img.rotation = strideTilt;
+
+    // 3. Squash and Stretch per stride (compression on foot-plant, stretch in air)
+    const stretch = Math.sin(this.walkPhase * 2);
+    this.img.scaleX = this.baseScaleX * (1 - stretch * 0.07);
+    this.img.scaleY = this.baseScaleY * (1 + stretch * 0.08);
+
+    // 4. Subtle Footstep Dust Motes on heavy foot-plant
+    this.stepDustTimer -= dt;
+    if (strideBounce < 0.8 && this.stepDustTimer <= 0) {
+      this.stepDustTimer = 0.28;
+      this.scene.burst(this.img.x + (dir < 0 ? 8 : -8), this.baseY, 0xb08968, 1);
+    }
+
     return false;
   }
 
@@ -2401,20 +2513,72 @@ export class Pet {
     const p = this.scene.nearestPredator(this.img.x, this.img.y);
     if (p && !(p.kind === 'vulture' && p.vultureState === 'dormant') && p.spr.y > 380 && this.pause <= 0) {
       this.pause = 3.5;
+      this.img.setFlipX(p.spr.x < this.img.x);
+      // Crouch and spring launch
       this.scene.tweens.add({
         targets: this.img,
-        y: p.spr.y,
-        duration: 250,
+        scaleY: this.baseScaleY * 0.6,
+        scaleX: this.baseScaleX * 1.3,
+        duration: 90,
         yoyo: true,
-        onYoyo: () => {
-          if (!p.dying && !(p.kind === 'vulture' && p.vultureState === 'dormant')) {
-            p.hit(5, this.img.x, this.img.y);
-            this.scene.floatText(p.spr.x, p.spr.y - 20, 'FROG HEADBUTT! -5', '#22c55e', '#14532d');
-          }
+        onComplete: () => {
+          this.scene.tweens.add({
+            targets: this.img,
+            y: p.spr.y,
+            scaleY: this.baseScaleY * 1.35,
+            scaleX: this.baseScaleX * 0.75,
+            duration: 220,
+            yoyo: true,
+            ease: 'Quad.easeOut',
+            onYoyo: () => {
+              if (!p.dying && !(p.kind === 'vulture' && p.vultureState === 'dormant')) {
+                p.hit(5, this.img.x, this.img.y);
+                this.scene.floatText(p.spr.x, p.spr.y - 20, 'FROG HEADBUTT! -5', '#22c55e', '#14532d');
+              }
+            },
+            onComplete: () => {
+              this.img.y = this.baseY;
+              this.img.setScale(this.baseScaleX, this.baseScaleY);
+              this.scene.burst(this.img.x, this.baseY, 0x86efac, 4);
+            },
+          });
         },
       });
     } else if (this.pause > 0) {
       this.pause -= dt;
+      // Throat pouch ribbit breathing
+      this.img.scaleX = this.baseScaleX * (1 + Math.sin(t * 0.008) * 0.04);
+      this.img.scaleY = this.baseScaleY * (1 + Math.sin(t * 0.008) * 0.06);
+    } else {
+      // Idle periodic leap across mossy ground
+      this.pause = 2.8 + Math.random() * 2.8;
+      const hopX = Phaser.Math.Between(120, W - 120);
+      const hopDir = hopX < this.img.x ? -1 : 1;
+      this.img.setFlipX(hopDir < 0);
+      this.scene.tweens.add({
+        targets: this.img,
+        scaleY: this.baseScaleY * 0.65,
+        scaleX: this.baseScaleX * 1.25,
+        duration: 100,
+        yoyo: true,
+        onComplete: () => {
+          this.scene.tweens.add({
+            targets: this.img,
+            x: hopX,
+            y: this.baseY - 45,
+            scaleY: this.baseScaleY * 1.25,
+            scaleX: this.baseScaleX * 0.8,
+            duration: 220,
+            yoyo: true,
+            ease: 'Quad.easeOut',
+            onComplete: () => {
+              this.img.y = this.baseY;
+              this.img.setScale(this.baseScaleX, this.baseScaleY);
+              this.scene.burst(this.img.x, this.baseY, 0xb08968, 2);
+            },
+          });
+        },
+      });
     }
   }
 
@@ -2561,15 +2725,38 @@ export class SugarGlider {
   }
 
   chooseNextSpot() {
-    const spots = this.scene.spots;
-    if (spots.length > 0 && Math.random() < 0.75) {
-      const sp = Phaser.Utils.Array.GetRandom(spots);
-      this.tx = sp.x + (Math.random() - 0.5) * 36;
-      this.ty = sp.y - 14;
-    } else {
-      this.tx = Phaser.Math.Between(140, W - 140);
-      this.ty = Phaser.Math.Between(150, 480);
+    // Collect all valid perches strictly on tree branches and trunks
+    const validTargets: { x: number; y: number }[] = [];
+
+    // 1. Branch spots from the scene layout
+    for (const sp of this.scene.spots) {
+      validTargets.push({
+        x: sp.x + (Math.random() - 0.5) * 20,
+        y: sp.y - (sp.nest ? 14 : 10),
+      });
     }
+
+    // 2. Trunk anchor points from the active level design layout
+    const trees = this.scene.currentLayout?.trees ?? [];
+    for (const tr of trees) {
+      for (const yOffset of [260, 330, 410]) {
+        validTargets.push({
+          x: tr.trunkX + (tr.trunkX < W / 2 ? 22 : -22),
+          y: yOffset,
+        });
+      }
+    }
+
+    // Pick a destination that is safely on a tree and not right under current position
+    const candidates = validTargets.filter((t) => Phaser.Math.Distance.Between(this.spr.x, this.spr.y, t.x, t.y) > 90);
+    const target = candidates.length > 0
+      ? Phaser.Utils.Array.GetRandom(candidates)
+      : validTargets.length > 0
+      ? Phaser.Utils.Array.GetRandom(validTargets)
+      : { x: 260, y: 300 };
+
+    this.tx = target.x;
+    this.ty = target.y;
     this.state = 'glide';
     this.stateTimer = 5.0;
     this.body.setTexture('sugar_glider_glide');
@@ -2637,7 +2824,7 @@ export class SugarGlider {
 }
 
 // ------------------------------------------------------------------- UI
-type ButtonState = 'normal' | 'selected' | 'disabled';
+type ButtonState = 'normal' | 'selected' | 'disabled' | 'locked';
 
 interface Btn {
   c: Phaser.GameObjects.Container;
@@ -2655,6 +2842,9 @@ interface Shop {
   cost: () => number;
   /** Paid with gems instead of coins. */
   gem?: boolean;
+  unlocked?: () => boolean;
+  lockedReason?: () => string;
+  wasUnlocked?: boolean;
   enabled: () => boolean;
   texts: () => { sub: string; tiny: string; icon?: string; title?: string };
   buy: () => void;
@@ -3869,6 +4059,16 @@ export class AviaryScene extends Phaser.Scene {
       state: '',
       draw: (s: ButtonState) => {
         bg.clear();
+        if (s === 'locked') {
+          bg.fillStyle(0x18100a, 1);
+          bg.fillRoundedRect(-w / 2, -h / 2 + 3, w, h, 12);
+          bg.fillStyle(0x28190e, 1);
+          bg.fillRoundedRect(-w / 2, -h / 2, w, h, 12);
+          bg.lineStyle(2, 0x4a321f, 0.9);
+          bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 12);
+          c.setAlpha(0.68);
+          return;
+        }
         const fill = s === 'selected' ? 0xffd86b : s === 'disabled' ? 0x8a7a6a : 0xf4e2bd;
         bg.fillStyle(0x3a2412, 1);
         bg.fillRoundedRect(-w / 2, -h / 2 + 3, w, h, 12);
@@ -3890,7 +4090,7 @@ export class AviaryScene extends Phaser.Scene {
     title: string,
     icon: string,
     iconScale: number,
-    def: Pick<Shop, 'cost' | 'enabled' | 'texts' | 'buy' | 'gem'>,
+    def: Pick<Shop, 'cost' | 'enabled' | 'texts' | 'buy' | 'gem' | 'unlocked' | 'lockedReason'>,
     totalButtons = 7
   ) {
     const leftMargin = 175;
@@ -3903,6 +4103,11 @@ export class AviaryScene extends Phaser.Scene {
     const x = startX + index * spacing;
     const btn = this.makeButton(x, 676, w, 78, () => {
       if (this.ended || this.modal) return;
+      if (def.unlocked && !def.unlocked()) {
+        playShopErrorSound();
+        const reason = def.lockedReason ? def.lockedReason() : 'Grow your flock to unlock this item!';
+        return this.toast(`🔒 ${reason}`);
+      }
       if (!def.enabled()) {
         playShopErrorSound();
         return this.toast(this.reason(def.texts().tiny));
@@ -3922,7 +4127,15 @@ export class AviaryScene extends Phaser.Scene {
     const sub = t(10, -3, 16, '#7a4a22');
     const tiny = t(0, 26, totalButtons > 7 ? 11 : 12, '#5a3a1c');
     btn.c.add([img, tt, sub, tiny]);
-    this.shops.push({ btn, icon: img, title: tt, sub, tiny, ...def });
+    this.shops.push({
+      btn,
+      icon: img,
+      title: tt,
+      sub,
+      tiny,
+      wasUnlocked: def.unlocked ? def.unlocked() : true,
+      ...def,
+    });
   }
 
   private reason(tiny: string) {
@@ -4049,12 +4262,12 @@ export class AviaryScene extends Phaser.Scene {
     const worldId = ws.worldId;
 
     // Total buttons:
-    // World 1: 5 buttons (Quality, More Food, Sparrow, Slingshot, Egg)
-    // World 2: 6 buttons (Quality, More Food, Sparrow, Piranha, Slingshot, Egg)
-    // World 3: 7 buttons (Quality, More Food, Sparrow, Mama, Piranha, Slingshot, Egg)
-    // World 4: 8 buttons (Quality, More Food, Sparrow, Mama, Piranha, Phoenix, Slingshot, Egg)
+    // World 1: 5 buttons (Quality, More Food, Baby Bird, Slingshot, Egg)
+    // World 2: 6 buttons (Quality, More Food, Baby Bird, Falcon, Slingshot, Egg)
+    // World 3: 8 buttons (Quality, More Food, Baby Bird, Mama, Tree Creeper, Toucan, Slingshot, Egg)
+    // World 4: 9 buttons (Quality, More Food, Baby Bird, Mama, Tree Creeper, Toucan, Sugar Glider, Slingshot, Egg)
     const hasEgg = !this.timeTrial && !this.challengeId;
-    const baseCount = worldId === 1 ? 4 : worldId === 2 ? 5 : worldId === 3 ? 6 : 7;
+    const baseCount = worldId === 1 ? 4 : worldId === 2 ? 5 : worldId === 3 ? 7 : 8;
     const totalButtons = baseCount + (hasEgg ? 1 : 0);
 
     let idx = 0;
@@ -4063,7 +4276,16 @@ export class AviaryScene extends Phaser.Scene {
     this.addShop(idx++, 'Food Quality', 'seed', 1.5, {
       cost: () => QUALITY_COST[this.quality - 1] ?? 0,
       enabled: () => this.quality < 3,
-      texts: () => ({ sub: this.quality < 3 ? String(QUALITY_COST[this.quality - 1]) : 'MAX', tiny: this.quality < 3 ? `Level ${this.quality}/3` : 'Best food!', icon: FOOD_TEX[this.quality - 1] }),
+      unlocked: () => this.birds.some((b) => b.stage >= 1 || b.isBreeder),
+      lockedReason: () => 'Grow a bird to Fledgling to unlock Food Quality!',
+      texts: () => {
+        const locked = !this.birds.some((b) => b.stage >= 1 || b.isBreeder);
+        return {
+          sub: locked ? '🔒' : this.quality < 3 ? String(QUALITY_COST[this.quality - 1]) : 'MAX',
+          tiny: locked ? 'Need Fledgling' : this.quality < 3 ? `Level ${this.quality}/3` : 'Best food!',
+          icon: FOOD_TEX[this.quality - 1],
+        };
+      },
       buy: () => {
         this.coins -= QUALITY_COST[this.quality - 1];
         this.quality++;
@@ -4075,7 +4297,15 @@ export class AviaryScene extends Phaser.Scene {
     this.addShop(idx++, 'More Food', 'seed', 1.5, {
       cost: () => QUANTITY_COST[this.maxFood - 1] ?? 0,
       enabled: () => this.maxFood < 5,
-      texts: () => ({ sub: this.maxFood < 5 ? String(QUANTITY_COST[this.maxFood - 1]) : 'MAX', tiny: `Drop up to ${this.maxFood}/5` }),
+      unlocked: () => this.birds.some((b) => b.stage >= 1 || b.isBreeder) || this.quality > 1,
+      lockedReason: () => 'Grow a bird to Fledgling to unlock More Food!',
+      texts: () => {
+        const locked = !this.birds.some((b) => b.stage >= 1 || b.isBreeder) && this.quality <= 1;
+        return {
+          sub: locked ? '🔒' : this.maxFood < 5 ? String(QUANTITY_COST[this.maxFood - 1]) : 'MAX',
+          tiny: locked ? 'Need Fledgling' : `Drop up to ${this.maxFood}/5`,
+        };
+      },
       buy: () => {
         this.coins -= QUANTITY_COST[this.maxFood - 1];
         this.maxFood++;
@@ -4087,6 +4317,7 @@ export class AviaryScene extends Phaser.Scene {
     this.addShop(idx++, 'Baby Bird', 'bird_sparrow_0', 0.55, {
       cost: () => 35,
       enabled: () => true,
+      unlocked: () => true,
       texts: () => ({ sub: '35', tiny: 'Grows up!' }),
       buy: () => {
         this.coins -= 35;
@@ -4099,7 +4330,15 @@ export class AviaryScene extends Phaser.Scene {
       this.addShop(idx++, 'Mama Songbird', 'bird_mama', 0.5, {
         cost: () => 200,
         enabled: () => true,
-        texts: () => ({ sub: '200', tiny: 'Lays songbird eggs' }),
+        unlocked: () => this.birds.some((b) => b.stage >= 2 || b.isBreeder),
+        lockedReason: () => 'Grow a bird to Adult to unlock Mama Songbird!',
+        texts: () => {
+          const locked = !this.birds.some((b) => b.stage >= 2 || b.isBreeder);
+          return {
+            sub: locked ? '🔒' : '200',
+            tiny: locked ? 'Need Adult' : 'Lays songbird eggs',
+          };
+        },
         buy: () => {
           this.coins -= 200;
           this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 2, true, false, 'mama'));
@@ -4107,15 +4346,65 @@ export class AviaryScene extends Phaser.Scene {
       }, totalButtons);
     }
 
-    // Slot in World 2+: Peregrine Falcon (Carnivore Raptor)
-    if (worldId >= 2) {
+    // Slot in World 2: Peregrine Falcon (Carnivore Raptor)
+    if (worldId === 2) {
       this.addShop(idx++, 'Peregrine Falcon', 'bird_piranha_finch', 0.5, {
         cost: () => 400,
         enabled: () => true,
-        texts: () => ({ sub: '400', tiny: 'Hunts chicks -> Diamond' }),
+        unlocked: () => this.birds.some((b) => b.stage >= 2 || b.isBreeder),
+        lockedReason: () => 'Grow a bird to Adult to unlock Falcon!',
+        texts: () => {
+          const locked = !this.birds.some((b) => b.stage >= 2 || b.isBreeder);
+          return {
+            sub: locked ? '🔒' : '400',
+            tiny: locked ? 'Need Adult' : 'Hunts chicks -> Diamond',
+          };
+        },
         buy: () => {
           this.coins -= 400;
           this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 2, false, false, 'piranha_finch'));
+        },
+      }, totalButtons);
+    }
+
+    // Slot in World 3+: Tree Creeper (Beetle Forager)
+    if (worldId >= 3) {
+      this.addShop(idx++, 'Tree Creeper', 'bird_tree_creeper', 0.5, {
+        cost: () => 250,
+        enabled: () => true,
+        unlocked: () => this.birds.some((b) => b.stage >= 2 || b.isBreeder),
+        lockedReason: () => 'Grow a bird to Adult to unlock Tree Creeper!',
+        texts: () => {
+          const locked = !this.birds.some((b) => b.stage >= 2 || b.isBreeder);
+          return {
+            sub: locked ? '🔒' : '250',
+            tiny: locked ? 'Need Adult' : 'Crunches chicks -> Beetles',
+          };
+        },
+        buy: () => {
+          this.coins -= 250;
+          this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 2, false, false, 'tree_creeper'));
+          this.toast('🪲 Tree Creeper joined! Crunches feeder chicks and drops Golden Tree Beetles (150c)!');
+        },
+      }, totalButtons);
+
+      // Rainbow Toucan (Beetle Muncher)
+      this.addShop(idx++, 'Rainbow Toucan', 'bird_toucan', 0.48, {
+        cost: () => 500,
+        enabled: () => true,
+        unlocked: () => this.birds.some((b) => b.species.key === 'tree_creeper') || this.eggs >= 1,
+        lockedReason: () => 'Need a Tree Creeper in your flock to unlock Toucan!',
+        texts: () => {
+          const locked = !this.birds.some((b) => b.species.key === 'tree_creeper') && this.eggs < 1;
+          return {
+            sub: locked ? '🔒' : '500',
+            tiny: locked ? 'Need Tree Creeper' : 'Munches Beetles -> Pearls',
+          };
+        },
+        buy: () => {
+          this.coins -= 500;
+          this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 2, false, false, 'toucan'));
+          this.toast('🌈 Rainbow Toucan joined! Catches Golden Tree Beetles and drops Forest Pearls (500c)!');
         },
       }, totalButtons);
     }
@@ -4125,10 +4414,15 @@ export class AviaryScene extends Phaser.Scene {
       this.addShop(idx++, 'Sugar Glider', 'sugar_glider_icon', 0.95, {
         cost: () => 450,
         enabled: () => true,
-        texts: () => ({
-          sub: '450',
-          tiny: 'Drops Cinder Acorns',
-        }),
+        unlocked: () => this.birds.some((b) => b.stage >= 2 || b.isBreeder),
+        lockedReason: () => 'Grow a bird to Adult to unlock Sugar Glider!',
+        texts: () => {
+          const locked = !this.birds.some((b) => b.stage >= 2 || b.isBreeder);
+          return {
+            sub: locked ? '🔒' : '450',
+            tiny: locked ? 'Need Adult' : 'Drops Cinder Acorns',
+          };
+        },
         buy: () => {
           this.coins -= 450;
           const sg = new SugarGlider(this, Phaser.Math.Between(150, W - 150), 120);
@@ -4145,14 +4439,17 @@ export class AviaryScene extends Phaser.Scene {
     this.addShop(idx++, initialWeaponName, initialWeaponTex, 0.85, {
       cost: () => WEAPON_COST[this.weapon] ?? 0,
       enabled: () => this.weapon < WEAPON_COST.length,
+      unlocked: () => (this.level === 1 ? this.birds.some((b) => b.stage >= 1 || b.isBreeder) : true),
+      lockedReason: () => 'Grow a bird to Fledgling to unlock weapon upgrades!',
       texts: () => {
         const canUpgrade = this.weapon < WEAPON_COST.length;
         const nextName = canUpgrade ? WEAPON_NAMES[this.weapon + 1] : WEAPON_NAMES[4];
         const nextTex = canUpgrade ? WEAPON_TEX[this.weapon + 1] : WEAPON_TEX[4];
+        const locked = this.level === 1 && !this.birds.some((b) => b.stage >= 1 || b.isBreeder);
         return {
           title: nextName,
-          sub: canUpgrade ? String(WEAPON_COST[this.weapon]) : 'MAX',
-          tiny: canUpgrade ? `Damage ${WEAPON_DMG[this.weapon + 1]}` : 'Max Power!',
+          sub: locked ? '🔒' : canUpgrade ? String(WEAPON_COST[this.weapon]) : 'MAX',
+          tiny: locked ? 'Need Fledgling' : canUpgrade ? `Damage ${WEAPON_DMG[this.weapon + 1]}` : 'Max Power!',
           icon: nextTex,
         };
       },
@@ -4174,11 +4471,25 @@ export class AviaryScene extends Phaser.Scene {
       this.addShop(idx++, 'Egg', 'egg', 1.0, {
         cost: () => eggPieceCost(this.level, this.eggs),
         enabled: () => this.eggs < 3,
+        unlocked: () => {
+          if (this.eggs === 0) {
+            return this.level === 1
+              ? this.birds.some((b) => b.stage >= 1 || b.isBreeder)
+              : this.birds.some((b) => b.stage >= 2 || b.isBreeder);
+          }
+          return true;
+        },
+        lockedReason: () => (this.level === 1 ? 'Grow a bird to Fledgling to unlock Egg!' : 'Grow a bird to Adult to unlock Egg!'),
         texts: () => {
           const cost = eggPieceCost(this.level, this.eggs);
+          const locked =
+            this.eggs === 0 &&
+            (this.level === 1
+              ? !this.birds.some((b) => b.stage >= 1 || b.isBreeder)
+              : !this.birds.some((b) => b.stage >= 2 || b.isBreeder));
           return {
-            sub: this.eggs >= 3 ? 'Hatched!' : String(cost),
-            tiny: this.eggs >= 3 ? 'Victory!' : `Piece ${this.eggs + 1}/3`,
+            sub: locked ? '🔒' : this.eggs >= 3 ? 'Hatched!' : String(cost),
+            tiny: locked ? (this.level === 1 ? 'Need Fledgling' : 'Need Adult') : this.eggs >= 3 ? 'Victory!' : `Piece ${this.eggs + 1}/3`,
             icon: this.eggs >= 2 ? 'goldegg' : 'egg',
           };
         },
@@ -4825,6 +5136,15 @@ export class AviaryScene extends Phaser.Scene {
     this.killBird(prey, 'eaten');
     hunter.fullness = 100;
     this.burst(prey.spr.x, prey.spr.y, 0x0b5394, 18);
+
+    // Tree Creeper special beetle drop
+    if (hunter.species.key === 'tree_creeper') {
+      this.dropCoin(hunter.spr.x, hunter.spr.y + 15, 150, 'drop_beetle');
+      this.floatText(hunter.spr.x, hunter.spr.y - 40, '🪲 +Golden Beetle!', '#f59e0b', '#78350f');
+      this.toast('The Tree Creeper crunched a feeder chick and dropped a Golden Tree Beetle (150c)!');
+      return;
+    }
+
     if (this.sandbox) {
       if (hunter.species.behavior === 'apex') {
         this.dropGem(hunter.spr.x, hunter.spr.y, 15, 'chest');
@@ -4845,6 +5165,34 @@ export class AviaryScene extends Phaser.Scene {
       }
       this.toast(`The ${hunter.species.name} hunted a chick and dropped a Diamond!`);
     }
+  }
+
+  nearestBeetle(x: number, y: number): Coin | undefined {
+    let best: Coin | undefined;
+    let bd = Infinity;
+    for (const c of this.coinList) {
+      if (c.collected || !c.isBeetle) continue;
+      const d = Phaser.Math.Distance.Between(x, y, c.img.x, c.img.y);
+      if (d < bd) {
+        bd = d;
+        best = c;
+      }
+    }
+    return best;
+  }
+
+  eatBeetle(toucan: Bird, beetle: Coin) {
+    if (beetle.collected) return;
+    beetle.collected = true;
+    beetle.img.destroy();
+    this.coinList = this.coinList.filter((c) => c !== beetle);
+    toucan.fullness = 100;
+    this.burst(toucan.spr.x, toucan.spr.y, 0xfde047, 18);
+    this.burst(toucan.spr.x, toucan.spr.y, 0x38bdf8, 14);
+    playEggDropSound();
+    this.dropCoin(toucan.spr.x, toucan.spr.y + 15, 500, 'drop_pearl');
+    this.floatText(toucan.spr.x, toucan.spr.y - 35, '🦪 +Forest Pearl!', '#38bdf8', '#0f172a');
+    this.toast('Rainbow Toucan munched a Golden Tree Beetle and dropped a Forest Pearl (500c)!');
   }
 
   openPetStoreModal() {
@@ -6674,6 +7022,8 @@ export class AviaryScene extends Phaser.Scene {
       life: 5.5,
       collected: false,
       isGem: false,
+      isBeetle: texOverride === 'drop_beetle',
+      isPearl: texOverride === 'drop_pearl',
       phase: Math.random() * 6.28,
     });
   }
@@ -6738,9 +7088,20 @@ export class AviaryScene extends Phaser.Scene {
       if (this.coins >= 1000) {
         unlockAchievement('coin_hoarder', this);
       }
-      this.burst(c.img.x, c.img.y, 0xfde047, 6);
-      this.burst(c.img.x, c.img.y, 0xffffff, 4);
-      this.floatText(x, y - 10, '🪶 +' + c.value, '#fef08a', '#854d0e');
+      if (c.isPearl) {
+        this.burst(c.img.x, c.img.y, 0x38bdf8, 10);
+        this.burst(c.img.x, c.img.y, 0xf472b6, 8);
+        this.burst(c.img.x, c.img.y, 0xffffff, 8);
+        this.floatText(x, y - 10, '🦪 +500c Forest Pearl!', '#38bdf8', '#0f172a');
+      } else if (c.isBeetle) {
+        this.burst(c.img.x, c.img.y, 0xf59e0b, 8);
+        this.burst(c.img.x, c.img.y, 0x84cc16, 6);
+        this.floatText(x, y - 10, '🪲 +150c Golden Beetle!', '#f59e0b', '#78350f');
+      } else {
+        this.burst(c.img.x, c.img.y, 0xfde047, 6);
+        this.burst(c.img.x, c.img.y, 0xffffff, 4);
+        this.floatText(x, y - 10, '🪶 +' + c.value, '#fef08a', '#854d0e');
+      }
       this.tweens.add({ targets: c.img, x: 40, y: 676, scale: 0.3, duration: 350, ease: 'Quad.easeIn', onComplete: () => c.img.destroy() });
     }
     this.refreshUi();
@@ -8311,7 +8672,31 @@ export class AviaryScene extends Phaser.Scene {
       }
     }
 
-    for (const s of this.shops) this.setBtn(s.btn, !s.enabled() || (s.gem ? this.gems : this.coins) < s.cost() ? 'disabled' : 'normal');
+    for (const s of this.shops) {
+      const isLocked = s.unlocked ? !s.unlocked() : false;
+      if (s.unlocked) {
+        const nowUnlocked = s.unlocked();
+        if (nowUnlocked && !s.wasUnlocked) {
+          s.wasUnlocked = true;
+          playEggPieceSound(1);
+          this.burst(s.btn.c.x, s.btn.c.y, 0xffd700, 16);
+          this.tweens.add({
+            targets: s.btn.c,
+            scaleX: 1.15,
+            scaleY: 1.15,
+            duration: 180,
+            yoyo: true,
+          });
+          const unlockTitle = s.title.text;
+          this.toast(`✨ ${unlockTitle} Unlocked!`);
+          this.refreshUi();
+        }
+      }
+      const state: ButtonState = isLocked
+        ? 'locked'
+        : (!s.enabled() || (s.gem ? this.gems : this.coins) < s.cost() ? 'disabled' : 'normal');
+      this.setBtn(s.btn, state);
+    }
   }
 }
 

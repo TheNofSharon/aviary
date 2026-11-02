@@ -205,6 +205,7 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
   const isCat = key === 'infiltrator';
   const isOwl = key === 'owl' || s.horns;
   const isToucan = key === 'toucan';
+  const isTreeCreeper = key === 'tree_creeper';
   const isPhoenix = key === 'phoenix';
   const isFalcon = key === 'piranha_finch' || key === 'falcon';
   const isCanary = key === 'canary';
@@ -419,6 +420,13 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
     // Dark ridge
     g.lineStyle(1.8, 0x241408, 0.85);
     g.lineBetween(beakX, beakY + 3, beakX + tbLen - 4, beakY + 5);
+  } else if (isTreeCreeper) {
+    // Slender decurved bark-foraging beak for extracting tree beetles
+    const tcbLen = stage === 0 ? 15 : stage === 1 ? 21 : 27;
+    g.fillStyle(0xd7ccc8, 1);
+    g.fillTriangle(beakX, beakY - 3, beakX + tcbLen, beakY + 4, beakX, beakY + 3);
+    g.lineStyle(1.6, 0x8d6e63, 1);
+    g.lineBetween(beakX, beakY, beakX + tcbLen, beakY + 4);
   } else if (isFalcon) {
     // Sharp Hooked Raptor Tearing Beak with Tomial Tooth Notch!
     const fbLen = stage === 0 ? 14 : stage === 1 ? 18 : 22;
@@ -1159,6 +1167,62 @@ export function makeTextures(scene: Phaser.Scene) {
   g.fillStyle(0xffffff, 0.9);
   g.fillCircle(14, 13, 3);
   g.generateTexture('drop_solar_ember', 32, 32);
+  g.destroy();
+
+  // Golden Tree Beetle (Cruncher drop, 150c)
+  g = gfx(scene);
+  // Legs
+  g.lineStyle(1.8, 0x854d0e, 1);
+  g.lineBetween(8, 10, 3, 7);
+  g.lineBetween(8, 16, 2, 16);
+  g.lineBetween(8, 22, 4, 25);
+  g.lineBetween(24, 10, 29, 7);
+  g.lineBetween(24, 16, 30, 16);
+  g.lineBetween(24, 22, 28, 25);
+  // Antennae
+  g.lineBetween(13, 8, 8, 2);
+  g.lineBetween(19, 8, 24, 2);
+  // Carapace / Body (Iridescent Golden Bronze & Emerald)
+  g.fillStyle(0xd97706, 1);
+  g.fillEllipse(16, 17, 18, 22);
+  g.fillStyle(0x84cc16, 0.7);
+  g.fillEllipse(16, 17, 14, 18);
+  g.fillStyle(0xfde047, 1);
+  g.fillEllipse(16, 17, 10, 14);
+  // Wing split seam
+  g.lineStyle(1.5, 0x78350f, 0.9);
+  g.lineBetween(16, 8, 16, 26);
+  // Head & Eyes
+  g.fillStyle(0x92400e, 1);
+  g.fillCircle(16, 8, 4.5);
+  g.fillStyle(0x000000, 1);
+  g.fillCircle(13, 7, 1.5);
+  g.fillCircle(19, 7, 1.5);
+  // Specular sheen
+  g.fillStyle(0xffffff, 0.85);
+  g.fillEllipse(13, 14, 3, 6);
+  g.generateTexture('drop_beetle', 32, 32);
+  g.destroy();
+
+  // Luminous Forest Pearl (Toucan drop, 500c)
+  g = gfx(scene);
+  // Radiant soft aura
+  g.fillStyle(0x38bdf8, 0.25);
+  g.fillCircle(16, 16, 15);
+  g.fillStyle(0xf472b6, 0.28);
+  g.fillCircle(16, 16, 13);
+  // Pearl luster sphere
+  g.fillStyle(0xf1f5f9, 1);
+  g.fillCircle(16, 16, 11);
+  g.fillStyle(0xe0e7ff, 0.8);
+  g.fillCircle(16, 16, 9.5);
+  g.fillStyle(0xfff1f2, 0.7);
+  g.fillCircle(15, 15, 7.5);
+  // Pearlescent gleam star
+  g.fillStyle(0xffffff, 0.95);
+  g.fillCircle(12, 12, 3.5);
+  g.fillCircle(18, 19, 1.8);
+  g.generateTexture('drop_pearl', 32, 32);
   g.destroy();
 
   // ---- pets ----
