@@ -2029,7 +2029,7 @@ export class Pet {
     this.walk(this.tx, 30, dt, t);
     if (Math.abs(this.img.x - this.tx) < 10) this.tx = Phaser.Math.Between(80, W - 80);
     const p = this.scene.nearestPredator(this.img.x, this.img.y);
-    if (p && Phaser.Math.Distance.Between(this.img.x, this.img.y, p.spr.x, p.spr.y) < 65) {
+    if (p && !(p.kind === 'vulture' && p.vultureState === 'dormant') && Phaser.Math.Distance.Between(this.img.x, this.img.y, p.spr.x, p.spr.y) < 65) {
       p.hit(4, this.img.x, this.img.y);
       this.scene.burst(p.spr.x, p.spr.y, 0xe5e7eb, 8);
       this.scene.floatText(p.spr.x, p.spr.y - 20, 'QUILL STAB! -4', '#ffffff', '#b91c1c');
@@ -2399,7 +2399,7 @@ export class Pet {
 
   private updateFrog(dt: number, t: number) {
     const p = this.scene.nearestPredator(this.img.x, this.img.y);
-    if (p && p.spr.y > 380 && this.pause <= 0) {
+    if (p && !(p.kind === 'vulture' && p.vultureState === 'dormant') && p.spr.y > 380 && this.pause <= 0) {
       this.pause = 3.5;
       this.scene.tweens.add({
         targets: this.img,
@@ -2407,8 +2407,10 @@ export class Pet {
         duration: 250,
         yoyo: true,
         onYoyo: () => {
-          p.hit(5, this.img.x, this.img.y);
-          this.scene.floatText(p.spr.x, p.spr.y - 20, 'FROG HEADBUTT! -5', '#22c55e', '#14532d');
+          if (!p.dying && !(p.kind === 'vulture' && p.vultureState === 'dormant')) {
+            p.hit(5, this.img.x, this.img.y);
+            this.scene.floatText(p.spr.x, p.spr.y - 20, 'FROG HEADBUTT! -5', '#22c55e', '#14532d');
+          }
         },
       });
     } else if (this.pause > 0) {
@@ -2445,7 +2447,7 @@ export class Pet {
 
   private updateFerret(dt: number, t: number) {
     const p = this.scene.nearestPredator(this.img.x, this.img.y);
-    if (p) {
+    if (p && !(p.kind === 'vulture' && p.vultureState === 'dormant')) {
       this.walk(p.spr.x, 180, dt, t);
       if (Phaser.Math.Distance.Between(this.img.x, this.img.y, p.spr.x, p.spr.y) < 50) {
         p.hit(2, this.img.x, this.img.y);
@@ -2462,7 +2464,7 @@ export class Pet {
     this.timer -= dt;
     if (this.timer <= 0) {
       const p = this.scene.nearestPredator(this.img.x, this.img.y);
-      if (p) {
+      if (p && !(p.kind === 'vulture' && p.vultureState === 'dormant')) {
         this.timer = 1.2;
         this.img.setFlipX(p.spr.x < this.img.x);
         this.scene.throwAcorn(this.img.x, this.img.y - 50, p);
@@ -6483,11 +6485,13 @@ export class AviaryScene extends Phaser.Scene {
     return best;
   }
 
-  nearestPredator(x: number, y: number): Predator | undefined {
+  nearestPredator(x: number, y: number, forAttack = true): Predator | undefined {
     let best: Predator | undefined;
     let bd = 750;
     for (const p of this.predators) {
-      if (p.dying) continue;
+      if (p.dying || p.gone) continue;
+      // Do not target the Gourmet Vulture if he is resting / regenerating (prevents healing him)
+      if (forAttack && p.kind === 'vulture' && p.vultureState === 'dormant') continue;
       const d = Phaser.Math.Distance.Between(x, y, p.spr.x, p.spr.y);
       if (d < bd) {
         bd = d;
@@ -6538,6 +6542,11 @@ export class AviaryScene extends Phaser.Scene {
       onComplete: () => {
         a.destroy();
         if (!target.dying && !target.gone) {
+          // If Gourmet Vulture entered dormant resting state, acorn harmlessly shatters without healing him!
+          if (target.kind === 'vulture' && target.vultureState === 'dormant') {
+            this.burst(target.spr.x, target.spr.y, 0xc8934f, 4);
+            return;
+          }
           target.hit(1, x, y);
           this.burst(target.spr.x, target.spr.y, 0xc8934f, 5);
         }
