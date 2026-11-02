@@ -721,6 +721,9 @@ export interface SuspendedSession {
   eggs: number;
   petKeys: string[];
   birdCount: number;
+  quality?: number;
+  maxFood?: number;
+  birds?: SavedBird[];
   stageName?: string;
   label?: string;
 }

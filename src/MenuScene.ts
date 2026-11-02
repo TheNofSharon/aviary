@@ -121,7 +121,7 @@ export class MenuScene extends Phaser.Scene {
     const ws = getWorldAndStage(this.maxUnlockedLevel);
 
     const suspended = AviaryScene.suspendedGame;
-    const hasSuspended = !!suspended || !!save.suspendedSession;
+    const hasSuspended = !!save.suspendedSession;
     const timeTrialUnlocked = this.maxUnlockedLevel > 4;
 
     // -------------------------------------------------------------------------
@@ -344,10 +344,10 @@ export class MenuScene extends Phaser.Scene {
     // 1. START ADVENTURE / CONTINUE ADVENTURE (Sunlit Forest Amber)
     const advTitle = hasSuspended ? 'CONTINUE' : 'START ADVENTURE';
     const advSub = hasSuspended
-      ? (suspended?.label || 'Resume Campaign')
+      ? (save.suspendedSession?.label || 'Resume Campaign')
       : `World ${ws.worldId}-${ws.stageNum}`;
     this.createNatureCapsuleButton(plateX, plateY - 195, advTitle, advSub, 'amber', () => {
-      if (hasSuspended && (suspended?.mode === 'campaign' || (!suspended && save.suspendedSession))) {
+      if (hasSuspended) {
         this.resumeActiveGame();
       } else {
         this.switchView('stage_briefing', this.maxUnlockedLevel);
@@ -394,8 +394,6 @@ export class MenuScene extends Phaser.Scene {
     const aviarySub = `${save.gems} GEMS`;
     this.createNatureCapsuleButton(plateX, plateY + 75, 'THE AVIARY', aviarySub, 'emerald', () => {
       this.scene.stop('Aviary');
-      AviaryScene.suspendedGame = undefined;
-      patchSave({ suspendedSession: undefined });
       this.scene.start('Aviary', { sandbox: true });
     });
 
@@ -631,6 +629,9 @@ export class MenuScene extends Phaser.Scene {
         restoredCoins: s.coins,
         restoredWeapon: s.weapon,
         restoredEggs: s.eggs,
+        restoredQuality: s.quality,
+        restoredMaxFood: s.maxFood,
+        restoredBirds: s.birds,
         pets: s.petKeys,
         restoredBirdCount: s.birdCount,
         promptResume: true,
@@ -644,6 +645,9 @@ export class MenuScene extends Phaser.Scene {
         restoredCoins: s.coins,
         restoredWeapon: s.weapon,
         restoredEggs: s.eggs,
+        restoredQuality: s.quality,
+        restoredMaxFood: s.maxFood,
+        restoredBirds: s.birds,
         pets: s.petKeys,
         restoredBirdCount: s.flockCount,
         sandbox: s.mode === 'sandbox',
@@ -1514,14 +1518,15 @@ export class MenuScene extends Phaser.Scene {
       color: '#ffffff',
     }).setOrigin(0.5);
 
-    const lBadge = this.add.text(0, -cardH / 2 + 90, 'ENDURANCE GAUNTLET', {
+    const onslaughtClear = save.challenges?.['predator_onslaught'] === 'completed';
+    const lBadge = this.add.text(0, -cardH / 2 + 90, onslaughtClear ? '✓ COMPLETED 🏆' : 'ENDURANCE GAUNTLET', {
       fontFamily: FONT,
       fontSize: '12px',
       fontStyle: 'bold',
-      color: '#fde047',
+      color: onslaughtClear ? '#4ade80' : '#fde047',
     }).setOrigin(0.5);
 
-    const eagleIcon = this.add.image(0, -cardH / 2 + 145, 'goldegg').setScale(1.2);
+    const eagleIcon = this.add.image(0, -cardH / 2 + 145, 'bird_hawk').setScale(1.25);
 
     const lDesc = this.add.text(
       0,
@@ -1560,7 +1565,7 @@ export class MenuScene extends Phaser.Scene {
     p1bg.fillRoundedRect(-150, -24, 300, 48, 14);
     p1bg.fillStyle(0xd97706, 1);
     p1bg.fillRoundedRect(-150, -28, 300, 48, 14);
-    const p1txt = this.add.text(0, -4, '⚔️  PLAY TRIAL 1', {
+    const p1txt = this.add.text(0, -4, onslaughtClear ? '⚔️  PLAY AGAIN' : '⚔️  PLAY TRIAL 1', {
       fontFamily: FONT,
       fontSize: '18px',
       fontStyle: 'bold',
@@ -1569,7 +1574,7 @@ export class MenuScene extends Phaser.Scene {
     playTrial1Btn.add([p1bg, p1txt]);
     playTrial1Btn.setSize(300, 48).setInteractive({ useHandCursor: true });
     playTrial1Btn.on('pointerdown', () => {
-      this.scene.start('Aviary', { level: 2 });
+      this.scene.start('Aviary', { challengeId: 'predator_onslaught' });
     });
     playTrial1Btn.on('pointerover', () => this.tweens.add({ targets: playTrial1Btn, scale: 1.04, duration: 100 }));
     playTrial1Btn.on('pointerout', () => this.tweens.add({ targets: playTrial1Btn, scale: 1.0, duration: 100 }));

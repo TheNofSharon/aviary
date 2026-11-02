@@ -2669,6 +2669,9 @@ export interface SuspendedGameInfo {
   weapon: number;
   eggs: number;
   petKeys: string[];
+  quality?: number;
+  maxFood?: number;
+  birds?: SavedBird[];
   timeTrialTime?: number;
   challengeId?: string;
   label: string;
@@ -2685,6 +2688,9 @@ interface SceneData {
   restoredWeapon?: number;
   restoredEggs?: number;
   restoredBirdCount?: number;
+  restoredQuality?: number;
+  restoredMaxFood?: number;
+  restoredBirds?: SavedBird[];
   promptResume?: boolean;
 }
 
@@ -2829,6 +2835,8 @@ export class AviaryScene extends Phaser.Scene {
       ? (sv.sandbox?.wallpaper ?? 1)
       : this.challengeId === 'night_bats'
       ? 2
+      : this.challengeId === 'predator_onslaught'
+      ? 3
       : this.timeTrial
       ? (data.level ?? 1)
       : (data.level ?? sv.level ?? 1);
@@ -2847,18 +2855,19 @@ export class AviaryScene extends Phaser.Scene {
         this.petKeys = unlocked.slice(0, 3);
       }
     } else {
-      this.quality = 1;
-      this.maxFood = 1;
+      this.quality = data.restoredQuality ?? 1;
+      this.maxFood = data.restoredMaxFood ?? 1;
       this.weapon = data.restoredWeapon ?? 0;
       this.coins = data.restoredCoins ?? 200;
       this.eggs = data.restoredEggs ?? 0;
       this.petKeys = this.challengeId === 'night_bats'
         ? ['owl', 'hedgehog', 'squirrel']
+        : this.challengeId === 'predator_onslaught'
+        ? []
         : this.timeTrial
         ? (data.pets ?? ['hedgehog', 'butterfly', 'squirrel']).slice(0, 3)
         : (data.pets ?? []).slice(0, 3);
     }
-    this.eggs = 0;
     this.ended = false;
     this.spots = [];
     this.birds = [];
@@ -2885,6 +2894,8 @@ export class AviaryScene extends Phaser.Scene {
       ? Infinity
       : this.challengeId === 'night_bats'
       ? 8
+      : this.challengeId === 'predator_onslaught'
+      ? 10
       : this.timeTrial
       ? 25
       : d.firstWaveDelay;
@@ -3008,21 +3019,40 @@ export class AviaryScene extends Phaser.Scene {
       });
       this.time.addEvent({ delay: 4000, loop: true, callback: () => this.saveSandbox() });
     } else {
-      const restoredCount = this.initData?.restoredBirdCount;
-      if (restoredCount !== undefined && restoredCount > 0) {
-        for (let i = 0; i < restoredCount; i++) {
-          const stage = this.level === 1 ? 0 : 1;
-          const bx = 340 + (i % 4) * 140;
-          const by = 230 + (i % 2) * 60;
-          this.birds.push(new Bird(this, bx, by, stage, false, false, 'sparrow'));
-        }
-      } else if (this.level === 1) {
-        this.birds.push(new Bird(this, 500, 260, 0, false, false, 'sparrow'));
+      if (this.initData?.restoredBirds && this.initData.restoredBirds.length > 0) {
+        this.initData.restoredBirds.forEach((rb, i) => {
+          const bx = 260 + (i % 5) * 120 + Phaser.Math.Between(-15, 15);
+          const by = 200 + Math.floor(i / 5) * 80 + Phaser.Math.Between(-15, 15);
+          const b = new Bird(this, bx, by, rb.stage, rb.mama, rb.rare, rb.species || 'sparrow');
+          b.units = rb.units ?? 0;
+          this.birds.push(b);
+        });
       } else {
-        this.birds.push(
-          new Bird(this, 380, 250, 1, false, false, 'sparrow'),
-          new Bird(this, 620, 300, 1, false, false, 'sparrow')
-        );
+        const restoredCount = this.initData?.restoredBirdCount;
+        if (restoredCount !== undefined && restoredCount > 0) {
+          for (let i = 0; i < restoredCount; i++) {
+            const stage = this.level === 1 ? 0 : 1;
+            const bx = 340 + (i % 4) * 140;
+            const by = 230 + (i % 2) * 60;
+            this.birds.push(new Bird(this, bx, by, stage, false, false, 'sparrow'));
+          }
+        } else if (this.level === 1) {
+          this.birds.push(new Bird(this, 500, 260, 0, false, false, 'sparrow'));
+        } else {
+          this.birds.push(
+            new Bird(this, 380, 250, 1, false, false, 'sparrow'),
+            new Bird(this, 620, 300, 1, false, false, 'sparrow')
+          );
+        }
+      }
+      if (!this.sandbox && !this.timeTrial && !this.challengeId) {
+        this.time.addEvent({ delay: 5000, loop: true, callback: () => this.saveCampaignSession() });
+        window.addEventListener('beforeunload', () => this.saveCampaignSession());
+      }
+      if (this.initData?.promptResume) {
+        this.time.delayedCall(400, () => {
+          this.toast('Welcome back! Campaign stage resumed.');
+        });
       }
     }
     for (const k of this.petKeys) {
@@ -6106,6 +6136,8 @@ export class AviaryScene extends Phaser.Scene {
       ? 'My Aviary'
       : this.challengeId === 'night_bats'
       ? '🦇 Night of Bats'
+      : this.challengeId === 'predator_onslaught'
+      ? '⚡ Predator Onslaught'
       : this.timeTrial
       ? `${ws.label} Timed ⏱️`
       : `${ws.label}`;
@@ -6149,6 +6181,18 @@ export class AviaryScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
         .setDepth(41);
+    } else if (this.challengeId === 'predator_onslaught') {
+      const chalW = 240;
+      pill.fillRoundedRect(346, 14, chalW, 44, 22);
+      this.challengeGoalText = this.add
+        .text(346 + chalW / 2, 36, '⚡ Wave 1/5 (Survive!)', {
+          fontFamily: FONT,
+          fontSize: '15px',
+          fontStyle: 'bold',
+          color: '#fde047',
+        })
+        .setOrigin(0.5)
+        .setDepth(41);
     }
 
     this.birdText = this.add.text(W - 105, 36, '', { fontFamily: FONT, fontSize: '20px', fontStyle: 'bold', color: '#ffffff' }).setOrigin(0.5).setDepth(41);
@@ -6156,6 +6200,8 @@ export class AviaryScene extends Phaser.Scene {
     let initialHint = 'Click the sky to drop food. Hover over coins to collect them!';
     if (this.challengeId === 'night_bats') {
       initialHint = 'Challenge: Vanquish all nocturnal bat waves and defeat the Vampire Bat King!';
+    } else if (this.challengeId === 'predator_onslaught') {
+      initialHint = 'Challenge: Repel 5 rapid onslaught waves of fierce predators with your slingshot!';
     } else if (!this.sandbox) {
       if (ws.worldId === 1 && ws.stageNum === 1) {
         initialHint = 'Tutorial: Click sky to drop seeds for your hungry chick!';
@@ -7169,16 +7215,33 @@ export class AviaryScene extends Phaser.Scene {
     patchSave({ suspendedSession: undefined });
     this.time.delayedCall(800, () => {
       this.overlay('Game Over', ['All of your birds are gone.', 'Keep them fed and chase off predators!'], '#ff8a80');
-      this.bigButton('TRY AGAIN', 460, () =>
-        this.scene.restart({
-          ...this.initData,
-          level: this.level,
-          pets: this.petKeys,
-          challengeId: this.challengeId,
-          timeTrial: this.timeTrial,
-          sandbox: this.sandbox,
-        })
-      );
+      this.bigButton('TRY AGAIN', 460, () => {
+        if (this.challengeId === 'night_bats') {
+          this.scene.restart({ challengeId: 'night_bats' });
+        } else if (this.challengeId === 'predator_onslaught') {
+          this.scene.restart({ challengeId: 'predator_onslaught' });
+        } else {
+          const sv = loadSave();
+          const unlocked = getUnlockedPets(sv.level);
+          if (unlocked.length === 0) {
+            this.scene.restart({ ...this.initData, level: this.level, pets: [] });
+          } else {
+            this.openStagePetSelectionModal((newPets) => {
+              this.scene.restart({
+                ...this.initData,
+                level: this.level,
+                pets: newPets,
+                restoredCoins: undefined,
+                restoredWeapon: undefined,
+                restoredEggs: undefined,
+                restoredBirds: undefined,
+                restoredBirdCount: undefined,
+                promptResume: false,
+              });
+            });
+          }
+        }
+      });
     });
   }
 
@@ -7262,6 +7325,8 @@ export class AviaryScene extends Phaser.Scene {
       ? 'Time Trial Challenge'
       : this.challengeId === 'night_bats'
       ? '🦇 Challenge: Night of the Bats'
+      : this.challengeId === 'predator_onslaught'
+      ? '⚡ Challenge: Predator Onslaught'
       : `${ws.label} • ${ws.stage.name}`;
     const subtitle = this.add
       .text(cardX, cardY - cardH / 2 + 75, stageDesc, {
@@ -7287,6 +7352,8 @@ export class AviaryScene extends Phaser.Scene {
       ? `⏱️ ${Math.floor(this.timeTrialTime)}s Remaining  •  🪙 ${this.coins} Coins`
       : this.challengeId === 'night_bats'
       ? `🦇 Wave ${Math.min(4, this.waveIndex + 1)}/4  •  Defeat Bat King!`
+      : this.challengeId === 'predator_onslaught'
+      ? `⚡ Wave ${Math.min(5, this.waveIndex + 1)}/5  •  Survive Onslaught!`
       : `🐦 ${livingBirds} Birds Alive  •  🪙 ${this.coins} Coins  •  🥚 ${this.eggs}/3 Eggs`;
     const statText = this.add
       .text(cardX, cardY - cardH / 2 + 111, statTextStr, {
@@ -7361,17 +7428,44 @@ export class AviaryScene extends Phaser.Scene {
       this.closePauseModal();
       if (this.sandbox) {
         this.openThemesModal();
+      } else if (this.challengeId === 'night_bats') {
+        this.scene.restart({ challengeId: 'night_bats' });
+      } else if (this.challengeId === 'predator_onslaught') {
+        this.scene.restart({ challengeId: 'predator_onslaught' });
       } else {
-        AviaryScene.suspendedGame = undefined;
-        patchSave({ suspendedSession: undefined });
-        this.scene.restart({
-          ...this.initData,
-          level: this.level,
-          pets: this.petKeys,
-          challengeId: this.challengeId,
-          timeTrial: this.timeTrial,
-          sandbox: this.sandbox,
-        });
+        const sv = loadSave();
+        const unlocked = getUnlockedPets(sv.level);
+        if (unlocked.length === 0) {
+          AviaryScene.suspendedGame = undefined;
+          patchSave({ suspendedSession: undefined });
+          this.scene.restart({
+            ...this.initData,
+            level: this.level,
+            pets: [],
+            restoredCoins: undefined,
+            restoredWeapon: undefined,
+            restoredEggs: undefined,
+            restoredBirds: undefined,
+            restoredBirdCount: undefined,
+            promptResume: false,
+          });
+        } else {
+          this.openStagePetSelectionModal((newPets) => {
+            AviaryScene.suspendedGame = undefined;
+            patchSave({ suspendedSession: undefined });
+            this.scene.restart({
+              ...this.initData,
+              level: this.level,
+              pets: newPets,
+              restoredCoins: undefined,
+              restoredWeapon: undefined,
+              restoredEggs: undefined,
+              restoredBirds: undefined,
+              restoredBirdCount: undefined,
+              promptResume: false,
+            });
+          });
+        }
       }
     });
 
@@ -7388,41 +7482,73 @@ export class AviaryScene extends Phaser.Scene {
     });
   }
 
+  saveCampaignSession() {
+    if (this.sandbox || this.timeTrial || this.challengeId || this.ended) return;
+    const livingBirds: SavedBird[] = this.birds
+      .filter((b) => !b.dead)
+      .map((b) => ({
+        stage: b.stage,
+        units: b.units,
+        mama: b.isBreeder,
+        rare: b.rare,
+        species: b.species.key,
+      }));
+    if (livingBirds.length === 0) return;
+    const ws = getWorldAndStage(this.level);
+    patchSave({
+      suspendedSession: {
+        level: this.level,
+        coins: this.coins,
+        weapon: this.weapon,
+        eggs: this.eggs,
+        quality: this.quality,
+        maxFood: this.maxFood,
+        petKeys: [...this.petKeys],
+        birdCount: livingBirds.length,
+        birds: livingBirds,
+        stageName: ws.stage.name,
+        label: ws.label,
+      },
+    });
+  }
+
   goToMenu() {
     if (this.sandbox) {
       this.saveSandbox();
     }
     const ws = getWorldAndStage(this.level);
+    const livingBirds: SavedBird[] = this.birds
+      .filter((b) => !b.dead)
+      .map((b) => ({
+        stage: b.stage,
+        units: b.units,
+        mama: b.isBreeder,
+        rare: b.rare,
+        species: b.species.key,
+      }));
     AviaryScene.suspendedGame = {
-      mode: this.sandbox ? 'sandbox' : this.timeTrial ? 'timeTrial' : 'campaign',
+      mode: this.sandbox ? 'sandbox' : this.timeTrial ? 'timeTrial' : this.challengeId ? 'challenge' : 'campaign',
       level: this.level,
       coins: this.coins,
       gems: this.gems,
       weapon: this.weapon,
       eggs: this.eggs,
+      quality: this.quality,
+      maxFood: this.maxFood,
       petKeys: [...this.petKeys],
+      birds: livingBirds,
       timeTrialTime: this.timeTrialTime,
-      flockCount: this.birds.filter((b) => !b.dead).length,
-      label: this.sandbox ? 'My Aviary' : this.timeTrial ? 'Time Trial' : ws.label,
-      stageName: this.sandbox ? 'Sanctuary' : this.timeTrial ? 'Score Attack' : ws.stage.name,
+      challengeId: this.challengeId,
+      flockCount: livingBirds.length,
+      label: this.sandbox ? 'My Aviary' : this.timeTrial ? 'Time Trial' : this.challengeId === 'predator_onslaught' ? 'Predator Onslaught' : this.challengeId === 'night_bats' ? 'Night of Bats' : ws.label,
+      stageName: this.sandbox ? 'Sanctuary' : this.timeTrial ? 'Score Attack' : this.challengeId ? 'Special Trial' : ws.stage.name,
     };
     this.gamePaused = true;
     this.modal = false;
 
     // Save suspended campaign session persistently in localStorage
-    if (!this.sandbox && !this.timeTrial) {
-      patchSave({
-        suspendedSession: {
-          level: this.level,
-          coins: this.coins,
-          weapon: this.weapon,
-          eggs: this.eggs,
-          petKeys: [...this.petKeys],
-          birdCount: this.birds.filter((b) => !b.dead).length,
-          stageName: ws.stage.name,
-          label: ws.label,
-        },
-      });
+    if (!this.sandbox && !this.timeTrial && !this.challengeId) {
+      this.saveCampaignSession();
     }
 
     this.scene.stop('Aviary');
@@ -7471,6 +7597,215 @@ export class AviaryScene extends Phaser.Scene {
       menuBtn.setSize(240, 50).setInteractive({ useHandCursor: true });
       menuBtn.on('pointerdown', () => this.scene.start('Menu', { view: 'challenges' }));
     });
+  }
+
+  winPredatorOnslaught() {
+    this.ended = true;
+    unlockAchievement('predator_challenge_clear', this);
+    const sv = loadSave();
+    const ch = sv.challenges || {};
+    ch['predator_onslaught'] = 'completed';
+    const bonusGems = 25;
+    patchSave({ challenges: ch, gems: (sv.gems || 0) + bonusGems });
+    this.gems = (sv.gems || 0) + bonusGems;
+
+    this.time.delayedCall(500, () => {
+      this.overlay(
+        '⚡ ONSLAUGHT SURVIVED! 🏆',
+        [
+          'All 5 predator gauntlet waves vanquished!',
+          'Your solitary flock stood ground against the apex raiders!',
+          `Challenge Reward: +${bonusGems} Gems!`,
+          '🏆 Unlocked Trophy: Endurance Warden',
+        ],
+        '#f59e0b'
+      );
+      this.bigButton('PLAY AGAIN', 480, () => this.scene.restart({ challengeId: 'predator_onslaught' }));
+      const menuBtn = this.add.container(W / 2, 550).setDepth(73);
+      const mg = this.add.graphics();
+      mg.fillStyle(0x78350f, 1);
+      mg.fillRoundedRect(-120, -10, 240, 50, 16);
+      mg.fillStyle(0xb45309, 1);
+      mg.fillRoundedRect(-120, -14, 240, 50, 16);
+      menuBtn.add([
+        mg,
+        this.add
+          .text(0, 11, 'CHALLENGES', {
+            fontFamily: FONT,
+            fontSize: '22px',
+            fontStyle: 'bold',
+            color: '#fff',
+          })
+          .setOrigin(0.5),
+      ]);
+      menuBtn.setSize(240, 50).setInteractive({ useHandCursor: true });
+      menuBtn.on('pointerdown', () => this.scene.start('Menu', { view: 'challenges' }));
+    });
+  }
+
+  openStagePetSelectionModal(onConfirm: (pets: string[]) => void, onCancel?: () => void) {
+    this.modal = true;
+    const shade = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.82).setDepth(80).setInteractive();
+    this.modalItems.push(shade);
+
+    const pw = 840;
+    const ph = 540;
+    const panel = this.add.graphics().setDepth(81);
+    panel.fillStyle(0x27170c, 0.98);
+    panel.fillRoundedRect(W / 2 - pw / 2, H / 2 - ph / 2, pw, ph, 24);
+    panel.lineStyle(4, 0x8d5c34, 1);
+    panel.strokeRoundedRect(W / 2 - pw / 2, H / 2 - ph / 2, pw, ph, 24);
+    this.modalItems.push(panel);
+
+    const title = this.add
+      .text(W / 2, H / 2 - ph / 2 + 36, 'CHOOSE YOUR COMPANIONS', {
+        fontFamily: FONT,
+        fontSize: '28px',
+        fontStyle: 'bold',
+        color: '#ffd54f',
+        stroke: '#221105',
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(82);
+    this.modalItems.push(title);
+
+    const sv = loadSave();
+    const unlocked = getUnlockedPets(sv.level);
+    const slots = 3;
+    const chosen = new Set<string>();
+    for (const k of this.petKeys) {
+      if (unlocked.some((p) => p.key === k) && chosen.size < slots) {
+        chosen.add(k);
+      }
+    }
+    if (chosen.size === 0) {
+      for (let i = 0; i < Math.min(unlocked.length, slots); i++) {
+        chosen.add(unlocked[i].key);
+      }
+    }
+
+    const sub = this.add
+      .text(
+        W / 2,
+        H / 2 - ph / 2 + 68,
+        `Select up to ${slots} companion helpers to assist in this stage (${chosen.size}/${slots} chosen):`,
+        {
+          fontFamily: FONT,
+          fontSize: '15px',
+          color: '#f3e8d9',
+        }
+      )
+      .setOrigin(0.5)
+      .setDepth(82);
+    this.modalItems.push(sub);
+
+    const refreshCallbacks: (() => void)[] = [];
+    const count = unlocked.length;
+    const perRow = count <= 4 ? count : Math.min(8, Math.ceil(count / 2));
+    const cw = count <= 4 ? 170 : 92;
+    const ch = count <= 4 ? 120 : 94;
+    const startX = W / 2 - ((perRow - 1) * (cw + 10)) / 2;
+    const startY = count <= 4 ? H / 2 - 20 : H / 2 - 80;
+
+    for (let i = 0; i < count; i++) {
+      const def = unlocked[i];
+      const row = Math.floor(i / perRow);
+      const col = i % perRow;
+      const cx = startX + col * (cw + 10);
+      const cy = startY + row * (ch + 10);
+
+      const c = this.add.container(cx, cy).setDepth(82);
+      const bg = this.add.graphics();
+      const icon = this.add.image(0, count <= 4 ? -22 : -18, 'pet_' + def.key).setScale(count <= 4 ? 0.75 : 0.52);
+      const name = this.add
+        .text(0, count <= 4 ? 20 : 16, def.name, {
+          fontFamily: FONT,
+          fontSize: count <= 4 ? '14px' : '12px',
+          fontStyle: 'bold',
+          color: '#4a2c12',
+        })
+        .setOrigin(0.5);
+      const role = this.add
+        .text(0, count <= 4 ? 38 : 31, def.role, {
+          fontFamily: FONT,
+          fontSize: count <= 4 ? '11px' : '9px',
+          color: '#78350f',
+        })
+        .setOrigin(0.5);
+
+      c.add([bg, icon, name, role]);
+
+      const draw = () => {
+        const on = chosen.has(def.key);
+        bg.clear();
+        bg.fillStyle(on ? 0xffd86b : 0xf4e2bd, 1);
+        bg.fillRoundedRect(-cw / 2, -ch / 2, cw, ch, 10);
+        bg.lineStyle(on ? 3 : 1.5, on ? 0xff9a1f : 0xa87a4a, 1);
+        bg.strokeRoundedRect(-cw / 2, -ch / 2, cw, ch, 10);
+        c.setAlpha(on || chosen.size < slots ? 1 : 0.6);
+      };
+      draw();
+      refreshCallbacks.push(draw);
+
+      c.setSize(cw, ch).setInteractive({ useHandCursor: true });
+      c.on('pointerdown', () => {
+        if (chosen.has(def.key)) {
+          chosen.delete(def.key);
+        } else if (chosen.size < slots) {
+          chosen.add(def.key);
+        } else {
+          this.toast(`Maximum ${slots} companions allowed!`);
+          return;
+        }
+        sub.setText(`Select up to ${slots} companion helpers to assist in this stage (${chosen.size}/${slots} chosen):`);
+        startBtnText.setText(`🔄  START LEVEL (${chosen.size}/${slots})`);
+        refreshCallbacks.forEach((cb) => cb());
+      });
+
+      this.modalItems.push(c);
+    }
+
+    // Start / Restart Button
+    const startBtn = this.add.container(W / 2, H / 2 + ph / 2 - 50).setDepth(83);
+    const sbg = this.add.graphics();
+    sbg.fillStyle(0x2a6b25, 1);
+    sbg.fillRoundedRect(-140, -24, 280, 48, 16);
+    sbg.fillStyle(0x58c552, 1);
+    sbg.fillRoundedRect(-140, -28, 280, 48, 16);
+    const startBtnText = this.add
+      .text(0, -4, `🔄  START LEVEL (${chosen.size}/${slots})`, {
+        fontFamily: FONT,
+        fontSize: '20px',
+        fontStyle: 'bold',
+        color: '#ffffff',
+        stroke: '#2a6b25',
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5);
+    startBtn.add([sbg, startBtnText]);
+    startBtn.setSize(280, 48).setInteractive({ useHandCursor: true });
+    startBtn.on('pointerdown', () => {
+      this.closeModal();
+      onConfirm([...chosen]);
+    });
+    this.modalItems.push(startBtn);
+
+    // Cancel / Close button
+    const closeBtn = this.add.container(W / 2 + pw / 2 - 32, H / 2 - ph / 2 + 32).setDepth(83);
+    const clbg = this.add.graphics();
+    clbg.fillStyle(0xb71c1c, 1);
+    clbg.fillCircle(0, 0, 18);
+    const clx = this.add
+      .text(0, 0, '✕', { fontFamily: FONT, fontSize: '20px', fontStyle: 'bold', color: '#ffffff' })
+      .setOrigin(0.5);
+    closeBtn.add([clbg, clx]);
+    closeBtn.setSize(36, 36).setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => {
+      this.closeModal();
+      if (onCancel) onCancel();
+    });
+    this.modalItems.push(closeBtn);
   }
 
   private endTimeTrial() {
@@ -7572,17 +7907,30 @@ export class AviaryScene extends Phaser.Scene {
     if (this.ended || this.modal || this.gamePaused) return;
 
     // Challenge Goal Status Update
-    if (this.challengeGoalText && this.challengeId === 'night_bats') {
-      const batKingAlive = this.predators.some((p) => !p.gone && p.kind === 'bat' && p.maxHp > 30);
-      if (batKingAlive) {
-        this.challengeGoalText.setText('👑 Slay Vampire Bat King!');
-        this.challengeGoalText.setColor('#ef4444');
-      } else if (this.waveIndex >= 4) {
-        this.challengeGoalText.setText('🦇 Slay remaining bats!');
-        this.challengeGoalText.setColor('#e879f9');
-      } else {
-        this.challengeGoalText.setText(`🦇 Wave ${Math.min(4, this.waveIndex + 1)}/4 (Slay Bats!)`);
-        this.challengeGoalText.setColor('#f0abfc');
+    if (this.challengeGoalText) {
+      if (this.challengeId === 'night_bats') {
+        const batKingAlive = this.predators.some((p) => !p.gone && p.kind === 'bat' && p.maxHp > 30);
+        if (batKingAlive) {
+          this.challengeGoalText.setText('👑 Slay Vampire Bat King!');
+          this.challengeGoalText.setColor('#ef4444');
+        } else if (this.waveIndex >= 4) {
+          this.challengeGoalText.setText('🦇 Slay remaining bats!');
+          this.challengeGoalText.setColor('#e879f9');
+        } else {
+          this.challengeGoalText.setText(`🦇 Wave ${Math.min(4, this.waveIndex + 1)}/4 (Slay Bats!)`);
+          this.challengeGoalText.setColor('#f0abfc');
+        }
+      } else if (this.challengeId === 'predator_onslaught') {
+        if (this.predators.length > 0) {
+          this.challengeGoalText.setText(`⚔️ Wave ${Math.min(5, this.waveIndex)}/5 (Repel Predators!)`);
+          this.challengeGoalText.setColor('#ef4444');
+        } else if (this.waveIndex >= 5) {
+          this.challengeGoalText.setText('🏆 Clear Remaining Predators!');
+          this.challengeGoalText.setColor('#22c55e');
+        } else {
+          this.challengeGoalText.setText(`⚡ Wave ${Math.min(5, this.waveIndex + 1)}/5 (Survive!)`);
+          this.challengeGoalText.setColor('#fde047');
+        }
       }
     }
 
@@ -7677,9 +8025,19 @@ export class AviaryScene extends Phaser.Scene {
           this.winNightChallenge();
           return;
         }
-        this.toast(this.challengeId === 'night_bats' ? '🦇 Bat swarm repelled! Prepare for next nocturnal wave...' : 'Flock safe! The predators have retreated.');
-        this.waveTimer = this.challengeId === 'night_bats' ? 14 : d.waveInterval + Math.random() * 6;
-      } else if (d.firstWaveDelay < 90000 || this.challengeId === 'night_bats') {
+        if (this.challengeId === 'predator_onslaught' && this.waveIndex >= 5) {
+          this.winPredatorOnslaught();
+          return;
+        }
+        this.toast(
+          this.challengeId === 'night_bats'
+            ? '🦇 Bat swarm repelled! Prepare for next nocturnal wave...'
+            : this.challengeId === 'predator_onslaught'
+            ? '⚡ Wave cleared! Next onslaught wave inbound...'
+            : 'Flock safe! The predators have retreated.'
+        );
+        this.waveTimer = this.challengeId === 'night_bats' ? 14 : this.challengeId === 'predator_onslaught' ? 12 : d.waveInterval + Math.random() * 6;
+      } else if (d.firstWaveDelay < 90000 || this.challengeId === 'night_bats' || this.challengeId === 'predator_onslaught') {
         this.waveTimer -= dt;
         if (this.waveTimer <= 0) {
           let enemies: WaveEnemy[] = [];
@@ -7708,6 +8066,37 @@ export class AviaryScene extends Phaser.Scene {
                 { kind: 'bat', hp: 45, label: '👑 Vampire Bat King' },
                 { kind: 'bat', hp: 18, label: 'Vampire Thrall Bat' },
                 { kind: 'bat', hp: 18, label: 'Vampire Thrall Bat' },
+              ];
+            }
+          } else if (this.challengeId === 'predator_onslaught') {
+            const w = this.waveIndex++;
+            if (w === 0) {
+              enemies = [
+                { kind: 'hawk', hp: 20, label: 'Swift Forest Hawk' },
+                { kind: 'hawk', hp: 20, label: 'Swift Forest Hawk' },
+              ];
+            } else if (w === 1) {
+              enemies = [
+                { kind: 'hawk', hp: 24, label: 'Swift Forest Hawk' },
+                { kind: 'bat', hp: 16, label: 'Shadow Bat' },
+                { kind: 'hawk', hp: 24, label: 'Swift Forest Hawk' },
+              ];
+            } else if (w === 2) {
+              enemies = [
+                { kind: 'cat', hp: 45, label: 'Prowling Bobcat' },
+                { kind: 'hawk', hp: 24, label: 'Swift Forest Hawk' },
+              ];
+            } else if (w === 3) {
+              enemies = [
+                { kind: 'crow', hp: 35, label: 'Cunning Raven' },
+                { kind: 'crow', hp: 35, label: 'Cunning Raven' },
+                { kind: 'hawk', hp: 28, label: 'Screeching Hawk' },
+              ];
+            } else {
+              enemies = [
+                { kind: 'hawk', hp: 90, label: 'Elder Sky Apex Falcon' },
+                { kind: 'hawk', hp: 26, label: 'Swift Forest Hawk' },
+                { kind: 'bat', hp: 18, label: 'Shadow Bat' },
               ];
             }
           } else {
