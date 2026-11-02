@@ -222,123 +222,194 @@ export function difficulty(level: number): Difficulty {
     };
   }
 
-  // World 1: Hawks & Prowling Alley Cats (calm introduction)
+  // World 1: Hawks & Prowling Alley Cats (calm introduction scaling to tough finale)
   if (ws.worldId === 1) {
-    const isStage4 = ws.stageNum === 4;
     return {
-      firstWaveDelay: 48 - ws.stageNum * 2,
-      waveInterval: 60 - ws.stageNum * 2,
+      firstWaveDelay: 42 - ws.stageNum * 2,
+      waveInterval: 50 - ws.stageNum * 2,
       getWaveEnemies: (waveIndex: number) => {
         if (ws.stageNum === 2) {
-          return [{ kind: 'hawk', hp: 10 + waveIndex * 2, label: 'Wild Hawk' }];
+          // World 1-2: 1 Hawk, scaling with waves
+          return [{ kind: 'hawk', hp: 16 + waveIndex * 3, label: 'Wild Hawk' }];
         }
         if (ws.stageNum === 3) {
-          const isCat = waveIndex % 2 === 1;
-          return isCat
-            ? [{ kind: 'cat', hp: 14 + waveIndex, label: 'Prowling Alley Cat' }]
-            : [{ kind: 'hawk', hp: 12 + waveIndex, label: 'Wild Hawk' }];
+          // World 1-3: Cats & Hawks, wave 2+ introduces duos
+          if (waveIndex === 0) {
+            return [{ kind: 'cat', hp: 24, label: 'Prowling Alley Cat' }];
+          }
+          if (waveIndex === 1) {
+            return [{ kind: 'hawk', hp: 22, label: 'Wild Hawk' }];
+          }
+          return [
+            { kind: 'cat', hp: 26 + waveIndex, label: 'Prowling Alley Cat' },
+            { kind: 'hawk', hp: 20 + waveIndex, label: 'Wild Hawk' },
+          ];
         }
-        // Stage 4 Finale
-        const isCat = waveIndex % 2 === 0;
-        return isCat
-          ? [{ kind: 'cat', hp: 16 + waveIndex, label: 'Prowling Alley Cat' }]
-          : [{ kind: 'hawk', hp: 14 + waveIndex, label: 'Wild Hawk' }];
+        // Stage 1-4 World 1 Finale Boss Wave
+        if (waveIndex === 0) {
+          return [
+            { kind: 'cat', hp: 32, label: 'Alley Cat Alpha' },
+            { kind: 'hawk', hp: 22, label: 'Wild Hawk' },
+          ];
+        }
+        return [
+          { kind: 'cat', hp: 36 + waveIndex * 2, label: 'Alley Cat Alpha' },
+          { kind: 'cat', hp: 26, label: 'Prowling Alley Cat' },
+          { kind: 'hawk', hp: 24 + waveIndex, label: 'Wild Hawk' },
+        ];
       },
     };
   }
 
-  // World 2: Rainforest Canopy - Crows, Snakes, Raccoons
+  // World 2: Rainforest Canopy - Crows, Snakes, Raccoons, Bombardiers
   if (ws.worldId === 2) {
     return {
-      firstWaveDelay: 40,
-      waveInterval: 50,
+      firstWaveDelay: 36 - ws.stageNum * 2,
+      waveInterval: 44 - ws.stageNum * 2,
       getWaveEnemies: (waveIndex: number) => {
         if (ws.stageNum === 1) {
-          return waveIndex === 0
-            ? [{ kind: 'hawk', hp: 14, label: 'Wild Hawk' }]
-            : [{ kind: 'spider', hp: 12, label: 'Weaver Spider' }];
+          if (waveIndex === 0) {
+            return [
+              { kind: 'spider', hp: 32, label: 'Weaver Spider' },
+              { kind: 'hawk', hp: 26, label: 'Jungle Hawk' },
+            ];
+          }
+          return [
+            { kind: 'spider', hp: 36 + waveIndex * 2, label: 'Weaver Spider' },
+            { kind: 'spider', hp: 30, label: 'Weaver Spider' },
+          ];
         }
         if (ws.stageNum === 2) {
-          return waveIndex % 2 === 0
-            ? [{ kind: 'snake', hp: 14 + waveIndex, label: 'Tree Viper' }]
-            : [{ kind: 'raccoon', hp: 14, label: 'Masked Tree Raccoon' }];
+          if (waveIndex === 0) {
+            return [
+              { kind: 'snake', hp: 38, label: 'Tree Viper' },
+              { kind: 'raccoon', hp: 32, label: 'Masked Tree Raccoon' },
+            ];
+          }
+          return [
+            { kind: 'snake', hp: 44 + waveIndex * 2, label: 'Tree Viper' },
+            { kind: 'snake', hp: 36, label: 'Tree Viper' },
+          ];
         }
         if (ws.stageNum === 3) {
-          return waveIndex % 2 === 0
-            ? [{ kind: 'bombardier', hp: 20, label: 'Bombardier Osprey' }]
-            : [{ kind: 'raccoon', hp: 16 + waveIndex, label: 'Masked Tree Raccoon' }];
+          if (waveIndex === 0) {
+            return [
+              { kind: 'bombardier', hp: 48, label: 'Bombardier Osprey' },
+              { kind: 'raccoon', hp: 36, label: 'Masked Tree Raccoon' },
+            ];
+          }
+          return [
+            { kind: 'bombardier', hp: 54 + waveIndex * 2, label: 'Bombardier Osprey' },
+            { kind: 'snake', hp: 40 + waveIndex, label: 'Tree Viper' },
+          ];
         }
-        // Stage 4 Finale
+        // Stage 2-4 Finale
         if (waveIndex === 0) {
-          return [{ kind: 'cat', hp: 18, label: 'Jungle Cat' }];
+          return [
+            { kind: 'cat', hp: 46, label: 'Jungle Panther' },
+            { kind: 'bombardier', hp: 52, label: 'Bombardier Osprey' },
+          ];
         }
         return [
-          { kind: 'bombardier', hp: 22, label: 'Bombardier Osprey' },
-          { kind: 'snake', hp: 16, label: 'Tree Viper' },
+          { kind: 'bombardier', hp: 58 + waveIndex * 3, label: 'Bombardier Osprey' },
+          { kind: 'bombardier', hp: 48, label: 'Bombardier Osprey' },
+          { kind: 'snake', hp: 42, label: 'Tree Viper' },
         ];
       },
     };
   }
 
-  // World 3: Blossom Sanctuary - Spiders, Weasels, Gorgon the Glutton
+  // World 3: Blossom Sanctuary - Spiders, Weasels, Gorgon the Glutton, Gourmet Vulture
   if (ws.worldId === 3) {
     return {
-      firstWaveDelay: 38,
-      waveInterval: 48,
+      firstWaveDelay: 32 - ws.stageNum,
+      waveInterval: 40 - ws.stageNum,
       getWaveEnemies: (waveIndex: number) => {
         if (ws.stageNum === 1) {
-          return [{ kind: 'spider', hp: 16 + waveIndex * 2, label: 'Canopy Silk Spider' }];
+          return [
+            { kind: 'spider', hp: 54 + waveIndex * 4, label: 'Canopy Silk Spider' },
+            { kind: 'spider', hp: 48 + waveIndex * 2, label: 'Canopy Silk Spider' },
+          ];
         }
         if (ws.stageNum === 2) {
-          return waveIndex % 2 === 0
-            ? [{ kind: 'glutton', hp: 10, label: 'Gorgon the Glutton' }]
-            : [{ kind: 'weasel', hp: 16, label: 'Sly Woodland Weasel' }];
+          return waveIndex === 0
+            ? [
+                { kind: 'glutton', hp: 14, label: 'Gorgon the Glutton' },
+                { kind: 'weasel', hp: 48, label: 'Sly Woodland Weasel' },
+              ]
+            : [
+                { kind: 'glutton', hp: 16, label: 'Gorgon the Glutton' },
+                { kind: 'weasel', hp: 54 + waveIndex * 2, label: 'Sly Woodland Weasel' },
+                { kind: 'spider', hp: 50, label: 'Canopy Silk Spider' },
+              ];
         }
         if (ws.stageNum === 3) {
-          return waveIndex % 2 === 0
-            ? [{ kind: 'glutton', hp: 12, label: 'Gorgon the Glutton' }]
-            : [{ kind: 'spider', hp: 18, label: 'Canopy Silk Spider' }];
+          return [
+            { kind: 'glutton', hp: 16, label: 'Gorgon the Glutton' },
+            { kind: 'weasel', hp: 56 + waveIndex * 2, label: 'Sly Woodland Weasel' },
+            { kind: 'spider', hp: 52 + waveIndex * 2, label: 'Canopy Silk Spider' },
+          ];
         }
-        // Stage 4 Finale
+        // Stage 3-4 Gourmet Vulture Boss Finale
         if (waveIndex === 0) {
-          return [{ kind: 'vulture', hp: 35, label: 'Gourmet Vulture' }];
+          return [
+            { kind: 'vulture', hp: 100, label: 'Gourmet Vulture' },
+            { kind: 'weasel', hp: 52, label: 'Sly Woodland Weasel' },
+          ];
         }
         return [
-          { kind: 'vulture', hp: 40, label: 'Gourmet Vulture' },
-          { kind: 'glutton', hp: 12, label: 'Gorgon the Glutton' },
+          { kind: 'vulture', hp: 125 + waveIndex * 5, label: 'Gourmet Vulture' },
+          { kind: 'glutton', hp: 16, label: 'Gorgon the Glutton' },
+          { kind: 'spider', hp: 54 + waveIndex * 2, label: 'Canopy Silk Spider' },
         ];
       },
     };
   }
 
-  // World 4: Volcanic Mystic Peaks - Wyvern Boss
+  // World 4: Volcanic Mystic Peaks - Wyverns, Magma Vipers, Elder Wyvern
   const isBoss = ws.stageNum >= 3;
   return {
-    firstWaveDelay: 35,
-    waveInterval: 45,
+    firstWaveDelay: 28 - ws.stageNum,
+    waveInterval: 36 - ws.stageNum,
     isBossStage: isBoss,
     getWaveEnemies: (waveIndex: number) => {
       if (ws.stageNum === 1) {
-        return waveIndex % 2 === 0
-          ? [{ kind: 'cat', hp: 20, label: 'Volcanic Feline' }]
-          : [{ kind: 'snake', hp: 20, label: 'Magma Viper' }];
+        return waveIndex === 0
+          ? [
+              { kind: 'cat', hp: 70, label: 'Volcanic Feline' },
+              { kind: 'snake', hp: 65, label: 'Magma Viper' },
+            ]
+          : [
+              { kind: 'cat', hp: 80 + waveIndex * 4, label: 'Volcanic Feline' },
+              { kind: 'snake', hp: 72 + waveIndex * 3, label: 'Magma Viper' },
+              { kind: 'bombardier', hp: 62, label: 'Volcanic Bombardier' },
+            ];
       }
       if (ws.stageNum === 2) {
         return [
-          { kind: 'vulture', hp: 45, label: 'Gourmet Vulture' },
-          { kind: 'bombardier', hp: 25, label: 'Bombardier Osprey' },
+          { kind: 'vulture', hp: 130 + waveIndex * 8, label: 'Gourmet Vulture' },
+          { kind: 'bombardier', hp: 68 + waveIndex * 4, label: 'Volcanic Bombardier' },
+          { kind: 'snake', hp: 70, label: 'Magma Viper' },
         ];
       }
       if (ws.stageNum === 3) {
-        return [{ kind: 'wyvern', hp: 40 + waveIndex * 5, label: 'Volcanic Wyvern' }];
+        return [
+          { kind: 'wyvern', hp: 175 + waveIndex * 15, label: 'Volcanic Wyvern' },
+          { kind: 'cat', hp: 76 + waveIndex * 3, label: 'Volcanic Feline' },
+          { kind: 'bombardier', hp: 70, label: 'Volcanic Bombardier' },
+        ];
       }
-      // World 4-4 Grand Finale Boss
+      // World 4-4 Grand Finale Final Boss!
       if (waveIndex === 0) {
-        return [{ kind: 'wyvern', hp: 50, label: 'Elder Volcanic Wyvern' }];
+        return [
+          { kind: 'wyvern', hp: 260, label: 'Elder Volcanic Wyvern' },
+          { kind: 'bombardier', hp: 75, label: 'Volcanic Bombardier' },
+        ];
       }
       return [
-        { kind: 'wyvern', hp: 55, label: 'Elder Volcanic Wyvern' },
-        { kind: 'bombardier', hp: 20, label: 'Volcanic Bombardier' },
+        { kind: 'wyvern', hp: 320 + waveIndex * 20, label: 'Elder Volcanic Wyvern' },
+        { kind: 'wyvern', hp: 180, label: 'Infernal Wyvern Drake' },
+        { kind: 'bombardier', hp: 82, label: 'Volcanic Bombardier' },
       ];
     },
   };

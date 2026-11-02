@@ -221,7 +221,7 @@ export class Bird {
     this.species = getSpeciesDef(speciesKey);
     if (this.species.behavior === 'breeder') this.mama = true;
     this.coinT = 4 + Math.random() * 5;
-    const texKey = this.mama ? 'mama' : this.species.key;
+    const texKey = (this.mama && this.species.key !== 'phoenix') ? 'mama' : this.species.key;
     const f = makeFlyer(scene, texKey, x, y, 10, stage);
     this.body = f.body;
     this.bodyShadow = f.bodyShadow;
@@ -278,7 +278,7 @@ export class Bird {
   }
 
   updateTextures() {
-    const texKey = this.mama ? 'mama' : this.species.key;
+    const texKey = (this.mama && this.species.key !== 'phoenix') ? 'mama' : this.species.key;
     const s = Math.min(2, Math.max(0, this.stage));
     const bodyKey = this.scene.textures.exists(`bird_${texKey}_${s}`) ? `bird_${texKey}_${s}` : `bird_${texKey}`;
     const wingKey = this.scene.textures.exists(`wing_${texKey}_${s}`) ? `wing_${texKey}_${s}` : `wing_${texKey}`;
@@ -312,7 +312,7 @@ export class Bird {
   }
 
   get scale() {
-    return this.isBreeder ? 0.88 : STAGE_SCALE[this.stage];
+    return (this.isBreeder && this.species.key !== 'phoenix') ? 0.88 : STAGE_SCALE[this.stage];
   }
 
   private footOffset(nest: boolean) {
@@ -520,25 +520,25 @@ export class Bird {
       return;
     }
     const inCombat = this.scene.predators.some((p) => !p.dying && p.kind !== 'glutton');
-    if (!inCombat) {
-      const baseHunger = this.isBreeder ? 4.0 : this.stage === 0 ? 5.2 : 4.4;
-      const hungerRate = baseHunger * this.metabolism;
-      this.fullness = Math.max(0, this.fullness - hungerRate * dt);
-      if (this.fullness <= 0) {
-        this.sick += dt;
-        // Insaniquarium-style starving: solid pale sickly ash-grey (distinct from hungry green, no strobe flashing)
-        const sickColor = 0x88929e;
-        this.body.setTint(sickColor);
-        this.wing.setTint(sickColor);
-        this.spr.rotation = 0.22 * this.dir + Math.sin(t * 0.02) * 0.08; // weak struggling wobble
+    const baseHunger = this.isBreeder ? 5.8 : this.stage === 0 ? 7.5 : 6.2;
+    const combatFactor = inCombat ? 0.5 : 1.0;
+    const hungerRate = baseHunger * combatFactor * this.metabolism;
+    this.fullness = Math.max(0, this.fullness - hungerRate * dt);
+    if (this.fullness <= 0) {
+      this.sick += dt;
+      // Insaniquarium-style starving: solid pale sickly ash-grey (distinct from hungry green, no strobe flashing)
+      const sickColor = 0x88929e;
+      this.body.setTint(sickColor);
+      this.wing.setTint(sickColor);
+      this.spr.rotation = 0.22 * this.dir + Math.sin(t * 0.02) * 0.08; // weak struggling wobble
 
-        // Insaniquarium-fast starvation death (3.0s window!)
-        const maxSick = this.scene.sandbox ? (this.isFeeder ? 8 : 999999) : 3.0;
-        if (this.sick > maxSick) {
-          this.scene.killBird(this, 'starved');
-          return;
-        }
-      } else {
+      // Insaniquarium-fast starvation death (urgent 2.0s window in campaign!)
+      const maxSick = this.scene.sandbox ? (this.isFeeder ? 4.0 : 999999) : 2.0;
+      if (this.sick > maxSick) {
+        this.scene.killBird(this, 'starved');
+        return;
+      }
+    } else {
         this.sick = 0;
         if (this.fullness < 50) {
           if (!this.wasHungry) {
@@ -556,7 +556,6 @@ export class Bird {
           }
         }
       }
-    }
     // Periodic natural bird chirps & melodic trills
     if (!this.dead && !this.hidden && this.sick <= 0) {
       this.chirpTimer -= dt;
@@ -881,7 +880,7 @@ export class Bird {
     }
 
     // Currency drops: strictly timed interval independent of feeding
-    if (!this.isBreeder && !isHunter && this.stage >= 1) {
+    if ((!this.isBreeder || this.species.key === 'phoenix') && !isHunter && this.stage >= 1) {
       this.coinT -= dt;
       if (this.coinT <= 0) {
         if (this.sick === 0) {
@@ -1040,6 +1039,12 @@ export class Predator {
     this.kind = kind;
     this.hp = hp;
     this.maxHp = hp;
+    if (kind === 'glutton') {
+      this.maxFoods = Math.min(22, Math.max(12, Math.round(hp * 0.9)));
+    }
+    if (kind === 'bombardier') {
+      this.missileCooldown = Math.max(2.8, 5.0 - (scene.level - 1) * 0.15);
+    }
     if (kind === 'bat') {
       const spawnX = Math.random() < 0.5 ? -80 : W + 80;
       const spawnY = Phaser.Math.Between(130, 240);
@@ -1208,15 +1213,17 @@ export class Predator {
   }
 
   private moveTo(tx: number, ty: number, speed: number, dt: number) {
+    const lvlScale = 1.0 + Math.min(0.35, Math.max(0, (this.scene.level - 1) * 0.025));
+    const effectiveSpeed = speed * lvlScale;
     const d = Phaser.Math.Distance.Between(this.spr.x, this.spr.y, tx, ty);
     if (d < 8) return true;
-    const vx = ((tx - this.spr.x) / d) * speed;
-    const vy = ((ty - this.spr.y) / d) * speed;
+    const vx = ((tx - this.spr.x) / d) * effectiveSpeed;
+    const vy = ((ty - this.spr.y) / d) * effectiveSpeed;
     this.spr.x += vx * dt;
     this.spr.y += vy * dt;
     if (Math.abs(vx) > 8) this.dir = vx > 0 ? 1 : -1;
-    this.spr.rotation = Phaser.Math.Clamp((vy / speed) * 0.3 * this.dir, -0.5, 0.5);
-    return d < speed * dt + 8;
+    this.spr.rotation = Phaser.Math.Clamp((vy / effectiveSpeed) * 0.3 * this.dir, -0.5, 0.5);
+    return d < effectiveSpeed * dt + 8;
   }
 
   update(dt: number, t: number) {
@@ -2092,7 +2099,7 @@ export class Pet {
               // If no completed nest available after waiting, hatch a chick mid-air!
               this.timer = 20;
               this.scene.burst(f.spr.x, f.spr.y - 14, 0xffd54f, 12);
-              const b = new Bird(this.scene, f.spr.x, f.spr.y - 25, 0, false, false, 'sparrow', true);
+              const b = new Bird(this.scene, f.spr.x, f.spr.y - 25, 0, false, false, 'sparrow', false);
               this.scene.birds.push(b);
               this.scene.floatText(f.spr.x, f.spr.y - 35, '🥚 Free Songbird Chick Hatched!', '#ffd54f', '#422817');
             }
@@ -6377,6 +6384,7 @@ export class AviaryScene extends Phaser.Scene {
         }
         const bx = bird.spr.x;
         const by = bird.spr.y;
+        const wasMama = bird.mama || bird.isBreeder;
         bird.dead = true;
         bird.shadow?.destroy();
         bird.spr.destroy();
@@ -6384,13 +6392,18 @@ export class AviaryScene extends Phaser.Scene {
         this.floatText(bx, by - 35, '🔥 CONSUMED BY HOLY FLAMES! 🔥', '#ef4444', '#450a0a');
 
         this.time.delayedCall(400, () => {
-          const phoenix = new Bird(this, bx, Math.max(120, by - 20), 3, false, true, 'phoenix');
+          const phoenix = new Bird(this, bx, Math.max(120, by - 20), 3, wasMama, true, 'phoenix');
           this.birds.push(phoenix);
           unlockAchievement('phoenix_rising', this);
           this.burst(bx, by, 0xffd54f, 32);
           this.burst(bx, by, 0xff5722, 28);
-          this.floatText(bx, by - 45, '🔥 REBORN AS A PHOENIX! 🔥', '#ffd54f', '#d84315');
-          this.toast('The adult bird burned in holy flames and rose from the ashes as the Golden Phoenix!');
+          if (wasMama) {
+            this.floatText(bx, by - 45, '🔥 REBORN AS PHOENIX MAMA! 🔥', '#ffd54f', '#d84315');
+            this.toast('The Mama bird rose from holy flames as the legendary Phoenix Mama! Lays Golden Eggs!');
+          } else {
+            this.floatText(bx, by - 45, '🔥 REBORN AS A PHOENIX! 🔥', '#ffd54f', '#d84315');
+            this.toast('The adult bird burned in holy flames and rose from the ashes as the Golden Phoenix!');
+          }
           this.dropCoin(bx, by + 20, 200, 'drop_solar_ember');
           this.refreshUi();
         });
@@ -6685,11 +6698,14 @@ export class AviaryScene extends Phaser.Scene {
 
   layEgg(spot: Spot, mother?: Bird) {
     playEggDropSound();
-    spot.egg = this.add.image(spot.x, spot.y - 4, 'egg').setDepth(5).setScale(0.9);
-    spot.eggT = 15;
+    const isPhoenix = mother?.species.key === 'phoenix';
+    spot.egg = this.add.image(spot.x, spot.y - 4, isPhoenix ? 'goldegg' : 'egg').setDepth(5).setScale(0.9);
+    spot.eggT = isPhoenix ? 20 : 15;
     spot.eggMother = mother;
-    this.burst(spot.x, spot.y - 10, 0xffffff, 6);
-    if (mother) this.toast(`${mother.species.name} laid an egg in the nest!`);
+    this.burst(spot.x, spot.y - 10, isPhoenix ? 0xffd54f : 0xffffff, isPhoenix ? 12 : 6);
+    if (mother) {
+      this.toast(isPhoenix ? '🔥 Phoenix Mama laid a radiant Golden Egg in the nest!' : `${mother.species.name} laid an egg in the nest!`);
+    }
   }
 
   birdChirp(canary: Bird) {
@@ -7889,12 +7905,13 @@ export class AviaryScene extends Phaser.Scene {
         this.burst(s.x, s.y - 10, 0xfff5dc, 10);
         s.egg.destroy();
         s.egg = undefined;
-        const isFeederInSandbox = this.sandbox;
-        const baby = new Bird(this, s.x, s.y - 20, 0, false, false, 'sparrow', isFeederInSandbox);
+        const isPhoenixMother = s.eggMother?.species.key === 'phoenix';
+        const species = isPhoenixMother ? 'phoenix' : 'sparrow';
+        const baby = new Bird(this, s.x, s.y - 20, 0, false, isPhoenixMother, species, false);
         baby.parent = s.eggMother;
         this.birds.push(baby);
         s.eggMother = undefined;
-        this.toast(this.sandbox ? 'Mama Songbird hatched a Feeder Chick!' : 'A baby songbird hatched!');
+        this.toast(isPhoenixMother ? '🔥 A sacred Phoenix Chick hatched!' : 'A baby songbird hatched!');
         this.refreshUi();
       } else if (s.eggT < 0) {
         s.eggT = 0;
