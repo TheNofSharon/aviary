@@ -520,25 +520,19 @@ export class Bird {
       return;
     }
     const inCombat = this.scene.predators.some((p) => !p.dying && p.kind !== 'glutton');
-    const baseHunger = this.isBreeder ? 5.8 : this.stage === 0 ? 7.5 : 6.2;
-    const combatFactor = inCombat ? 0.5 : 1.0;
-    const hungerRate = baseHunger * combatFactor * this.metabolism;
-    this.fullness = Math.max(0, this.fullness - hungerRate * dt);
-    if (this.fullness <= 0) {
-      this.sick += dt;
-      // Insaniquarium-style starving: solid pale sickly ash-grey (distinct from hungry green, no strobe flashing)
-      const sickColor = 0x88929e;
-      this.body.setTint(sickColor);
-      this.wing.setTint(sickColor);
-      this.spr.rotation = 0.22 * this.dir + Math.sin(t * 0.02) * 0.08; // weak struggling wobble
-
-      // Insaniquarium-fast starvation death (urgent 2.0s window in campaign!)
-      const maxSick = this.scene.sandbox ? (this.isFeeder ? 4.0 : 999999) : 2.0;
-      if (this.sick > maxSick) {
-        this.scene.killBird(this, 'starved');
-        return;
-      }
-    } else {
+    if (!inCombat) {
+      const baseHunger = this.isBreeder ? 4.0 : this.stage === 0 ? 5.2 : 4.4;
+      const hungerRate = baseHunger * this.metabolism;
+      this.fullness = Math.max(0, this.fullness - hungerRate * dt);
+      if (this.fullness <= 0) {
+        this.sick = 1;
+        // In Insaniquarium, reaching 0 fullness after ~10s of being green causes starvation death!
+        const canDie = !this.scene.sandbox || this.isFeeder;
+        if (canDie) {
+          this.scene.killBird(this, 'starved');
+          return;
+        }
+      } else {
         this.sick = 0;
         if (this.fullness < 50) {
           if (!this.wasHungry) {
@@ -556,6 +550,7 @@ export class Bird {
           }
         }
       }
+    }
     // Periodic natural bird chirps & melodic trills
     if (!this.dead && !this.hidden && this.sick <= 0) {
       this.chirpTimer -= dt;
