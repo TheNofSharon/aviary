@@ -206,6 +206,7 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
   const isOwl = key === 'owl' || s.horns;
   const isToucan = key === 'toucan';
   const isTreeCreeper = key === 'tree_creeper';
+  const isShrike = key === 'ember_shrike';
   const isPhoenix = key === 'phoenix';
   const isFalcon = key === 'piranha_finch' || key === 'falcon';
   const isCanary = key === 'canary';
@@ -427,6 +428,13 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
     g.fillTriangle(beakX, beakY - 3, beakX + tcbLen, beakY + 4, beakX, beakY + 3);
     g.lineStyle(1.6, 0x8d6e63, 1);
     g.lineBetween(beakX, beakY, beakX + tcbLen, beakY + 4);
+  } else if (isShrike) {
+    // Sharp hooked butcherbird beak with raptor tooth notch
+    const sbLen = stage === 0 ? 14 : stage === 1 ? 18 : 22;
+    g.fillStyle(0xfde047, 1);
+    g.fillTriangle(beakX, beakY - 4, beakX + sbLen, beakY + 1, beakX, beakY + 5);
+    g.fillStyle(0x18181b, 1);
+    g.fillTriangle(beakX + sbLen - 5, beakY + 1, beakX + sbLen, beakY + 1, beakX + sbLen - 2, beakY + 7);
   } else if (isFalcon) {
     // Sharp Hooked Raptor Tearing Beak with Tomial Tooth Notch!
     const fbLen = stage === 0 ? 14 : stage === 1 ? 18 : 22;
@@ -1223,6 +1231,28 @@ export function makeTextures(scene: Phaser.Scene) {
   g.fillCircle(12, 12, 3.5);
   g.fillCircle(18, 19, 1.8);
   g.generateTexture('drop_pearl', 32, 32);
+  g.destroy();
+
+  // Amber Nectar Pod (Ember Shrike drop, 200c - Food for Sugar Glider)
+  g = gfx(scene);
+  // Warm golden amber aura
+  g.fillStyle(0xf59e0b, 0.28);
+  g.fillCircle(16, 17, 15);
+  // Honey teardrop droplet body
+  g.fillStyle(0xd97706, 1);
+  g.fillEllipse(16, 19, 18, 20);
+  g.fillStyle(0xfbbf24, 1);
+  g.fillEllipse(16, 20, 14, 15);
+  // Droplet tip tapering up
+  g.fillStyle(0xd97706, 1);
+  g.fillTriangle(10, 16, 22, 16, 16, 4);
+  g.fillStyle(0xfde047, 0.92);
+  g.fillTriangle(12, 17, 20, 17, 16, 7);
+  // Specular gleam
+  g.fillStyle(0xffffff, 0.95);
+  g.fillCircle(13, 15, 3.2);
+  g.fillCircle(18, 22, 1.6);
+  g.generateTexture('drop_nectar', 32, 32);
   g.destroy();
 
   // ---- pets ----

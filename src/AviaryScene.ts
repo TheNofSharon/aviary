@@ -118,6 +118,7 @@ interface Coin {
   isGem?: boolean;
   isBeetle?: boolean;
   isPearl?: boolean;
+  isNectar?: boolean;
   phase?: number;
 }
 
@@ -2695,13 +2696,13 @@ export class SugarGlider {
   ty = 0;
   dir = 1;
   stateTimer = 2.0;
-  dropTimer: number;
+  fullness = 100;
+  seekingNectar?: Coin;
 
   constructor(scene: AviaryScene, x: number, y: number) {
     this.scene = scene;
     this.tx = x;
     this.ty = y;
-    this.dropTimer = 8.0 + Math.random() * 6.0;
 
     this.shadow = scene.add.image(x, 595, 'shadow_bird_adult').setDepth(3).setAlpha(0.28).setScale(0.7, 0.35);
 
@@ -2712,7 +2713,8 @@ export class SugarGlider {
 
     this.spr.on('pointerdown', () => {
       this.scene.burst(this.spr.x, this.spr.y, 0xfbcfe8, 14);
-      this.scene.floatText(this.spr.x, this.spr.y - 25, '🐿️ SQUEAK! ✨', '#fbcfe8', '#4c0519');
+      const squeak = this.fullness < 40 ? '🐿️ SQUEAK! *Hungry for Nectar!* 🍯' : '🐿️ SQUEAK! ✨';
+      this.scene.floatText(this.spr.x, this.spr.y - 25, squeak, '#fbcfe8', '#4c0519');
       this.scene.tweens.add({
         targets: this.flip,
         rotation: this.dir * Math.PI * 2,
@@ -2763,15 +2765,29 @@ export class SugarGlider {
   }
 
   update(dt: number, t: number) {
-    this.dropTimer -= dt;
-    if (this.dropTimer <= 0) {
-      this.dropTimer = 14.0 + Math.random() * 8.0;
-      this.dropCinderAcorn();
+    // Sugar Glider consumes sweet amber nectar to produce blazing cinder acorns
+    this.fullness = Math.max(0, this.fullness - dt * 2.8);
+
+    // When hungry, actively lock onto Amber Nectar dropped by Ember Shrike
+    if (this.fullness < 85) {
+      const nectar = this.scene.nearestNectar(this.spr.x, this.spr.y);
+      if (nectar && !nectar.collected) {
+        this.seekingNectar = nectar;
+        this.tx = nectar.img.x;
+        this.ty = nectar.img.y;
+        if (this.state !== 'glide') {
+          this.state = 'glide';
+          this.body.setTexture('sugar_glider_glide');
+        }
+      }
     }
 
     if (this.state === 'perch') {
       this.stateTimer -= dt;
       this.body.y = Math.sin(t * 0.007) * 1.5;
+      if (this.fullness < 35 && Math.random() < 0.015) {
+        this.scene.floatText(this.spr.x, this.spr.y - 25, '🐿️ *craves nectar*', '#fbbf24', '#451a03');
+      }
       if (this.stateTimer <= 0) {
         this.chooseNextSpot();
       }
@@ -2784,11 +2800,19 @@ export class SugarGlider {
       else if (dx < -4) this.dir = -1;
       this.flip.scaleX = this.dir;
 
-      const speed = 195;
+      const speed = this.seekingNectar ? 220 : 195;
       const step = speed * dt;
 
       const angle = Math.atan2(dy, Math.abs(dx));
       this.flip.rotation = this.dir * Phaser.Math.Clamp(angle, -0.55, 0.55);
+
+      // Check if reached seeking nectar
+      if (this.seekingNectar && !this.seekingNectar.collected && dist < 28) {
+        this.scene.eatNectar(this, this.seekingNectar);
+        this.seekingNectar = undefined;
+        this.chooseNextSpot();
+        return;
+      }
 
       if (dist <= step || dist < 14) {
         this.spr.x = this.tx;
@@ -2797,6 +2821,7 @@ export class SugarGlider {
         this.stateTimer = 2.5 + Math.random() * 3.5;
         this.body.setTexture('sugar_glider_perch');
         this.flip.rotation = 0;
+        this.seekingNectar = undefined;
       } else {
         this.spr.x += (dx / dist) * step;
         this.spr.y += (dy / dist) * step + Math.sin(t * 0.008) * 0.5;
@@ -2811,8 +2836,8 @@ export class SugarGlider {
   }
 
   dropCinderAcorn() {
-    this.scene.burst(this.spr.x, this.spr.y, 0xff5722, 12);
-    this.scene.burst(this.spr.x, this.spr.y, 0xffd700, 8);
+    this.scene.burst(this.spr.x, this.spr.y, 0xff5722, 14);
+    this.scene.burst(this.spr.x, this.spr.y, 0xffd700, 10);
     this.scene.floatText(this.spr.x, this.spr.y - 22, '🔥 Cinder Acorn!', '#ff7a29', '#450a0a');
     this.scene.dropCinderAcorn(this.spr.x, this.spr.y + 10);
   }
@@ -4265,9 +4290,9 @@ export class AviaryScene extends Phaser.Scene {
     // World 1: 5 buttons (Quality, More Food, Baby Bird, Slingshot, Egg)
     // World 2: 6 buttons (Quality, More Food, Baby Bird, Falcon, Slingshot, Egg)
     // World 3: 8 buttons (Quality, More Food, Baby Bird, Mama, Tree Creeper, Toucan, Slingshot, Egg)
-    // World 4: 9 buttons (Quality, More Food, Baby Bird, Mama, Tree Creeper, Toucan, Sugar Glider, Slingshot, Egg)
+    // World 4: 8 buttons (Quality, More Food, Baby Bird, Mama, Ember Shrike, Sugar Glider, Slingshot, Egg)
     const hasEgg = !this.timeTrial && !this.challengeId;
-    const baseCount = worldId === 1 ? 4 : worldId === 2 ? 5 : worldId === 3 ? 7 : 8;
+    const baseCount = worldId === 1 ? 4 : worldId === 2 ? 5 : 7;
     const totalButtons = baseCount + (hasEgg ? 1 : 0);
 
     let idx = 0;
@@ -4367,8 +4392,8 @@ export class AviaryScene extends Phaser.Scene {
       }, totalButtons);
     }
 
-    // Slot in World 3+: Tree Creeper (Beetle Forager)
-    if (worldId >= 3) {
+    // Slot in World 3: Tree Creeper & Rainbow Toucan
+    if (worldId === 3) {
       this.addShop(idx++, 'Tree Creeper', 'bird_tree_creeper', 0.5, {
         cost: () => 250,
         enabled: () => true,
@@ -4409,25 +4434,46 @@ export class AviaryScene extends Phaser.Scene {
       }, totalButtons);
     }
 
-    // Slot in World 4: Sugar Glider (Gliding non-bird that drops Cinder Acorns)
+    // Slot in World 4: Ember Shrike & Sugar Glider
     if (worldId >= 4) {
-      this.addShop(idx++, 'Sugar Glider', 'sugar_glider_icon', 0.95, {
-        cost: () => 450,
+      // Ember Shrike (Nectar Harvester)
+      this.addShop(idx++, 'Ember Shrike', 'bird_ember_shrike', 0.5, {
+        cost: () => 300,
         enabled: () => true,
         unlocked: () => this.birds.some((b) => b.stage >= 2 || b.isBreeder),
-        lockedReason: () => 'Grow a bird to Adult to unlock Sugar Glider!',
+        lockedReason: () => 'Grow a bird to Adult to unlock Ember Shrike!',
         texts: () => {
           const locked = !this.birds.some((b) => b.stage >= 2 || b.isBreeder);
           return {
+            sub: locked ? '🔒' : '300',
+            tiny: locked ? 'Need Adult' : 'Hunts chicks -> Nectar',
+          };
+        },
+        buy: () => {
+          this.coins -= 300;
+          this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 2, false, false, 'ember_shrike'));
+          this.toast('🔥 Ember Shrike joined! Crunches feeder chicks and drops sweet Amber Nectar (200c)!');
+        },
+      }, totalButtons);
+
+      // Sugar Glider (Gliding non-bird that eats Amber Nectar to drop Cinder Acorns)
+      this.addShop(idx++, 'Sugar Glider', 'sugar_glider_icon', 0.95, {
+        cost: () => 450,
+        enabled: () => true,
+        unlocked: () => this.birds.some((b) => b.species.key === 'ember_shrike') || this.eggs >= 1,
+        lockedReason: () => 'Need an Ember Shrike in your flock to unlock Sugar Glider!',
+        texts: () => {
+          const locked = !this.birds.some((b) => b.species.key === 'ember_shrike') && this.eggs < 1;
+          return {
             sub: locked ? '🔒' : '450',
-            tiny: locked ? 'Need Adult' : 'Drops Cinder Acorns',
+            tiny: locked ? 'Need Ember Shrike' : 'Eats Nectar -> Cinder Acorn',
           };
         },
         buy: () => {
           this.coins -= 450;
           const sg = new SugarGlider(this, Phaser.Math.Between(150, W - 150), 120);
           this.gliders.push(sg);
-          this.toast('🐿️ Sugar Glider joined! Cinder Acorns burn chicks, but rebirth adults into Phoenixes!');
+          this.toast('🐿️ Sugar Glider joined! Swoops to eat Amber Nectar and drops blazing Cinder Acorns!');
         },
       }, totalButtons);
     }
@@ -5145,6 +5191,14 @@ export class AviaryScene extends Phaser.Scene {
       return;
     }
 
+    // Ember Shrike special amber nectar drop (feeder for Sugar Glider)
+    if (hunter.species.key === 'ember_shrike') {
+      this.dropCoin(hunter.spr.x, hunter.spr.y + 15, 200, 'drop_nectar');
+      this.floatText(hunter.spr.x, hunter.spr.y - 40, '🍯 +Amber Nectar!', '#f59e0b', '#78350f');
+      this.toast('The Ember Shrike hunted a chick and dropped sweet glowing Amber Nectar (200c)!');
+      return;
+    }
+
     if (this.sandbox) {
       if (hunter.species.behavior === 'apex') {
         this.dropGem(hunter.spr.x, hunter.spr.y, 15, 'chest');
@@ -5193,6 +5247,34 @@ export class AviaryScene extends Phaser.Scene {
     this.dropCoin(toucan.spr.x, toucan.spr.y + 15, 500, 'drop_pearl');
     this.floatText(toucan.spr.x, toucan.spr.y - 35, '🦪 +Forest Pearl!', '#38bdf8', '#0f172a');
     this.toast('Rainbow Toucan munched a Golden Tree Beetle and dropped a Forest Pearl (500c)!');
+  }
+
+  nearestNectar(x: number, y: number): Coin | undefined {
+    let best: Coin | undefined;
+    let bd = Infinity;
+    for (const c of this.coinList) {
+      if (c.collected || !c.isNectar) continue;
+      const d = Phaser.Math.Distance.Between(x, y, c.img.x, c.img.y);
+      if (d < bd) {
+        bd = d;
+        best = c;
+      }
+    }
+    return best;
+  }
+
+  eatNectar(glider: SugarGlider, nectar: Coin) {
+    if (nectar.collected) return;
+    nectar.collected = true;
+    nectar.img.destroy();
+    this.coinList = this.coinList.filter((c) => c !== nectar);
+    glider.fullness = 100;
+    this.burst(glider.spr.x, glider.spr.y, 0xfbbf24, 18);
+    this.burst(glider.spr.x, glider.spr.y, 0xff5722, 14);
+    playEggDropSound();
+    this.floatText(glider.spr.x, glider.spr.y - 28, '🐿️ YUM! Nectar! 🌰', '#fde047', '#7c2d12');
+    glider.dropCinderAcorn();
+    this.toast('🐿️ Sugar Glider feasted on Amber Nectar and dropped a blazing Cinder Acorn!');
   }
 
   openPetStoreModal() {
@@ -7024,6 +7106,7 @@ export class AviaryScene extends Phaser.Scene {
       isGem: false,
       isBeetle: texOverride === 'drop_beetle',
       isPearl: texOverride === 'drop_pearl',
+      isNectar: texOverride === 'drop_nectar',
       phase: Math.random() * 6.28,
     });
   }
@@ -7093,6 +7176,11 @@ export class AviaryScene extends Phaser.Scene {
         this.burst(c.img.x, c.img.y, 0xf472b6, 8);
         this.burst(c.img.x, c.img.y, 0xffffff, 8);
         this.floatText(x, y - 10, '🦪 +500c Forest Pearl!', '#38bdf8', '#0f172a');
+      } else if (c.isNectar) {
+        this.burst(c.img.x, c.img.y, 0xf59e0b, 10);
+        this.burst(c.img.x, c.img.y, 0xfbbf24, 8);
+        this.burst(c.img.x, c.img.y, 0xffffff, 6);
+        this.floatText(x, y - 10, '🍯 +200c Amber Nectar!', '#f59e0b', '#78350f');
       } else if (c.isBeetle) {
         this.burst(c.img.x, c.img.y, 0xf59e0b, 8);
         this.burst(c.img.x, c.img.y, 0x84cc16, 6);
