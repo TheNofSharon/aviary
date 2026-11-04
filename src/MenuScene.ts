@@ -742,20 +742,20 @@ export class MenuScene extends Phaser.Scene {
 
         if (world.id === 5) {
           if (isCompleted) {
-            bgCol = 0x4c1d95;
-            borderCol = 0xc084fc;
-            label = '★ 5-1 Roc Slayed 🏆';
-            textColor = '#f5d0fe';
+            bgCol = 0x14532d;
+            borderCol = 0x4ade80;
+            label = '★ 5-1 Titan Slayed 🏆';
+            textColor = '#bbf7d0';
           } else if (isCurrent) {
-            bgCol = 0x701a75;
-            borderCol = 0xf43f5e;
-            label = '► 5-1 Titan Clash 👑';
-            textColor = '#fff1f2';
+            bgCol = 0x7c2d12;
+            borderCol = 0xf97316;
+            label = '► 5-1 Dino Showdown 🦖';
+            textColor = '#ffedd5';
           } else {
-            bgCol = 0x1e1b4b;
-            borderCol = 0x312e81;
-            label = '🔒 5-1 Final Boss';
-            textColor = '#818cf8';
+            bgCol = 0x1c1917;
+            borderCol = 0x44403c;
+            label = '🔒 5-1 Titanoraptor';
+            textColor = '#a8a29e';
           }
         } else if (isCompleted) {
           bgCol = 0x1b4332;
@@ -927,8 +927,8 @@ export class MenuScene extends Phaser.Scene {
         this.createMenu25DBird(cfg.x, cfg.y, cfg.stage, cfg.scale, cfg.isKing);
       });
     } else if (ws.worldId === 5) {
-      this.txt(W / 2, 326, '🔥 ALL 16 COMPANIONS ASSEMBLED FOR THE TITAN CLASH! 🔥', 20, '#ffd700', '#221105', 3);
-      this.txt(W / 2, 350, 'Every loyal pet you rescued across Worlds 1–4 enters the arena together to face Malakor!', 14, '#e2e8f0', '#0f172a', 2);
+      this.txt(W / 2, 326, '🦖 ALL 16 COMPANIONS ASSEMBLED FOR THE DINO SHOWDOWN! 🦖', 20, '#ffd700', '#221105', 3);
+      this.txt(W / 2, 350, 'Every loyal pet you rescued enters the arena together to defend the sanctuary from Titanoraptor!', 14, '#e2e8f0', '#0f172a', 2);
 
       const allPets = PETS.slice(0, 16);
       const perRow = 8;

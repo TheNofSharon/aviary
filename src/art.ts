@@ -2541,6 +2541,143 @@ export function makeTextures(scene: Phaser.Scene) {
   g.strokeCircle(22, 22, 12);
   g.generateTexture('boss_void_orb', 44, 44);
 
+  // =========================================================================
+  // WORLD 5 FINAL TITAN: TITANORAPTOR, THE PRIMAL ANCESTOR (Avian Dinosaur)
+  // =========================================================================
+
+  // 1. boss_dino_body (Prehistoric Feathered Theropod / Pterosaur Titan - 200x150)
+  g.clear();
+  // Ambient drop shadow under belly
+  g.fillStyle(0x000000, 0.4);
+  g.fillEllipse(100, 138, 120, 24);
+
+  // Scaled muscular theropod body (Deep primeval emerald & obsidian scales)
+  g.fillStyle(0x143625, 1);
+  g.fillEllipse(100, 85, 110, 68);
+  g.fillStyle(0x235338, 1);
+  g.fillEllipse(98, 80, 96, 56);
+
+  // Warm golden-amber reptilian underbelly
+  g.fillStyle(0xd97706, 0.95);
+  g.fillEllipse(96, 92, 70, 36);
+  g.fillStyle(0xfbbf24, 0.9);
+  g.fillEllipse(94, 94, 52, 22);
+
+  // Primordial Feathered Neck Ruff & Quills
+  g.fillStyle(0xb91c1c, 1);
+  g.fillTriangle(70, 48, 52, 68, 76, 72);
+  g.fillTriangle(84, 42, 68, 65, 90, 70);
+  g.fillTriangle(98, 44, 88, 68, 108, 68);
+  g.fillTriangle(115, 46, 128, 68, 105, 72);
+
+  // Powerful S-curved raptor neck
+  g.fillStyle(0x1a432d, 1);
+  g.fillRoundedRect(72, 30, 46, 50, 16);
+
+  // Pterosaur / Theropod Cranial Crest (Vibrant prehistoric red & amber)
+  g.fillStyle(0xd97706, 1);
+  g.fillTriangle(90, 22, 50, -6, 78, 30);
+  g.fillStyle(0xef4444, 1);
+  g.fillTriangle(92, 20, 45, -12, 72, 26);
+  g.fillStyle(0xfde047, 0.9);
+  g.fillTriangle(85, 18, 52, -4, 75, 24);
+
+  // Fierce prehistoric dinosaur head
+  g.fillStyle(0x143625, 1);
+  g.fillRoundedRect(82, 16, 52, 34, 10);
+
+  // Long toothy raptor snout & jaws
+  g.fillStyle(0x1a432d, 1);
+  g.fillTriangle(120, 18, 158, 32, 120, 42);
+  g.fillStyle(0x0f281b, 1);
+  g.fillRect(116, 32, 38, 3); // jaw seam
+
+  // Sharp serrated white predatory teeth!
+  g.fillStyle(0xffffff, 1);
+  for (let i = 0; i < 5; i++) {
+    // Upper teeth
+    g.fillTriangle(122 + i * 6, 32, 125 + i * 6, 32, 123.5 + i * 6, 37);
+    // Lower teeth
+    g.fillTriangle(124 + i * 6, 35, 127 + i * 6, 35, 125.5 + i * 6, 30);
+  }
+
+  // Piercing amber reptilian eye with vertical slit pupil
+  g.fillStyle(0xf59e0b, 1);
+  g.fillCircle(108, 26, 7);
+  g.fillStyle(0xfef08a, 1);
+  g.fillCircle(108, 26, 4.5);
+  // Slit pupil
+  g.fillStyle(0x000000, 1);
+  g.fillRect(107, 21, 2, 10);
+  // Brow ridge
+  g.fillStyle(0x0f281b, 1);
+  g.fillTriangle(98, 19, 116, 19, 108, 22);
+
+  // Razor theropod sickle claws / talons
+  g.fillStyle(0x1e293b, 1);
+  g.fillTriangle(68, 118, 58, 140, 78, 128);
+  g.fillTriangle(80, 120, 74, 144, 88, 130);
+  g.fillTriangle(116, 118, 126, 140, 108, 128);
+  g.fillTriangle(104, 120, 110, 144, 96, 130);
+  // Sharp talon highlights
+  g.fillStyle(0x94a3b8, 1);
+  g.fillTriangle(60, 136, 58, 140, 66, 134);
+  g.fillTriangle(124, 136, 126, 140, 118, 134);
+
+  g.generateTexture('boss_dino_body', 200, 150);
+
+  // 2. boss_dino_wing_l (Left Prehistoric Wing with Clawed Digits - 160x120)
+  g.clear();
+  // Robust pterosaur wing spar
+  g.fillStyle(0x143625, 1);
+  g.fillTriangle(150, 70, 12, 15, 75, 115);
+  g.fillStyle(0x235338, 0.95);
+  g.fillTriangle(150, 70, 28, 26, 85, 105);
+  // Primitive flight feather quills along trailing edge
+  g.fillStyle(0xb91c1c, 0.9);
+  g.fillTriangle(22, 22, 8, 32, 48, 52);
+  g.fillTriangle(38, 48, 18, 62, 68, 72);
+  g.fillTriangle(54, 68, 34, 88, 84, 92);
+  // Sharp wing-finger claws at the joint!
+  g.fillStyle(0xf59e0b, 1);
+  g.fillTriangle(12, 15, -2, 6, 18, 10);
+  g.fillTriangle(12, 15, 2, 2, 22, 14);
+  g.generateTexture('boss_dino_wing_l', 160, 120);
+
+  // 3. boss_dino_wing_r (Right Prehistoric Wing with Clawed Digits - 160x120)
+  g.clear();
+  g.fillStyle(0x143625, 1);
+  g.fillTriangle(10, 70, 148, 15, 85, 115);
+  g.fillStyle(0x235338, 0.95);
+  g.fillTriangle(10, 70, 132, 26, 75, 105);
+  // Primitive flight feather quills
+  g.fillStyle(0xb91c1c, 0.9);
+  g.fillTriangle(138, 22, 152, 32, 112, 52);
+  g.fillTriangle(122, 48, 142, 62, 92, 72);
+  g.fillTriangle(106, 68, 126, 88, 76, 92);
+  // Sharp wing-finger claws
+  g.fillStyle(0xf59e0b, 1);
+  g.fillTriangle(148, 15, 162, 6, 142, 10);
+  g.fillTriangle(148, 15, 158, 2, 138, 14);
+  g.generateTexture('boss_dino_wing_r', 160, 120);
+
+  // 4. boss_dino_boulder (Volcanic Magma Rock Projectile - 44x44)
+  g.clear();
+  // Fire aura
+  g.fillStyle(0xd97706, 0.4);
+  g.fillCircle(22, 22, 20);
+  // Dark jagged basalt rock
+  g.fillStyle(0x1c1917, 1);
+  g.fillCircle(22, 22, 16);
+  // Glowing magma fissures
+  g.fillStyle(0xef4444, 1);
+  g.fillTriangle(14, 16, 28, 20, 20, 30);
+  g.fillStyle(0xfde047, 1);
+  g.fillCircle(21, 21, 5);
+  g.lineStyle(2, 0xf97316, 0.9);
+  g.strokeCircle(22, 22, 14);
+  g.generateTexture('boss_dino_boulder', 44, 44);
+
   // --- 2.5D Scenery Props (Depth stones, boulders, and terrain accents) ---
   // scenery_stone_moss (Smooth river boulder with volumetric highlight & velvet moss)
   g.clear();

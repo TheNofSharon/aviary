@@ -87,8 +87,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'master_keeper',
     title: 'Master of the Aviary',
-    desc: 'Defeat Malakor, Sovereign Shadow Roc in World 5 with all 16 companions, and conquer the campaign!',
-    icon: '👑',
+    desc: 'Defeat Titanoraptor, the prehistoric avian dinosaur ancestor in World 5 with all 16 companions, and conquer the campaign!',
+    icon: '🦖',
     gemReward: 100,
     category: 'general',
   },

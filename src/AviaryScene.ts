@@ -1951,7 +1951,7 @@ export class Predator {
   }
 }
 
-// ----------------------------------------------------------- void orb
+// ----------------------------------------------------------- prehistoric magma boulder
 export class VoidOrb {
   spr: Phaser.GameObjects.Container;
   img: Phaser.GameObjects.Image;
@@ -1964,8 +1964,8 @@ export class VoidOrb {
   constructor(public scene: AviaryScene, x: number, y: number, targetPet: Pet) {
     this.targetPet = targetPet;
     const spr = scene.add.container(x, y).setDepth(23);
-    const aura = scene.add.circle(0, 0, 26, 0x8b5cf6, 0.45);
-    const core = scene.add.image(0, 0, 'boss_void_orb');
+    const aura = scene.add.circle(0, 0, 26, 0xf97316, 0.45);
+    const core = scene.add.image(0, 0, 'boss_dino_boulder');
     spr.add([aura, core]);
     this.spr = spr;
     this.img = core;
@@ -1998,15 +1998,16 @@ export class VoidOrb {
     this.img.rotation += 4.5 * dt;
 
     if (Math.random() < 0.22) {
-      this.scene.burst(this.spr.x, this.spr.y, 0x9333ea, 1);
+      this.scene.burst(this.spr.x, this.spr.y, 0xf97316, 1);
     }
   }
 
   hit(dmg: number) {
     if (this.destroyed) return;
     this.hp -= dmg;
-    this.scene.burst(this.spr.x, this.spr.y, 0xc084fc, 6);
-    this.scene.floatText(this.spr.x, this.spr.y - 15, `-${dmg}`, '#e879f9', '#581c87');
+    this.scene.burst(this.spr.x, this.spr.y, 0xf97316, 6);
+    this.scene.burst(this.spr.x, this.spr.y, 0xfde047, 4);
+    this.scene.floatText(this.spr.x, this.spr.y - 15, `-${dmg}`, '#fde047', '#7c2d12');
     if (this.hp <= 0) {
       this.destroyOrb(true);
     }
@@ -2015,37 +2016,38 @@ export class VoidOrb {
   destroyOrb(byPlayer: boolean) {
     if (this.destroyed) return;
     this.destroyed = true;
-    this.scene.burst(this.spr.x, this.spr.y, 0xa855f7, 16);
-    this.scene.burst(this.spr.x, this.spr.y, 0xffe4e6, 8);
+    this.scene.burst(this.spr.x, this.spr.y, 0xf97316, 16);
+    this.scene.burst(this.spr.x, this.spr.y, 0xfde047, 12);
     if (byPlayer) {
-      this.scene.dropCoin(this.spr.x, this.spr.y, 30, 'drop_seed_diamond');
+      this.scene.dropCoin(this.spr.x, this.spr.y, 35, 'drop_seed_ruby');
     }
     this.spr.destroy();
   }
 
   explodeOnPet() {
     this.destroyed = true;
-    this.scene.burst(this.spr.x, this.spr.y, 0x7c3aed, 22);
+    this.scene.burst(this.spr.x, this.spr.y, 0xf97316, 22);
+    this.scene.burst(this.spr.x, this.spr.y, 0xef4444, 16);
     this.scene.cameras.main.shake(160, 0.005);
 
-    // Defensive companions block the orb
+    // Defensive companions block the boulder
     const defender = this.scene.pets.find(
       (p) => (p.key === 'porcupine' || p.key === 'hound' || p.key === 'mole') && p.stunTimer <= 0
     );
     const px = this.targetPet.img?.x ?? 500;
     const py = this.targetPet.img?.y ?? 600;
     if (defender && Phaser.Math.Distance.Between(px, py, defender.img.x, defender.img.y) < 140) {
-      this.scene.floatText(px, py - 30, '🛡️ DEFLECTED BY DEFENDER!', '#38bdf8', '#0c4a6e');
+      this.scene.floatText(px, py - 30, '🛡️ BOULDER DEFLECTED!', '#38bdf8', '#0c4a6e');
       this.scene.burst(px, py - 10, 0x38bdf8, 16);
     } else {
       this.targetPet.stunTimer = 6.0;
-      this.scene.floatText(px, py - 25, `🌀 ${this.targetPet.name || 'Pet'} Stunned!`, '#c084fc', '#3b0764');
+      this.scene.floatText(px, py - 25, `💥 ${this.targetPet.name || 'Pet'} Stunned!`, '#f97316', '#7c2d12');
     }
     this.spr.destroy();
   }
 }
 
-// ----------------------------------------------------------- shadow roc final boss
+// ----------------------------------------------------------- prehistoric avian dinosaur boss (titanoraptor)
 export class ShadowRocBoss {
   spr: Phaser.GameObjects.Container;
   flip: Phaser.GameObjects.Container;
@@ -2080,10 +2082,10 @@ export class ShadowRocBoss {
     const flip = scene.add.container(0, 0);
     spr.add(flip);
 
-    const wingL = scene.add.image(-45, -15, 'boss_roc_wing_l').setOrigin(0.85, 0.4);
-    const wingR = scene.add.image(45, -15, 'boss_roc_wing_r').setOrigin(0.15, 0.4);
-    const body = scene.add.image(0, 0, 'boss_roc_body');
-    const coreGlow = scene.add.circle(0, 8, 18, 0xef4444, 0.7);
+    const wingL = scene.add.image(-45, -15, 'boss_dino_wing_l').setOrigin(0.85, 0.4);
+    const wingR = scene.add.image(45, -15, 'boss_dino_wing_r').setOrigin(0.15, 0.4);
+    const body = scene.add.image(0, 0, 'boss_dino_body');
+    const coreGlow = scene.add.circle(0, 8, 18, 0xf97316, 0.7);
 
     flip.add([wingL, wingR, coreGlow, body]);
 
@@ -2112,7 +2114,7 @@ export class ShadowRocBoss {
       ease: 'Cubic.easeOut',
       onComplete: () => {
         scene.cameras.main.shake(600, 0.015);
-        scene.toast('⚠️ FINAL TITAN: MALAKOR, SOVEREIGN SHADOW ROC!');
+        scene.toast('⚠️ PRIMORDIAL AWAKENING: TITANORAPTOR, THE AVIAN DINOSAUR ANCESTOR!');
       },
     });
 
@@ -2121,19 +2123,19 @@ export class ShadowRocBoss {
     const bg = scene.add.graphics();
     bg.fillStyle(0x0f091c, 0.92);
     bg.fillRoundedRect(-280, -18, 560, 36, 8);
-    bg.lineStyle(2, 0xa855f7, 0.9);
+    bg.lineStyle(2, 0xf97316, 0.9);
     bg.strokeRoundedRect(-280, -18, 560, 36, 8);
     bg.lineStyle(1, 0xfde047, 0.6);
     bg.strokeRoundedRect(-277, -15, 554, 30, 6);
 
     const hpFill = scene.add.graphics();
 
-    const titleText = scene.add.text(0, -28, '👑 MALAKOR, SOVEREIGN SHADOW ROC 👑', {
+    const titleText = scene.add.text(0, -28, '🦖 TITANORAPTOR, THE PRIMAL ANCESTOR 🦖', {
       fontFamily: 'system-ui, sans-serif',
       fontSize: '13px',
       fontStyle: 'bold',
       color: '#ffd700',
-      stroke: '#3b0764',
+      stroke: '#451a03',
       strokeThickness: 3,
     }).setOrigin(0.5);
 
@@ -2146,11 +2148,11 @@ export class ShadowRocBoss {
       strokeThickness: 3,
     }).setOrigin(0.5);
 
-    const phaseText = scene.add.text(0, 24, 'PHASE 1: VOID CALL', {
+    const phaseText = scene.add.text(0, 24, 'PHASE 1: PRIMAL ANCESTOR AWAKENS', {
       fontFamily: 'system-ui, sans-serif',
       fontSize: '10px',
       fontStyle: 'bold',
-      color: '#c084fc',
+      color: '#fde047',
     }).setOrigin(0.5);
 
     hbc.add([bg, hpFill, titleText, hpText, phaseText]);
@@ -2167,19 +2169,19 @@ export class ShadowRocBoss {
     const pct = Phaser.Math.Clamp(this.hp / this.maxHp, 0, 1);
     const barW = 540 * pct;
     if (barW > 0) {
-      const col = this.phase === 3 ? 0xef4444 : this.phase === 2 ? 0xf97316 : 0xa855f7;
+      const col = this.phase === 3 ? 0xef4444 : this.phase === 2 ? 0xf97316 : 0x22c55e;
       this.hpFill.fillStyle(col, 0.95);
       this.hpFill.fillRoundedRect(-270, -11, barW, 22, 4);
     }
     this.hpText.setText(`${Math.max(0, Math.round(this.hp))} / ${this.maxHp} HP (${Math.round(pct * 100)}%)`);
     this.phaseText.setText(
       this.phase === 1
-        ? '✦ PHASE 1: VOID MINIONS'
+        ? '✦ PHASE 1: PRIMAL ANCESTOR AWAKENS'
         : this.phase === 2
-        ? '✦ PHASE 2: ABYSSAL VOID ORBS'
-        : '⚡ PHASE 3: ECLIPSE RETALIATION'
+        ? '✦ PHASE 2: VOLCANIC MAGMA BARRAGE'
+        : '⚡ PHASE 3: PRIMAL FRENZY SHOWDOWN'
     );
-    this.phaseText.setColor(this.phase === 3 ? '#f87171' : this.phase === 2 ? '#fb923c' : '#c084fc');
+    this.phaseText.setColor(this.phase === 3 ? '#f87171' : this.phase === 2 ? '#fb923c' : '#fde047');
   }
 
   update(dt: number, t: number) {
@@ -2197,14 +2199,14 @@ export class ShadowRocBoss {
     if (this.hp <= 420 && this.phase < 3) {
       this.phase = 3;
       this.scene.cameras.main.shake(700, 0.02);
-      this.scene.toast('⚡ PHASE 3: MALAKOR ENTERS ABYSSAL ECLIPSE! COMPANIONS RETALIATE!');
+      this.scene.toast('⚡ PHASE 3: PRIMAL FRENZY! ALL 16 COMPANIONS UNLEASH FULL FURY!');
       this.scene.burst(this.spr.x, this.spr.y, 0xef4444, 30);
       this.coreGlow.fillColor = 0xff0044;
     } else if (this.hp <= 840 && this.phase < 2) {
       this.phase = 2;
       this.scene.cameras.main.shake(500, 0.012);
-      this.scene.toast('🌀 PHASE 2: MALAKOR LAUNCHES VOID ORBS AT COMPANIONS!');
-      this.scene.burst(this.spr.x, this.spr.y, 0x8b5cf6, 25);
+      this.scene.toast('🌋 PHASE 2: TITANORAPTOR HURLS VOLCANIC MAGMA BOULDERS!');
+      this.scene.burst(this.spr.x, this.spr.y, 0xf97316, 25);
     }
 
     // Flight & Swoop Movement
@@ -2289,8 +2291,8 @@ export class ShadowRocBoss {
 
   summonMinions() {
     this.scene.cameras.main.shake(350, 0.008);
-    this.scene.burst(this.spr.x, this.spr.y, 0x8b5cf6, 18);
-    this.scene.floatText(this.spr.x, this.spr.y - 45, 'ROAAAR! ⚡ VOID PHANTOMS!', '#c084fc', '#3b0764');
+    this.scene.burst(this.spr.x, this.spr.y, 0xf97316, 18);
+    this.scene.floatText(this.spr.x, this.spr.y - 45, 'ROAAAR! 🦖 PRIMAL SCREECH!', '#f97316', '#7c2d12');
 
     // Spawn 2 shadow bats or 1 shadow hawk
     if (Math.random() < 0.6) {
@@ -2306,8 +2308,8 @@ export class ShadowRocBoss {
   fireVoidOrb() {
     if (this.scene.pets.length === 0) return;
     const target = Phaser.Utils.Array.GetRandom(this.scene.pets);
-    this.scene.burst(this.spr.x, this.spr.y + 20, 0xef4444, 12);
-    this.scene.floatText(this.spr.x, this.spr.y - 30, '✦ VOID ORB! ✦', '#f43f5e', '#450a0a');
+    this.scene.burst(this.spr.x, this.spr.y + 20, 0xf97316, 12);
+    this.scene.floatText(this.spr.x, this.spr.y - 30, '🌋 MAGMA BOULDER! 🌋', '#f97316', '#431407');
     const orb = new VoidOrb(this.scene, this.spr.x, this.spr.y + 25, target);
     this.scene.voidOrbs.push(orb);
 
@@ -2417,7 +2419,7 @@ export class ShadowRocBoss {
   die() {
     this.dying = true;
     this.scene.cameras.main.shake(1200, 0.025);
-    this.scene.toast('💥 MALAKOR SHATTERS! THE ECLIPSE IS BROKEN!');
+    this.scene.toast('💥 TITANORAPTOR VANQUISHED! THE PREHISTORIC SKIES ARE LIBERATED!');
 
     // Stagger & freeze
     this.spr.y = 200;
@@ -2429,8 +2431,8 @@ export class ShadowRocBoss {
         const ex = this.spr.x + Phaser.Math.Between(-90, 90);
         const ey = this.spr.y + Phaser.Math.Between(-60, 60);
         this.scene.burst(ex, ey, 0xfde047, 24);
-        this.scene.burst(ex, ey, 0xef4444, 20);
-        this.scene.burst(ex, ey, 0xa855f7, 16);
+        this.scene.burst(ex, ey, 0xf97316, 20);
+        this.scene.burst(ex, ey, 0xef4444, 16);
       });
     }
 
@@ -4182,6 +4184,8 @@ export class AviaryScene extends Phaser.Scene {
             new Bird(this, 450, 320, 2, true, false, 'mama')
           );
           this.weapon = Math.max(this.weapon, 1);
+        } else if (ws.worldId === 5) {
+          // World 5 Pure Boss Arena: zero songbirds!
         } else if (this.level === 1) {
           this.birds.push(new Bird(this, 500, 260, 0, false, false, 'sparrow'));
         } else {
@@ -4207,14 +4211,13 @@ export class AviaryScene extends Phaser.Scene {
     }
 
     if (ws.worldId === 5) {
+      // Pure Boss Arena (Insaniquarium Tank 5 style): zero songbirds! All 16 companions + player weapons!
+      this.birds.forEach((b) => {
+        b.spr?.destroy();
+        b.shadow?.destroy();
+      });
+      this.birds = [];
       this.shadowRocBoss = new ShadowRocBoss(this);
-      if (this.birds.length === 0) {
-        this.birds.push(
-          new Bird(this, 320, 260, 2, false, false, 'canary'),
-          new Bird(this, 680, 260, 2, false, false, 'sparrow'),
-          new Bird(this, 500, 310, 1, false, false, 'canary')
-        );
-      }
     }
 
     // Wake and sleep event listeners for seamless menu pausing & resuming
@@ -4345,6 +4348,14 @@ export class AviaryScene extends Phaser.Scene {
           playWeaponSound(this.weapon);
           this.playAttackFx(this.weapon, p.x, p.y, undefined);
         }
+        this.lastAttack = now;
+        return;
+      }
+
+      // In World 5 (Pure Boss Arena with Titanoraptor), clicks in open airspace ALWAYS fire weapons towards the sky/boss, never dropping food!
+      if (ws.worldId === 5 || this.shadowRocBoss) {
+        playWeaponSound(this.weapon);
+        this.playAttackFx(this.weapon, p.x, p.y, undefined);
         this.lastAttack = now;
         return;
       }
@@ -5257,199 +5268,201 @@ export class AviaryScene extends Phaser.Scene {
     // World 1: 5 buttons (Quality, More Food, Baby Bird, Slingshot, Egg)
     // World 2: 6 buttons (Quality, More Food, Baby Bird, Falcon, Slingshot, Egg)
     // World 3: 8 buttons (Quality, More Food, Baby Bird, Mama, Tree Creeper, Toucan, Slingshot, Egg)
-    // World 4: 8 buttons (Quality, More Food, Baby Bird, Mama, Ember Shrike, Sugar Glider, Slingshot, Egg)
-    // World 5: 6 buttons (Quality, More Food, Baby Bird, Weapon Upgrade, Titan Climax)
+    // World 4: 8 buttons (Quality, More Food, Baby Bird, Mama, Cinder Gecko, Sugar Glider, Slingshot, Egg)
+    // World 5: 2 buttons (Weapon Upgrade, Titanoraptor Climax Status)
     const isWorld5 = worldId === 5;
     const hasEgg = ((!this.timeTrial && !this.challengeId) || this.challengeId === 'apex_havoc') && !isWorld5;
-    const baseCount = this.challengeId === 'apex_havoc' ? 7 : worldId === 1 ? 4 : worldId === 2 ? 5 : (isWorld5 ? 4 : 7);
-    const totalButtons = baseCount + (hasEgg ? 1 : 0) + (isWorld5 ? 1 : 0);
+    const baseCount = this.challengeId === 'apex_havoc' ? 7 : worldId === 1 ? 4 : worldId === 2 ? 5 : 7;
+    const totalButtons = isWorld5 ? 2 : baseCount + (hasEgg ? 1 : 0);
 
     let idx = 0;
 
-    // Slot 0: Food Quality
-    this.addShop(idx++, 'Food Quality', 'seed', 1.5, {
-      cost: () => QUALITY_COST[this.quality - 1] ?? 0,
-      enabled: () => this.quality < 3,
-      unlocked: () => this.birds.some((b) => b.stage >= 1 || b.isBreeder),
-      lockedReason: () => 'Grow a bird to Fledgling to unlock Food Quality!',
-      texts: () => {
-        const locked = !this.birds.some((b) => b.stage >= 1 || b.isBreeder);
-        return {
-          sub: locked ? '🔒' : this.quality < 3 ? String(QUALITY_COST[this.quality - 1]) : 'MAX',
-          tiny: locked ? 'Need Fledgling' : this.quality < 3 ? `Level ${this.quality}/3` : 'Best food!',
-          icon: FOOD_TEX[this.quality - 1],
-        };
-      },
-      buy: () => {
-        this.coins -= QUALITY_COST[this.quality - 1];
-        this.quality++;
-        if (this.sandbox) this.saveSandbox();
-      },
-    }, totalButtons);
-
-    // Slot 1: More Food
-    this.addShop(idx++, 'More Food', 'seed', 1.5, {
-      cost: () => QUANTITY_COST[this.maxFood - 1] ?? 0,
-      enabled: () => this.maxFood < 5,
-      unlocked: () => this.birds.some((b) => b.stage >= 1 || b.isBreeder) || this.quality > 1,
-      lockedReason: () => 'Grow a bird to Fledgling to unlock More Food!',
-      texts: () => {
-        const locked = !this.birds.some((b) => b.stage >= 1 || b.isBreeder) && this.quality <= 1;
-        return {
-          sub: locked ? '🔒' : this.maxFood < 5 ? String(QUANTITY_COST[this.maxFood - 1]) : 'MAX',
-          tiny: locked ? 'Need Fledgling' : `Drop up to ${this.maxFood}/5`,
-        };
-      },
-      buy: () => {
-        this.coins -= QUANTITY_COST[this.maxFood - 1];
-        this.maxFood++;
-        if (this.sandbox) this.saveSandbox();
-      },
-    }, totalButtons);
-
-    // Slot 2: Baby Sparrow
-    this.addShop(idx++, 'Baby Bird', 'bird_sparrow_0', 0.55, {
-      cost: () => 35,
-      enabled: () => this.challengeId !== 'apex_havoc',
-      unlocked: () => this.challengeId !== 'apex_havoc',
-      lockedReason: () => 'Sparrows cannot survive here! Rely on Mama Birds!',
-      texts: () => ({
-        sub: this.challengeId === 'apex_havoc' ? '🚫' : '35',
-        tiny: this.challengeId === 'apex_havoc' ? 'Locked in Apex' : 'Grows up!',
-      }),
-      buy: () => {
-        this.coins -= 35;
-        this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 0, false, false, 'sparrow'));
-      },
-    }, totalButtons);
-
-    // Slot 3 in World 3+: Mama Songbird (Breeder)
-    if (worldId >= 3 || this.challengeId === 'apex_havoc') {
-      this.addShop(idx++, 'Mama Songbird', 'bird_mama', 0.5, {
-        cost: () => 200,
-        enabled: () => true,
-        unlocked: () => this.birds.some((b) => b.stage >= 2 || b.isBreeder),
-        lockedReason: () => 'Grow a bird to Adult to unlock Mama Songbird!',
+    if (!isWorld5) {
+      // Slot 0: Food Quality
+      this.addShop(idx++, 'Food Quality', 'seed', 1.5, {
+        cost: () => QUALITY_COST[this.quality - 1] ?? 0,
+        enabled: () => this.quality < 3,
+        unlocked: () => this.birds.some((b) => b.stage >= 1 || b.isBreeder),
+        lockedReason: () => 'Grow a bird to Fledgling to unlock Food Quality!',
         texts: () => {
-          const locked = !this.birds.some((b) => b.stage >= 2 || b.isBreeder);
+          const locked = !this.birds.some((b) => b.stage >= 1 || b.isBreeder);
           return {
-            sub: locked ? '🔒' : '200',
-            tiny: locked ? 'Need Adult' : 'Lays songbird eggs',
+            sub: locked ? '🔒' : this.quality < 3 ? String(QUALITY_COST[this.quality - 1]) : 'MAX',
+            tiny: locked ? 'Need Fledgling' : this.quality < 3 ? `Level ${this.quality}/3` : 'Best food!',
+            icon: FOOD_TEX[this.quality - 1],
           };
         },
         buy: () => {
-          this.coins -= 200;
-          this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 2, true, false, 'mama'));
-        },
-      }, totalButtons);
-    }
-
-    // Slot in World 2: Peregrine Falcon (Carnivore Raptor)
-    if (worldId === 2 || this.challengeId === 'apex_havoc') {
-      this.addShop(idx++, 'Peregrine Falcon', 'bird_piranha_finch', 0.5, {
-        cost: () => 400,
-        enabled: () => true,
-        unlocked: () => this.birds.some((b) => b.stage >= 2 || b.isBreeder),
-        lockedReason: () => 'Grow a bird to Adult to unlock Falcon!',
-        texts: () => {
-          const locked = !this.birds.some((b) => b.stage >= 2 || b.isBreeder);
-          return {
-            sub: locked ? '🔒' : '400',
-            tiny: locked ? 'Need Adult' : 'Hunts chicks -> Diamond',
-          };
-        },
-        buy: () => {
-          this.coins -= 400;
-          this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 2, false, false, 'piranha_finch'));
-        },
-      }, totalButtons);
-    }
-
-    // Slot in World 3: Tree Creeper & Rainbow Toucan
-    if (worldId === 3) {
-      this.addShop(idx++, 'Tree Creeper', 'bird_tree_creeper', 0.5, {
-        cost: () => 250,
-        enabled: () => true,
-        unlocked: () => this.birds.some((b) => b.stage >= 2 || b.isBreeder),
-        lockedReason: () => 'Grow a bird to Adult to unlock Tree Creeper!',
-        texts: () => {
-          const locked = !this.birds.some((b) => b.stage >= 2 || b.isBreeder);
-          return {
-            sub: locked ? '🔒' : '250',
-            tiny: locked ? 'Need Adult' : 'Crunches chicks -> Beetles',
-          };
-        },
-        buy: () => {
-          this.coins -= 250;
-          this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 2, false, false, 'tree_creeper'));
-          this.toast('🪲 Tree Creeper joined! Crunches feeder chicks and drops Golden Tree Beetles (150c)!');
+          this.coins -= QUALITY_COST[this.quality - 1];
+          this.quality++;
+          if (this.sandbox) this.saveSandbox();
         },
       }, totalButtons);
 
-      // Rainbow Toucan (Beetle Muncher)
-      this.addShop(idx++, 'Rainbow Toucan', 'bird_toucan', 0.48, {
-        cost: () => 500,
-        enabled: () => true,
-        unlocked: () => this.birds.some((b) => b.species.key === 'tree_creeper') || this.eggs >= 1,
-        lockedReason: () => 'Need a Tree Creeper in your flock to unlock Toucan!',
+      // Slot 1: More Food
+      this.addShop(idx++, 'More Food', 'seed', 1.5, {
+        cost: () => QUANTITY_COST[this.maxFood - 1] ?? 0,
+        enabled: () => this.maxFood < 5,
+        unlocked: () => this.birds.some((b) => b.stage >= 1 || b.isBreeder) || this.quality > 1,
+        lockedReason: () => 'Grow a bird to Fledgling to unlock More Food!',
         texts: () => {
-          const locked = !this.birds.some((b) => b.species.key === 'tree_creeper') && this.eggs < 1;
+          const locked = !this.birds.some((b) => b.stage >= 1 || b.isBreeder) && this.quality <= 1;
           return {
-            sub: locked ? '🔒' : '500',
-            tiny: locked ? 'Need Tree Creeper' : 'Munches Beetles -> Pearls',
+            sub: locked ? '🔒' : this.maxFood < 5 ? String(QUANTITY_COST[this.maxFood - 1]) : 'MAX',
+            tiny: locked ? 'Need Fledgling' : `Drop up to ${this.maxFood}/5`,
           };
         },
         buy: () => {
-          this.coins -= 500;
-          this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 2, false, false, 'toucan'));
-          this.toast('🌈 Rainbow Toucan joined! Catches Golden Tree Beetles and drops Forest Pearls (500c)!');
-        },
-      }, totalButtons);
-    }
-
-    // Slot in World 4: Cinder Gecko & Sugar Glider (Two Non-Bird Canopy Creatures!)
-    if (worldId >= 4 || this.challengeId === 'apex_havoc') {
-      // Cinder Gecko (Flame Chameleon - Non-Bird Intermediate Predator)
-      this.addShop(idx++, 'Cinder Gecko', 'cinder_gecko_icon', 0.95, {
-        cost: () => 300,
-        enabled: () => true,
-        unlocked: () => this.birds.some((b) => b.stage >= 2 || b.isBreeder),
-        lockedReason: () => 'Grow a bird to Adult to unlock Cinder Gecko!',
-        texts: () => {
-          const locked = !this.birds.some((b) => b.stage >= 2 || b.isBreeder);
-          return {
-            sub: locked ? '🔒' : '300',
-            tiny: locked ? 'Need Adult' : 'Tongue hunts chicks -> Nectar',
-          };
-        },
-        buy: () => {
-          this.coins -= 300;
-          const gecko = new CinderGecko(this, Phaser.Math.Between(160, W - 160), 320);
-          this.geckos.push(gecko);
-          this.toast('🦎 Cinder Gecko joined! Snatches feeder chicks with its tongue and drops sweet Amber Nectar (200c)!');
+          this.coins -= QUANTITY_COST[this.maxFood - 1];
+          this.maxFood++;
+          if (this.sandbox) this.saveSandbox();
         },
       }, totalButtons);
 
-      // Sugar Glider (Gliding non-bird that eats Amber Nectar to drop Cinder Acorns)
-      this.addShop(idx++, 'Sugar Glider', 'sugar_glider_icon', 0.95, {
-        cost: () => 450,
-        enabled: () => true,
-        unlocked: () => this.geckos.length > 0 || this.eggs >= 1,
-        lockedReason: () => 'Need a Cinder Gecko in your aviary to unlock Sugar Glider!',
-        texts: () => {
-          const locked = this.geckos.length === 0 && this.eggs < 1;
-          return {
-            sub: locked ? '🔒' : '450',
-            tiny: locked ? 'Need Gecko' : 'Eats Nectar -> Cinder Acorn',
-          };
-        },
+      // Slot 2: Baby Sparrow
+      this.addShop(idx++, 'Baby Bird', 'bird_sparrow_0', 0.55, {
+        cost: () => 35,
+        enabled: () => this.challengeId !== 'apex_havoc',
+        unlocked: () => this.challengeId !== 'apex_havoc',
+        lockedReason: () => 'Sparrows cannot survive here! Rely on Mama Birds!',
+        texts: () => ({
+          sub: this.challengeId === 'apex_havoc' ? '🚫' : '35',
+          tiny: this.challengeId === 'apex_havoc' ? 'Locked in Apex' : 'Grows up!',
+        }),
         buy: () => {
-          this.coins -= 450;
-          const sg = new SugarGlider(this, Phaser.Math.Between(150, W - 150), 120);
-          this.gliders.push(sg);
-          this.toast('🐿️ Sugar Glider joined! Swoops to eat Amber Nectar and drops blazing Cinder Acorns!');
+          this.coins -= 35;
+          this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 0, false, false, 'sparrow'));
         },
       }, totalButtons);
+
+      // Slot 3 in World 3+: Mama Songbird (Breeder)
+      if (worldId >= 3 || this.challengeId === 'apex_havoc') {
+        this.addShop(idx++, 'Mama Songbird', 'bird_mama', 0.5, {
+          cost: () => 200,
+          enabled: () => true,
+          unlocked: () => this.birds.some((b) => b.stage >= 2 || b.isBreeder),
+          lockedReason: () => 'Grow a bird to Adult to unlock Mama Songbird!',
+          texts: () => {
+            const locked = !this.birds.some((b) => b.stage >= 2 || b.isBreeder);
+            return {
+              sub: locked ? '🔒' : '200',
+              tiny: locked ? 'Need Adult' : 'Lays songbird eggs',
+            };
+          },
+          buy: () => {
+            this.coins -= 200;
+            this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 2, true, false, 'mama'));
+          },
+        }, totalButtons);
+      }
+
+      // Slot in World 2: Peregrine Falcon (Carnivore Raptor)
+      if (worldId === 2 || this.challengeId === 'apex_havoc') {
+        this.addShop(idx++, 'Peregrine Falcon', 'bird_piranha_finch', 0.5, {
+          cost: () => 400,
+          enabled: () => true,
+          unlocked: () => this.birds.some((b) => b.stage >= 2 || b.isBreeder),
+          lockedReason: () => 'Grow a bird to Adult to unlock Falcon!',
+          texts: () => {
+            const locked = !this.birds.some((b) => b.stage >= 2 || b.isBreeder);
+            return {
+              sub: locked ? '🔒' : '400',
+              tiny: locked ? 'Need Adult' : 'Hunts chicks -> Diamond',
+            };
+          },
+          buy: () => {
+            this.coins -= 400;
+            this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 2, false, false, 'piranha_finch'));
+          },
+        }, totalButtons);
+      }
+
+      // Slot in World 3: Tree Creeper & Rainbow Toucan
+      if (worldId === 3) {
+        this.addShop(idx++, 'Tree Creeper', 'bird_tree_creeper', 0.5, {
+          cost: () => 250,
+          enabled: () => true,
+          unlocked: () => this.birds.some((b) => b.stage >= 2 || b.isBreeder),
+          lockedReason: () => 'Grow a bird to Adult to unlock Tree Creeper!',
+          texts: () => {
+            const locked = !this.birds.some((b) => b.stage >= 2 || b.isBreeder);
+            return {
+              sub: locked ? '🔒' : '250',
+              tiny: locked ? 'Need Adult' : 'Crunches chicks -> Beetles',
+            };
+          },
+          buy: () => {
+            this.coins -= 250;
+            this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 2, false, false, 'tree_creeper'));
+            this.toast('🪲 Tree Creeper joined! Crunches feeder chicks and drops Golden Tree Beetles (150c)!');
+          },
+        }, totalButtons);
+
+        // Rainbow Toucan (Beetle Muncher)
+        this.addShop(idx++, 'Rainbow Toucan', 'bird_toucan', 0.48, {
+          cost: () => 500,
+          enabled: () => true,
+          unlocked: () => this.birds.some((b) => b.species.key === 'tree_creeper') || this.eggs >= 1,
+          lockedReason: () => 'Need a Tree Creeper in your flock to unlock Toucan!',
+          texts: () => {
+            const locked = !this.birds.some((b) => b.species.key === 'tree_creeper') && this.eggs < 1;
+            return {
+              sub: locked ? '🔒' : '500',
+              tiny: locked ? 'Need Tree Creeper' : 'Munches Beetles -> Pearls',
+            };
+          },
+          buy: () => {
+            this.coins -= 500;
+            this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 2, false, false, 'toucan'));
+            this.toast('🌈 Rainbow Toucan joined! Catches Golden Tree Beetles and drops Forest Pearls (500c)!');
+          },
+        }, totalButtons);
+      }
+
+      // Slot in World 4: Cinder Gecko & Sugar Glider (Two Non-Bird Canopy Creatures!)
+      if (worldId === 4 || this.challengeId === 'apex_havoc') {
+        // Cinder Gecko (Flame Chameleon - Non-Bird Intermediate Predator)
+        this.addShop(idx++, 'Cinder Gecko', 'cinder_gecko_icon', 0.95, {
+          cost: () => 300,
+          enabled: () => true,
+          unlocked: () => this.birds.some((b) => b.stage >= 2 || b.isBreeder),
+          lockedReason: () => 'Grow a bird to Adult to unlock Cinder Gecko!',
+          texts: () => {
+            const locked = !this.birds.some((b) => b.stage >= 2 || b.isBreeder);
+            return {
+              sub: locked ? '🔒' : '300',
+              tiny: locked ? 'Need Adult' : 'Tongue hunts chicks -> Nectar',
+            };
+          },
+          buy: () => {
+            this.coins -= 300;
+            const gecko = new CinderGecko(this, Phaser.Math.Between(160, W - 160), 320);
+            this.geckos.push(gecko);
+            this.toast('🦎 Cinder Gecko joined! Snatches feeder chicks with its tongue and drops sweet Amber Nectar (200c)!');
+          },
+        }, totalButtons);
+
+        // Sugar Glider (Gliding non-bird that eats Amber Nectar to drop Cinder Acorns)
+        this.addShop(idx++, 'Sugar Glider', 'sugar_glider_icon', 0.95, {
+          cost: () => 450,
+          enabled: () => true,
+          unlocked: () => this.geckos.length > 0 || this.eggs >= 1,
+          lockedReason: () => 'Need a Cinder Gecko in your aviary to unlock Sugar Glider!',
+          texts: () => {
+            const locked = this.geckos.length === 0 && this.eggs < 1;
+            return {
+              sub: locked ? '🔒' : '450',
+              tiny: locked ? 'Need Gecko' : 'Eats Nectar -> Cinder Acorn',
+            };
+          },
+          buy: () => {
+            this.coins -= 450;
+            const sg = new SugarGlider(this, Phaser.Math.Between(150, W - 150), 120);
+            this.gliders.push(sg);
+            this.toast('🐿️ Sugar Glider joined! Swoops to eat Amber Nectar and drops blazing Cinder Acorns!');
+          },
+        }, totalButtons);
+      }
     }
 
     // Weapon Upgrade: Stick (Tier 0) -> Slingshot (Tier 1) -> Bow (Tier 2) -> Rifle (Tier 3) -> Laser (Tier 4)
@@ -5459,13 +5472,13 @@ export class AviaryScene extends Phaser.Scene {
     this.addShop(idx++, initialWeaponName, initialWeaponTex, 0.85, {
       cost: () => WEAPON_COST[this.weapon] ?? 0,
       enabled: () => this.weapon < WEAPON_COST.length,
-      unlocked: () => (this.level === 1 ? this.birds.some((b) => b.stage >= 1 || b.isBreeder) : true),
+      unlocked: () => (isWorld5 ? true : this.level === 1 ? this.birds.some((b) => b.stage >= 1 || b.isBreeder) : true),
       lockedReason: () => 'Grow a bird to Fledgling to unlock weapon upgrades!',
       texts: () => {
         const canUpgrade = this.weapon < WEAPON_COST.length;
         const nextName = canUpgrade ? WEAPON_NAMES[this.weapon + 1] : WEAPON_NAMES[4];
         const nextTex = canUpgrade ? WEAPON_TEX[this.weapon + 1] : WEAPON_TEX[4];
-        const locked = this.level === 1 && !this.birds.some((b) => b.stage >= 1 || b.isBreeder);
+        const locked = !isWorld5 && this.level === 1 && !this.birds.some((b) => b.stage >= 1 || b.isBreeder);
         return {
           title: nextName,
           sub: locked ? '🔒' : canUpgrade ? String(WEAPON_COST[this.weapon]) : 'MAX',
@@ -5538,15 +5551,15 @@ export class AviaryScene extends Phaser.Scene {
     }
 
     if (isWorld5) {
-      this.addShop(idx++, 'Titan Climax', 'master_trophy', 0.85, {
+      this.addShop(idx++, 'Titanoraptor', 'master_trophy', 0.85, {
         cost: () => 0,
         enabled: () => false,
         unlocked: () => true,
-        lockedReason: () => 'Defeat Malakor to banish the Abyssal Eclipse!',
+        lockedReason: () => 'Slay Titanoraptor to conquer the campaign!',
         texts: () => ({
-          title: 'Titan Climax',
+          title: 'Titanoraptor',
           sub: `${this.shadowRocBoss?.hp ?? 0} HP`,
-          tiny: 'Defeat Malakor!',
+          tiny: 'Defeat Dino Ancestor!',
           icon: 'master_trophy',
         }),
         buy: () => {},
@@ -7697,7 +7710,10 @@ export class AviaryScene extends Phaser.Scene {
     }
     if (this.birdText && this.birdText.scene && this.birdText.active) {
       try {
-        if (this.sandbox) {
+        const ws = getWorldAndStage(this.level);
+        if (ws.worldId === 5) {
+          this.birdText.setText(`🦖 BOSS`);
+        } else if (this.sandbox) {
           const petCount = this.birds.filter((b) => !b.isFeeder).length;
           const feederCount = this.birds.filter((b) => b.isFeeder).length;
           this.birdText.setText(feederCount > 0 ? `Flock ${petCount} (+${feederCount})` : `Flock ${petCount}`);
@@ -8694,9 +8710,9 @@ export class AviaryScene extends Phaser.Scene {
       patchSave({ suspendedSession: undefined });
 
       const lines = [
-        'THE SOVEREIGN SHADOW ROC HAS BEEN BANISHED!',
+        'TITANORAPTOR HAS BEEN VANQUISHED!',
         'All 16 companions fought heroically side-by-side!',
-        'The Abyssal Eclipse has parted, bathed in golden dawn.',
+        'The prehistoric dinosaur ancestor slumbers once more in the earth.',
         'You have conquered all 5 worlds of Insaterrarium!',
         '🏆 Master of the Aviary Trophy Unlocked!',
         '+100 GEMS BONUS REWARD EARNED!',

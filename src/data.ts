@@ -104,17 +104,17 @@ export const WORLDS: WorldDef[] = [
   },
   {
     id: 5,
-    name: 'The Abyssal Eclipse',
+    name: 'Primal Dawn',
     theme: THEMES[4],
-    subtitle: 'The Titan Showdown: Sovereign Shadow Roc',
-    mechanicTitle: 'The Final Titan: Malakor',
-    mechanicDesc: 'The ultimate battle! All 16 unlocked companions enter the aviary together. Defend them from void missiles and destroy the Eclipse Sovereign!',
+    subtitle: 'Prehistoric Titan: Titanoraptor',
+    mechanicTitle: 'The Primal Avian Dinosaur: Titanoraptor',
+    mechanicDesc: 'The ultimate battle! All 16 unlocked companions enter the arena together. Protect them from volcanic magma boulders and defeat the primordial dinosaur ancestor!',
     rewardPetKey: 'master_trophy',
     stages: [
       {
         stage: 1,
-        name: 'Sovereign Shadow Roc',
-        briefing: 'Darkness has consumed the sky! Malakor, the ancient Eclipse Sovereign, has descended to annihilate the aviary. All 16 companions have assembled—protect them, shoot down void orbs, and defeat Malakor to become the Master Aviary Keeper!',
+        name: 'Titanoraptor, The Primal Ancestor',
+        briefing: 'The primordial avian dinosaur ancestor has awakened! Titanoraptor descends with razor sickle claws and thunderous roars to reclaim the skies. All 16 companions unite on the battlefield—shoot down magma boulders, protect your flock, and defeat Titanoraptor to conquer the campaign!',
         baseEggCost: 10000,
       },
     ],
