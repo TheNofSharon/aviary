@@ -238,45 +238,84 @@ export function getDefaultLevelDesign(worldId: number, levelKey: string): LevelL
     };
   }
 
-  // World 4: Volcanic Mystic Peaks
+  if (worldId === 4) {
+    return {
+      levelKey,
+      worldId: 4,
+      trees: [
+        {
+          id: 'tree_w4_basalt_left',
+          name: 'Obsidian Column Spire (Left)',
+          style: 'basalt',
+          trunkX: 215,
+          branches: [
+            { x: 130, y: 410, nest: false, from: [205, 440], startW: 32, endW: 15, isBirch: false },
+            { x: 360, y: 390, nest: true,  from: [235, 430], startW: 36, endW: 16, isBirch: false },
+            { x: 250, y: 310, nest: false, from: [220, 350], startW: 28, endW: 14, isBirch: false },
+            { x: 160, y: 520, nest: false, from: [210, 545], startW: 28, endW: 14, isBirch: false },
+            { x: 320, y: 490, nest: true,  from: [235, 510], startW: 34, endW: 16, isBirch: false },
+          ],
+        },
+        {
+          id: 'tree_w4_basalt_right',
+          name: 'Obsidian Column Spire (Right)',
+          style: 'basalt',
+          trunkX: 980,
+          branches: [
+            { x: 870,  y: 320, nest: false, from: [965, 360], startW: 32, endW: 15, isBirch: false },
+            { x: 840,  y: 420, nest: true,  from: [960, 450], startW: 36, endW: 16, isBirch: false },
+            { x: 1120, y: 340, nest: false, from: [995, 370], startW: 28, endW: 14, isBirch: false },
+            { x: 870,  y: 500, nest: true,  from: [965, 520], startW: 34, endW: 16, isBirch: false },
+            { x: 1090, y: 470, nest: false, from: [990, 490], startW: 28, endW: 14, isBirch: false },
+          ],
+        },
+      ],
+      scenery: [
+        { id: 'sc_1', texture: 'scenery_stone_volcanic', x: 150, y: 570, scale: 1.25, flipX: false, depth: 1 },
+        { id: 'sc_2', texture: 'scenery_stone_volcanic', x: 420, y: 582, scale: 0.9, flipX: true, depth: 1 },
+        { id: 'sc_3', texture: 'scenery_stone_volcanic', x: 860, y: 582, scale: 0.95, flipX: false, depth: 1 },
+        { id: 'sc_4', texture: 'scenery_stone_volcanic', x: 1110, y: 570, scale: 1.3, flipX: true, depth: 1 },
+        { id: 'sc_5', texture: 'scenery_crystal', x: 290, y: 576, scale: 1.0, flipX: false, depth: 1 },
+        { id: 'sc_6', texture: 'scenery_crystal', x: 990, y: 574, scale: 1.15, flipX: true, depth: 1 },
+      ],
+    };
+  }
+
+  // World 5: The Abyssal Eclipse (Titan Arena)
   return {
     levelKey,
-    worldId: 4,
+    worldId: 5,
     trees: [
       {
-        id: 'tree_w4_basalt_left',
-        name: 'Obsidian Column Spire (Left)',
+        id: 'tree_w5_spire_left',
+        name: 'Abyssal Titan Roost (Left)',
         style: 'basalt',
-        trunkX: 215,
+        trunkX: 180,
         branches: [
-          { x: 130, y: 410, nest: false, from: [205, 440], startW: 32, endW: 15, isBirch: false },
-          { x: 360, y: 390, nest: true,  from: [235, 430], startW: 36, endW: 16, isBirch: false },
-          { x: 250, y: 310, nest: false, from: [220, 350], startW: 28, endW: 14, isBirch: false },
-          { x: 160, y: 520, nest: false, from: [210, 545], startW: 28, endW: 14, isBirch: false },
-          { x: 320, y: 490, nest: true,  from: [235, 510], startW: 34, endW: 16, isBirch: false },
+          { x: 110, y: 400, nest: false, from: [170, 430], startW: 34, endW: 16, isBirch: false },
+          { x: 330, y: 380, nest: true,  from: [200, 420], startW: 36, endW: 16, isBirch: false },
+          { x: 220, y: 300, nest: false, from: [185, 340], startW: 28, endW: 14, isBirch: false },
+          { x: 300, y: 480, nest: true,  from: [200, 500], startW: 34, endW: 16, isBirch: false },
         ],
       },
       {
-        id: 'tree_w4_basalt_right',
-        name: 'Obsidian Column Spire (Right)',
+        id: 'tree_w5_spire_right',
+        name: 'Abyssal Titan Roost (Right)',
         style: 'basalt',
-        trunkX: 980,
+        trunkX: 1020,
         branches: [
-          { x: 870,  y: 320, nest: false, from: [965, 360], startW: 32, endW: 15, isBirch: false },
-          { x: 840,  y: 420, nest: true,  from: [960, 450], startW: 36, endW: 16, isBirch: false },
-          { x: 1120, y: 340, nest: false, from: [995, 370], startW: 28, endW: 14, isBirch: false },
-          { x: 870,  y: 500, nest: true,  from: [965, 520], startW: 34, endW: 16, isBirch: false },
-          { x: 1090, y: 470, nest: false, from: [990, 490], startW: 28, endW: 14, isBirch: false },
+          { x: 910,  y: 300, nest: false, from: [1005, 340], startW: 30, endW: 15, isBirch: false },
+          { x: 880,  y: 400, nest: true,  from: [1000, 430], startW: 36, endW: 16, isBirch: false },
+          { x: 1120, y: 360, nest: false, from: [1035, 390], startW: 28, endW: 14, isBirch: false },
+          { x: 900,  y: 490, nest: true,  from: [1005, 510], startW: 34, endW: 16, isBirch: false },
         ],
       },
     ],
     scenery: [
-      { id: 'sc_1', texture: 'scenery_stone_volcanic', x: 150, y: 570, scale: 1.25, flipX: false, depth: 1 },
-      { id: 'sc_2', texture: 'scenery_stone_volcanic', x: 420, y: 582, scale: 0.9, flipX: true, depth: 1 },
-      { id: 'sc_3', texture: 'scenery_stone_volcanic', x: 860, y: 582, scale: 0.95, flipX: false, depth: 1 },
-      { id: 'sc_4', texture: 'scenery_stone_volcanic', x: 1110, y: 570, scale: 1.3, flipX: true, depth: 1 },
-      { id: 'sc_5', texture: 'scenery_crystal', x: 290, y: 576, scale: 1.0, flipX: false, depth: 1 },
-      { id: 'sc_6', texture: 'scenery_crystal', x: 990, y: 574, scale: 1.15, flipX: true, depth: 1 },
+      { id: 'sc_w5_1', texture: 'scenery_crystal', x: 220, y: 574, scale: 1.3, flipX: false, depth: 1 },
+      { id: 'sc_w5_2', texture: 'scenery_stone_volcanic', x: 500, y: 580, scale: 1.1, flipX: true, depth: 1 },
+      { id: 'sc_w5_3', texture: 'scenery_stone_volcanic', x: 700, y: 580, scale: 1.1, flipX: false, depth: 1 },
+      { id: 'sc_w5_4', texture: 'scenery_crystal', x: 980, y: 574, scale: 1.3, flipX: true, depth: 1 },
     ],
   };
 }

@@ -671,10 +671,10 @@ export class MenuScene extends Phaser.Scene {
   private renderWorldSelect() {
     this.createHeaderPill('WORLD & STAGE SELECT', 'Choose any unlocked stage to replay or advance campaign');
 
-    const colW = 256;
+    const colW = 180;
     const colH = 436;
-    const startX = 146;
-    const gapX = 272;
+    const startX = 112;
+    const gapX = 194;
     const cardY = 350;
 
     WORLDS.forEach((world, wIdx) => {
@@ -685,37 +685,39 @@ export class MenuScene extends Phaser.Scene {
       const g = this.add.graphics();
       g.fillStyle(0x000000, 0.4);
       g.fillRoundedRect(-colW / 2 + 4, -colH / 2 + 6, colW, colH, 18);
-      g.fillStyle(0x3e2313, 0.94);
+      g.fillStyle(world.id === 5 ? 0x1e1035 : 0x3e2313, 0.94);
       g.fillRoundedRect(-colW / 2, -colH / 2, colW, colH, 18);
-      g.lineStyle(3, 0x8d5c34, 1);
+      g.lineStyle(3, world.id === 5 ? 0xa855f7 : 0x8d5c34, 1);
       g.strokeRoundedRect(-colW / 2, -colH / 2, colW, colH, 18);
 
       // World Header
       const wHeader = this.add.text(0, -colH / 2 + 24, `WORLD ${world.id}`, {
         fontFamily: FONT,
-        fontSize: '18px',
+        fontSize: '17px',
         fontStyle: 'bold',
-        color: '#ffca28',
+        color: world.id === 5 ? '#e879f9' : '#ffca28',
       }).setOrigin(0.5);
 
       const wName = this.add.text(0, -colH / 2 + 48, world.name, {
         fontFamily: FONT,
-        fontSize: '20px',
+        fontSize: '16px',
         fontStyle: 'bold',
         color: '#ffffff',
+        align: 'center',
+        wordWrap: { width: colW - 14 },
       }).setOrigin(0.5);
 
-      const wSub = this.add.text(0, -colH / 2 + 74, world.subtitle, {
+      const wSub = this.add.text(0, -colH / 2 + 76, world.subtitle, {
         fontFamily: FONT,
-        fontSize: '13px',
+        fontSize: '11px',
         color: '#ddcfbc',
         align: 'center',
-        wordWrap: { width: colW - 20 },
+        wordWrap: { width: colW - 16 },
       }).setOrigin(0.5);
 
       c.add([g, wHeader, wName, wSub]);
 
-      // 4 Stage Buttons
+      // Stage Buttons
       const stageStartY = -colH / 2 + 124;
       const stageGap = 52;
 
@@ -729,7 +731,7 @@ export class MenuScene extends Phaser.Scene {
         const sbtn = this.add.container(0, sy);
         const sg = this.add.graphics();
 
-        const bw = colW - 32;
+        const bw = colW - 20;
         const bh = 42;
 
         const petDef = PETS[flatLevel - 1];
@@ -738,7 +740,24 @@ export class MenuScene extends Phaser.Scene {
         let label = `Stage ${world.id}-${stg.stage}`;
         let textColor = '#ffffff';
 
-        if (isCompleted) {
+        if (world.id === 5) {
+          if (isCompleted) {
+            bgCol = 0x4c1d95;
+            borderCol = 0xc084fc;
+            label = '★ 5-1 Roc Slayed 🏆';
+            textColor = '#f5d0fe';
+          } else if (isCurrent) {
+            bgCol = 0x701a75;
+            borderCol = 0xf43f5e;
+            label = '► 5-1 Titan Clash 👑';
+            textColor = '#fff1f2';
+          } else {
+            bgCol = 0x1e1b4b;
+            borderCol = 0x312e81;
+            label = '🔒 5-1 Final Boss';
+            textColor = '#818cf8';
+          }
+        } else if (isCompleted) {
           bgCol = 0x1b4332;
           borderCol = 0x52b788;
           label = `★ ${world.id}-${stg.stage} (${petDef ? petDef.name : ''})`;
@@ -756,13 +775,13 @@ export class MenuScene extends Phaser.Scene {
         }
 
         sg.fillStyle(bgCol, 1);
-        sg.fillRoundedRect(-bw / 2, -bh / 2, bw, bh, 12);
+        sg.fillRoundedRect(-bw / 2, -bh / 2, bw, bh, 10);
         sg.lineStyle(2, borderCol, 1);
-        sg.strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, 12);
+        sg.strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, 10);
 
         const stext = this.add.text(0, 0, label, {
           fontFamily: FONT,
-          fontSize: '14px',
+          fontSize: world.id === 5 ? '12px' : '13px',
           fontStyle: 'bold',
           color: textColor,
         }).setOrigin(0.5);
@@ -788,21 +807,30 @@ export class MenuScene extends Phaser.Scene {
 
       // Bottom World Companions Progress Pill
       const worldPets = PETS.slice((world.id - 1) * 4, world.id * 4);
-      const rescuedCount = worldPets.filter((p) => this.maxUnlockedLevel > p.stageReq).length;
+      const rescuedCount = world.id === 5
+        ? (this.maxUnlockedLevel > 17 ? 1 : 0)
+        : worldPets.filter((p) => this.maxUnlockedLevel > p.stageReq).length;
       const petY = colH / 2 - 34;
 
       const petPill = this.add.graphics();
-      petPill.fillStyle(rescuedCount === 4 ? 0x22543d : 0x20140e, 0.85);
-      petPill.fillRoundedRect(-colW / 2 + 16, petY - 20, colW - 32, 40, 12);
-      petPill.lineStyle(1.5, rescuedCount === 4 ? 0x48bb78 : 0x60402b, 1);
-      petPill.strokeRoundedRect(-colW / 2 + 16, petY - 20, colW - 32, 40, 12);
+      petPill.fillStyle(world.id === 5 ? 0x2e1065 : rescuedCount === 4 ? 0x22543d : 0x20140e, 0.85);
+      petPill.fillRoundedRect(-colW / 2 + 10, petY - 20, colW - 20, 40, 10);
+      petPill.lineStyle(1.5, world.id === 5 ? 0xc084fc : rescuedCount === 4 ? 0x48bb78 : 0x60402b, 1);
+      petPill.strokeRoundedRect(-colW / 2 + 10, petY - 20, colW - 20, 40, 10);
 
-      const petTxt = this.add.text(0, petY, `🐾 Companions: ${rescuedCount} / 4 Rescued`, {
-        fontFamily: FONT,
-        fontSize: '13px',
-        fontStyle: 'bold',
-        color: rescuedCount === 4 ? '#c6f6d5' : '#ffd54f',
-      }).setOrigin(0.5);
+      const petTxt = this.add.text(
+        0,
+        petY,
+        world.id === 5
+          ? (this.maxUnlockedLevel > 17 ? '🏆 Sovereign Master' : '👑 All 16 Climax')
+          : `🐾 ${rescuedCount}/4 Rescued`,
+        {
+          fontFamily: FONT,
+          fontSize: '11px',
+          fontStyle: 'bold',
+          color: world.id === 5 ? '#f5d0fe' : rescuedCount === 4 ? '#c6f6d5' : '#ffd54f',
+        }
+      ).setOrigin(0.5);
 
       c.add([petPill, petTxt]);
     });
@@ -898,6 +926,34 @@ export class MenuScene extends Phaser.Scene {
       stagesConfig.forEach((cfg) => {
         this.createMenu25DBird(cfg.x, cfg.y, cfg.stage, cfg.scale, cfg.isKing);
       });
+    } else if (ws.worldId === 5) {
+      this.txt(W / 2, 326, '🔥 ALL 16 COMPANIONS ASSEMBLED FOR THE TITAN CLASH! 🔥', 20, '#ffd700', '#221105', 3);
+      this.txt(W / 2, 350, 'Every loyal pet you rescued across Worlds 1–4 enters the arena together to face Malakor!', 14, '#e2e8f0', '#0f172a', 2);
+
+      const allPets = PETS.slice(0, 16);
+      const perRow = 8;
+      const cw = 76;
+      const startX = W / 2 - ((perRow - 1) * (cw + 12)) / 2;
+      for (let i = 0; i < allPets.length; i++) {
+        const row = Math.floor(i / perRow);
+        const col = i % perRow;
+        const cx = startX + col * (cw + 12);
+        const cy = 405 + row * 64;
+
+        const pbox = this.add.graphics();
+        pbox.fillStyle(0x1e1b4b, 0.88);
+        pbox.fillRoundedRect(cx - 34, cy - 25, 68, 52, 8);
+        pbox.lineStyle(1.5, 0xa855f7, 0.85);
+        pbox.strokeRoundedRect(cx - 34, cy - 25, 68, 52, 8);
+
+        this.add.image(cx, cy - 4, 'pet_' + allPets[i].key).setScale(0.72);
+        this.add.text(cx, cy + 16, allPets[i].name, {
+          fontFamily: FONT,
+          fontSize: '10px',
+          color: '#fbbf24',
+          fontStyle: 'bold',
+        }).setOrigin(0.5);
+      }
     } else {
       const slots = 3;
       this.txt(W / 2, 328, `Choose up to ${slots} Companion Helpers for this stage (${this.chosen.size}/${slots} chosen):`, 19, '#ffffff', '#221105', 3);

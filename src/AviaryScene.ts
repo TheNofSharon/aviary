@@ -137,16 +137,16 @@ function makeFlyer(scene: Phaser.Scene, key: string, x: number, y: number, depth
   const wingX = s === 0 ? -4 : s === 1 ? -6 : -8;
   const wingY = s === 0 ? 3 : s === 1 ? 4 : 5;
 
-  // Clean, charming 2D Flyer (Original Concept)
+  // Hierarchical Multi-Joint Procedural Rigging (Dual Wings & Articulated Volumetrics)
   const body = scene.add.image(0, 0, bodyKey);
   const wing = scene.add.image(wingX, wingY, wingKey).setOrigin(0.78, 0.5);
 
-  // Hidden stubs for compatibility
-  const wingBack = scene.add.image(0, 0, wingKey).setVisible(false);
+  // Background wing with atmospheric depth shading
+  const wingBack = scene.add.image(wingX - 2, wingY - 3, wingKey).setOrigin(0.78, 0.5).setTint(0x71717a).setVisible(true);
   const bodyShadow = scene.add.image(0, 0, bodyKey).setVisible(false);
   const wingShadow = scene.add.image(0, 0, wingKey).setVisible(false);
 
-  const flip = scene.add.container(0, 0, [body, wing]);
+  const flip = scene.add.container(0, 0, [wingBack, body, wing]);
   const spr = scene.add.container(x, y, [flip]).setDepth(depth);
   return { body, bodyShadow, wing, wingBack, wingShadow, flip, spr };
 }
@@ -294,6 +294,13 @@ export class Bird {
     const wingX = s === 0 ? -4 : s === 1 ? -6 : -8;
     const wingY = s === 0 ? 3 : s === 1 ? 4 : 5;
     this.wing.setPosition(wingX, wingY).setOrigin(0.78, 0.5);
+
+    if (this.wingBack) {
+      this.wingBack.setTexture(wingKey);
+      this.wingBack.setPosition(wingX - 2, wingY - 3).setOrigin(0.78, 0.5);
+      this.wingBack.setVisible(true);
+      this.wingBack.setTint(0x71717a);
+    }
 
     this.eyelid.setPosition(s === 0 ? 8 : s === 1 ? 10 : 13, s === 0 ? -4 : s === 1 ? -5 : -6);
     this.beakTwig.setPosition(s === 0 ? 22 : s === 1 ? 28 : 33, s === 0 ? -1 : s === 1 ? 0 : -1);
@@ -589,7 +596,8 @@ export class Bird {
       this.scene.burst(this.spr.x + Phaser.Math.Between(-8, 8), this.spr.y - 28, 0xfde047, 1);
     }
     this.layT -= dt;
-    this.flip.scaleX = this.dir;
+    // Smooth 2.5D spring turning transition
+    this.flip.scaleX = Phaser.Math.Linear(this.flip.scaleX, this.dir, 0.28);
 
     // Lifelike blinking animation
     this.blinkTimer -= dt;
@@ -911,14 +919,36 @@ export class Bird {
     if (isDiving) {
       // Aerodynamic dive plunge: wings tucked back tight along the body!
       this.wing.rotation = Phaser.Math.Linear(this.wing.rotation, 0.22, 0.25);
+      if (this.wingBack) {
+        this.wingBack.rotation = Phaser.Math.Linear(this.wingBack.rotation, 0.24, 0.25);
+      }
     } else if (flying) {
-      // Natural wing flapping rotating around shoulder socket
-      const wingAngle = Math.sin(t * flapRate + this.phase) * flapAmp;
+      // Articulated dual-wing flapping with secondary feather flex
+      const wingPhase = Math.sin(t * flapRate + this.phase);
+      const wingAngle = wingPhase * flapAmp;
       this.wing.rotation = wingAngle;
+      // Secondary feather flex: wing expands slightly on downstroke, compresses on upstroke
+      this.wing.scaleY = 1.0 + wingPhase * 0.16;
+
+      if (this.wingBack) {
+        // Rear wing has slight perspective lag for volumetric 3D feel
+        const wingBackPhase = Math.sin(t * flapRate + this.phase - 0.22);
+        this.wingBack.rotation = wingBackPhase * (flapAmp * 0.92);
+        this.wingBack.scaleY = 1.0 + wingBackPhase * 0.14;
+      }
+      // Subtle body bobbing along flight thrust
+      this.body.y = -wingPhase * 1.6;
     } else {
-      // Perched / Resting: folded back neatly
+      // Perched / Resting: folded back neatly with breathing chest idle
       const foldAngle = -0.05 + Math.sin(t * 0.003 + this.phase) * 0.03;
       this.wing.rotation = foldAngle;
+      if (this.wingBack) {
+        this.wingBack.rotation = foldAngle + 0.04;
+      }
+      // Gentle rhythmic breathing expansion while perched
+      const breath = Math.sin(t * 0.004 + this.phase) * 0.035;
+      this.body.scaleY = 1.0 + breath;
+      this.body.scaleX = 1.0 - breath * 0.5;
     }
 
     // Songster chirp: Canary sings and prompts nearby birds to drop currency
@@ -1868,9 +1898,520 @@ export class Predator {
   }
 }
 
+// ----------------------------------------------------------- void orb
+export class VoidOrb {
+  spr: Phaser.GameObjects.Container;
+  img: Phaser.GameObjects.Image;
+  targetPet: Pet;
+  speed = 180;
+  hp = 2;
+  destroyed = false;
+  radius = 24;
+
+  constructor(public scene: AviaryScene, x: number, y: number, targetPet: Pet) {
+    this.targetPet = targetPet;
+    const spr = scene.add.container(x, y).setDepth(23);
+    const aura = scene.add.circle(0, 0, 26, 0x8b5cf6, 0.45);
+    const core = scene.add.image(0, 0, 'boss_void_orb');
+    spr.add([aura, core]);
+    this.spr = spr;
+    this.img = core;
+
+    scene.tweens.add({
+      targets: aura,
+      scale: 1.35,
+      alpha: 0.15,
+      yoyo: true,
+      repeat: -1,
+      duration: 350,
+    });
+  }
+
+  update(dt: number) {
+    if (this.destroyed) return;
+    const tx = this.targetPet.img?.x ?? (this.targetPet.flyer?.spr.x ?? W / 2);
+    const ty = this.targetPet.img?.y ?? (this.targetPet.flyer?.spr.y ?? 600);
+    const dx = tx - this.spr.x;
+    const dy = ty - this.spr.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < 32) {
+      this.explodeOnPet();
+      return;
+    }
+
+    this.spr.x += (dx / dist) * this.speed * dt;
+    this.spr.y += (dy / dist) * this.speed * dt;
+    this.img.rotation += 4.5 * dt;
+
+    if (Math.random() < 0.22) {
+      this.scene.burst(this.spr.x, this.spr.y, 0x9333ea, 1);
+    }
+  }
+
+  hit(dmg: number) {
+    if (this.destroyed) return;
+    this.hp -= dmg;
+    this.scene.burst(this.spr.x, this.spr.y, 0xc084fc, 6);
+    this.scene.floatText(this.spr.x, this.spr.y - 15, `-${dmg}`, '#e879f9', '#581c87');
+    if (this.hp <= 0) {
+      this.destroyOrb(true);
+    }
+  }
+
+  destroyOrb(byPlayer: boolean) {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.scene.burst(this.spr.x, this.spr.y, 0xa855f7, 16);
+    this.scene.burst(this.spr.x, this.spr.y, 0xffe4e6, 8);
+    if (byPlayer) {
+      this.scene.dropCoin(this.spr.x, this.spr.y, 30, 'drop_seed_diamond');
+    }
+    this.spr.destroy();
+  }
+
+  explodeOnPet() {
+    this.destroyed = true;
+    this.scene.burst(this.spr.x, this.spr.y, 0x7c3aed, 22);
+    this.scene.cameras.main.shake(160, 0.005);
+
+    // Defensive companions block the orb
+    const defender = this.scene.pets.find(
+      (p) => (p.key === 'porcupine' || p.key === 'hound' || p.key === 'mole') && p.stunTimer <= 0
+    );
+    const px = this.targetPet.img?.x ?? 500;
+    const py = this.targetPet.img?.y ?? 600;
+    if (defender && Phaser.Math.Distance.Between(px, py, defender.img.x, defender.img.y) < 140) {
+      this.scene.floatText(px, py - 30, '🛡️ DEFLECTED BY DEFENDER!', '#38bdf8', '#0c4a6e');
+      this.scene.burst(px, py - 10, 0x38bdf8, 16);
+    } else {
+      this.targetPet.stunTimer = 6.0;
+      this.scene.floatText(px, py - 25, `🌀 ${this.targetPet.name || 'Pet'} Stunned!`, '#c084fc', '#3b0764');
+    }
+    this.spr.destroy();
+  }
+}
+
+// ----------------------------------------------------------- shadow roc final boss
+export class ShadowRocBoss {
+  spr: Phaser.GameObjects.Container;
+  flip: Phaser.GameObjects.Container;
+  body: Phaser.GameObjects.Image;
+  wingL: Phaser.GameObjects.Image;
+  wingR: Phaser.GameObjects.Image;
+  coreGlow: Phaser.GameObjects.Arc;
+  hpBarContainer: Phaser.GameObjects.Container;
+  hpFill: Phaser.GameObjects.Graphics;
+  hpText: Phaser.GameObjects.Text;
+  phaseText: Phaser.GameObjects.Text;
+
+  hp = 1200;
+  maxHp = 1200;
+  phase = 1; // 1: >840, 2: 420-840, 3: <420
+  dying = false;
+  radius = 90;
+
+  tx = 500;
+  ty = 160;
+  dir = 1;
+  phaseAnimTime = 0;
+  minionTimer = 12.0;
+  voidOrbTimer = 5.0;
+  petAttackTimer = 3.5;
+  swoopState: 'cruise' | 'swoop' | 'ascend' = 'cruise';
+  swoopTimer = 0;
+  swoopTargetX = 500;
+
+  constructor(public scene: AviaryScene) {
+    const spr = scene.add.container(500, -140).setDepth(24);
+    const flip = scene.add.container(0, 0);
+    spr.add(flip);
+
+    const wingL = scene.add.image(-45, -15, 'boss_roc_wing_l').setOrigin(0.85, 0.4);
+    const wingR = scene.add.image(45, -15, 'boss_roc_wing_r').setOrigin(0.15, 0.4);
+    const body = scene.add.image(0, 0, 'boss_roc_body');
+    const coreGlow = scene.add.circle(0, 8, 18, 0xef4444, 0.7);
+
+    flip.add([wingL, wingR, coreGlow, body]);
+
+    this.spr = spr;
+    this.flip = flip;
+    this.body = body;
+    this.wingL = wingL;
+    this.wingR = wingR;
+    this.coreGlow = coreGlow;
+
+    // Glowing core pulse
+    scene.tweens.add({
+      targets: coreGlow,
+      scale: 1.45,
+      alpha: 0.25,
+      yoyo: true,
+      repeat: -1,
+      duration: 480,
+    });
+
+    // Dramatic entrance
+    scene.tweens.add({
+      targets: spr,
+      y: 160,
+      duration: 2400,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        scene.cameras.main.shake(600, 0.015);
+        scene.toast('⚠️ FINAL TITAN: MALAKOR, SOVEREIGN SHADOW ROC!');
+      },
+    });
+
+    // Create Boss Health Bar at top
+    const hbc = scene.add.container(W / 2, 78).setDepth(85);
+    const bg = scene.add.graphics();
+    bg.fillStyle(0x0f091c, 0.92);
+    bg.fillRoundedRect(-280, -18, 560, 36, 8);
+    bg.lineStyle(2, 0xa855f7, 0.9);
+    bg.strokeRoundedRect(-280, -18, 560, 36, 8);
+    bg.lineStyle(1, 0xfde047, 0.6);
+    bg.strokeRoundedRect(-277, -15, 554, 30, 6);
+
+    const hpFill = scene.add.graphics();
+
+    const titleText = scene.add.text(0, -28, '👑 MALAKOR, SOVEREIGN SHADOW ROC 👑', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '13px',
+      fontStyle: 'bold',
+      color: '#ffd700',
+      stroke: '#3b0764',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    const hpText = scene.add.text(0, 0, '1200 / 1200 HP', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '12px',
+      fontStyle: 'bold',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    const phaseText = scene.add.text(0, 24, 'PHASE 1: VOID CALL', {
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '10px',
+      fontStyle: 'bold',
+      color: '#c084fc',
+    }).setOrigin(0.5);
+
+    hbc.add([bg, hpFill, titleText, hpText, phaseText]);
+    this.hpBarContainer = hbc;
+    this.hpFill = hpFill;
+    this.hpText = hpText;
+    this.phaseText = phaseText;
+
+    this.renderHpBar();
+  }
+
+  renderHpBar() {
+    this.hpFill.clear();
+    const pct = Phaser.Math.Clamp(this.hp / this.maxHp, 0, 1);
+    const barW = 540 * pct;
+    if (barW > 0) {
+      const col = this.phase === 3 ? 0xef4444 : this.phase === 2 ? 0xf97316 : 0xa855f7;
+      this.hpFill.fillStyle(col, 0.95);
+      this.hpFill.fillRoundedRect(-270, -11, barW, 22, 4);
+    }
+    this.hpText.setText(`${Math.max(0, Math.round(this.hp))} / ${this.maxHp} HP (${Math.round(pct * 100)}%)`);
+    this.phaseText.setText(
+      this.phase === 1
+        ? '✦ PHASE 1: VOID MINIONS'
+        : this.phase === 2
+        ? '✦ PHASE 2: ABYSSAL VOID ORBS'
+        : '⚡ PHASE 3: ECLIPSE RETALIATION'
+    );
+    this.phaseText.setColor(this.phase === 3 ? '#f87171' : this.phase === 2 ? '#fb923c' : '#c084fc');
+  }
+
+  update(dt: number, t: number) {
+    if (this.dying) return;
+
+    // Wing flapping animation
+    const flapRate = this.phase === 3 ? 0.045 : this.phase === 2 ? 0.035 : 0.025;
+    const flapAmp = this.phase === 3 ? 0.95 : 0.78;
+    const wingAngle = Math.sin(t * flapRate) * flapAmp;
+    this.wingL.rotation = wingAngle;
+    this.wingR.rotation = -wingAngle;
+    this.body.y = -Math.sin(t * flapRate) * 4;
+
+    // Phase management
+    if (this.hp <= 420 && this.phase < 3) {
+      this.phase = 3;
+      this.scene.cameras.main.shake(700, 0.02);
+      this.scene.toast('⚡ PHASE 3: MALAKOR ENTERS ABYSSAL ECLIPSE! COMPANIONS RETALIATE!');
+      this.scene.burst(this.spr.x, this.spr.y, 0xef4444, 30);
+      this.coreGlow.fillColor = 0xff0044;
+    } else if (this.hp <= 840 && this.phase < 2) {
+      this.phase = 2;
+      this.scene.cameras.main.shake(500, 0.012);
+      this.scene.toast('🌀 PHASE 2: MALAKOR LAUNCHES VOID ORBS AT COMPANIONS!');
+      this.scene.burst(this.spr.x, this.spr.y, 0x8b5cf6, 25);
+    }
+
+    // Flight & Swoop Movement
+    if (this.phase === 3) {
+      switch (this.swoopState) {
+        case 'cruise': {
+          this.swoopTimer -= dt;
+          const dx = this.tx - this.spr.x;
+          if (Math.abs(dx) > 10) {
+            this.dir = Math.sign(dx);
+            this.flip.scaleX = this.dir;
+            this.spr.x += this.dir * 180 * dt;
+          } else {
+            this.tx = Phaser.Math.Between(220, W - 220);
+          }
+          if (this.swoopTimer <= 0) {
+            this.swoopState = 'swoop';
+            this.swoopTimer = 2.2;
+            this.swoopTargetX = Phaser.Math.Between(200, W - 200);
+          }
+          break;
+        }
+        case 'swoop': {
+          this.swoopTimer -= dt;
+          this.spr.y = Phaser.Math.Linear(this.spr.y, 310, 0.08);
+          this.spr.x = Phaser.Math.Linear(this.spr.x, this.swoopTargetX, 0.06);
+          if (this.swoopTimer <= 0 || this.spr.y >= 295) {
+            this.swoopState = 'ascend';
+            this.swoopTimer = 2.0;
+          }
+          break;
+        }
+        case 'ascend': {
+          this.swoopTimer -= dt;
+          this.spr.y = Phaser.Math.Linear(this.spr.y, 160, 0.08);
+          if (this.swoopTimer <= 0 && this.spr.y <= 175) {
+            this.swoopState = 'cruise';
+            this.swoopTimer = 5.0 + Math.random() * 3.0;
+            this.tx = Phaser.Math.Between(200, W - 200);
+          }
+          break;
+        }
+      }
+    } else {
+      // Phase 1 & 2: Regal upper sky cruise
+      const dx = this.tx - this.spr.x;
+      if (Math.abs(dx) > 12) {
+        this.dir = Math.sign(dx);
+        this.flip.scaleX = this.dir;
+        this.spr.x += this.dir * (this.phase === 2 ? 150 : 110) * dt;
+        this.spr.y = 150 + Math.sin(t * 0.003) * 20;
+      } else {
+        this.tx = Phaser.Math.Between(200, W - 200);
+      }
+    }
+
+    // Minion summoning (Phase 1 & 3)
+    if (this.phase === 1 || this.phase === 3) {
+      this.minionTimer -= dt;
+      if (this.minionTimer <= 0) {
+        this.minionTimer = this.phase === 3 ? 16.0 : 13.0;
+        this.summonMinions();
+      }
+    }
+
+    // Void Orbs targeting pets (Phase 2 & 3)
+    if (this.phase >= 2) {
+      this.voidOrbTimer -= dt;
+      if (this.voidOrbTimer <= 0) {
+        this.voidOrbTimer = this.phase === 3 ? 3.5 : 4.8;
+        this.fireVoidOrb();
+      }
+    }
+
+    // Coordinated Companion Pet Attacks on Malakor!
+    this.petAttackTimer -= dt;
+    if (this.petAttackTimer <= 0) {
+      this.petAttackTimer = this.phase === 3 ? 2.2 : 3.8;
+      this.triggerPetRetaliation();
+    }
+  }
+
+  summonMinions() {
+    this.scene.cameras.main.shake(350, 0.008);
+    this.scene.burst(this.spr.x, this.spr.y, 0x8b5cf6, 18);
+    this.scene.floatText(this.spr.x, this.spr.y - 45, 'ROAAAR! ⚡ VOID PHANTOMS!', '#c084fc', '#3b0764');
+
+    // Spawn 2 shadow bats or 1 shadow hawk
+    if (Math.random() < 0.6) {
+      const bat1 = new Predator(this.scene, 'bat', 16);
+      const bat2 = new Predator(this.scene, 'bat', 16);
+      this.scene.predators.push(bat1, bat2);
+    } else {
+      const hawk = new Predator(this.scene, 'hawk', 28);
+      this.scene.predators.push(hawk);
+    }
+  }
+
+  fireVoidOrb() {
+    if (this.scene.pets.length === 0) return;
+    const target = Phaser.Utils.Array.GetRandom(this.scene.pets);
+    this.scene.burst(this.spr.x, this.spr.y + 20, 0xef4444, 12);
+    this.scene.floatText(this.spr.x, this.spr.y - 30, '✦ VOID ORB! ✦', '#f43f5e', '#450a0a');
+    const orb = new VoidOrb(this.scene, this.spr.x, this.spr.y + 25, target);
+    this.scene.voidOrbs.push(orb);
+
+    if (this.phase === 3 && Math.random() < 0.5) {
+      const target2 = Phaser.Utils.Array.GetRandom(this.scene.pets);
+      const orb2 = new VoidOrb(this.scene, this.spr.x - 30, this.spr.y + 25, target2);
+      this.scene.voidOrbs.push(orb2);
+    }
+  }
+
+  triggerPetRetaliation() {
+    const activePets = this.scene.pets.filter((p) => p.stunTimer <= 0);
+    if (activePets.length === 0) return;
+
+    // Pick a combat capable pet
+    const combatPets = activePets.filter((p) =>
+      ['squirrel', 'porcupine', 'ferret', 'firefly', 'woodpecker', 'frog'].includes(p.key)
+    );
+    const attacker = combatPets.length > 0 ? Phaser.Utils.Array.GetRandom(combatPets) : Phaser.Utils.Array.GetRandom(activePets);
+    const px = attacker.img?.x ?? 500;
+    const py = attacker.img?.y ?? 600;
+
+    let dmg = 12;
+    let label = 'Pet Strike!';
+    let col = '#fde047';
+
+    switch (attacker.key) {
+      case 'squirrel':
+        dmg = 16;
+        label = '🌰 Nutty Acorn Sniped! -16';
+        col = '#fbbf24';
+        break;
+      case 'porcupine':
+        dmg = 18;
+        label = '🦔 Bristle Quill Volley! -18';
+        col = '#e5e7eb';
+        break;
+      case 'ferret':
+        dmg = 24;
+        label = '⚡ Fang Aerial Ambush! -24';
+        col = '#f43f5e';
+        break;
+      case 'firefly':
+        dmg = 20;
+        label = '✨ Sparky Chain Lightning! -20';
+        col = '#38bdf8';
+        break;
+      case 'woodpecker':
+        dmg = 14;
+        label = '🪵 Pip Splinter Peck! -14';
+        col = '#ca8a04';
+        break;
+      case 'frog':
+        dmg = 15;
+        label = '🐸 Bouncer Canopy Headbutt! -15';
+        col = '#4ade80';
+        break;
+      default:
+        dmg = 10;
+        label = `⚔️ ${attacker.name} Companion Rally! -10`;
+        col = '#ffd54f';
+        break;
+    }
+
+    // Tracer line or projectile towards boss
+    const tracer = this.scene.add.graphics().setDepth(23);
+    tracer.lineStyle(3, 0xffd54f, 0.85);
+    tracer.beginPath();
+    tracer.moveTo(px, py - 20);
+    tracer.lineTo(this.spr.x, this.spr.y);
+    tracer.strokePath();
+
+    this.scene.tweens.add({
+      targets: tracer,
+      alpha: 0,
+      duration: 250,
+      onComplete: () => tracer.destroy(),
+    });
+
+    this.hit(dmg, this.spr.x, this.spr.y, false);
+    this.scene.floatText(this.spr.x, this.spr.y + Phaser.Math.Between(-30, 20), label, col, '#451a03');
+  }
+
+  hit(dmg: number, hitX: number, hitY: number, byPlayer = true) {
+    if (this.dying) return;
+    this.hp -= dmg;
+    this.renderHpBar();
+
+    // Damage flash
+    this.body.setTint(0xff3366);
+    this.scene.time.delayedCall(90, () => this.body.clearTint());
+
+    this.scene.burst(hitX, hitY, 0xef4444, 8);
+    this.scene.burst(hitX, hitY, 0xa855f7, 6);
+
+    if (byPlayer) {
+      this.scene.floatText(hitX, hitY - 25, `-${dmg}`, '#ffffff', '#ef4444');
+    }
+
+    if (this.hp <= 0) {
+      this.hp = 0;
+      this.renderHpBar();
+      this.die();
+    }
+  }
+
+  die() {
+    this.dying = true;
+    this.scene.cameras.main.shake(1200, 0.025);
+    this.scene.toast('💥 MALAKOR SHATTERS! THE ECLIPSE IS BROKEN!');
+
+    // Stagger & freeze
+    this.spr.y = 200;
+    this.coreGlow.fillColor = 0xffffff;
+
+    // Series of 8 cascading explosions
+    for (let i = 0; i < 8; i++) {
+      this.scene.time.delayedCall(i * 200, () => {
+        const ex = this.spr.x + Phaser.Math.Between(-90, 90);
+        const ey = this.spr.y + Phaser.Math.Between(-60, 60);
+        this.scene.burst(ex, ey, 0xfde047, 24);
+        this.scene.burst(ex, ey, 0xef4444, 20);
+        this.scene.burst(ex, ey, 0xa855f7, 16);
+      });
+    }
+
+    // Final vanish & loot rain
+    this.scene.time.delayedCall(1800, () => {
+      this.scene.burst(this.spr.x, this.spr.y, 0xffffff, 40);
+      this.scene.burst(this.spr.x, this.spr.y, 0xfde047, 30);
+
+      // Rain of riches!
+      for (let i = 0; i < 12; i++) {
+        const rx = Phaser.Math.Between(150, W - 150);
+        const ry = Phaser.Math.Between(150, 350);
+        this.scene.dropCoin(rx, ry, 100, 'drop_seed_diamond');
+        this.scene.dropCoin(rx + 20, ry + 20, 50, 'drop_seed_ruby');
+      }
+
+      this.hpBarContainer.destroy();
+      this.spr.destroy();
+      this.scene.shadowRocBoss = undefined;
+
+      this.scene.winWorld5FinalBoss();
+    });
+  }
+
+  destroy() {
+    this.hpBarContainer?.destroy();
+    this.spr?.destroy();
+  }
+}
+
 // ----------------------------------------------------------------- pets
 export class Pet {
   key: string;
+  name: string;
   img: Phaser.GameObjects.Image;
   timer = 0;
   tx = 0;
@@ -1883,9 +2424,11 @@ export class Pet {
   walkPhase = Math.random() * Math.PI * 2;
   stepDustTimer = 0;
   flyer?: ReturnType<typeof makeFlyer>;
+  stunTimer = 0;
 
   constructor(private scene: AviaryScene, key: string) {
     this.key = key;
+    this.name = PETS.find((p) => p.key === key)?.name ?? key;
     this.timer = 5 + Math.random() * 5;
     switch (key) {
       case 'hedgehog':
@@ -2055,6 +2598,13 @@ export class Pet {
   }
 
   update(dt: number, t: number) {
+    if (this.stunTimer > 0) {
+      this.stunTimer -= dt;
+      if (Math.random() < 0.15) {
+        this.scene.burst(this.img?.x ?? 500, (this.img?.y ?? 600) - 15, 0x8b5cf6, 2);
+      }
+      return;
+    }
     switch (this.key) {
       case 'hedgehog': return this.updateHedgehog(dt, t);
       case 'badger': return this.updateBadger(dt, t);
@@ -3190,6 +3740,8 @@ export class AviaryScene extends Phaser.Scene {
   pets: Pet[] = [];
   gliders: SugarGlider[] = [];
   geckos: CinderGecko[] = [];
+  shadowRocBoss?: ShadowRocBoss;
+  voidOrbs: VoidOrb[] = [];
   waveIndex = 0;
   waveTimer = 0;
   waveWarning = false;
@@ -3333,10 +3885,11 @@ export class AviaryScene extends Phaser.Scene {
         this.petKeys = unlocked.slice(0, 3);
       }
     } else {
+      const isWorld5 = getWorldAndStage(this.level).worldId === 5;
       this.quality = data.restoredQuality ?? 1;
-      this.maxFood = data.restoredMaxFood ?? 1;
-      this.weapon = data.restoredWeapon ?? 0;
-      this.coins = data.restoredCoins ?? 200;
+      this.maxFood = data.restoredMaxFood ?? (isWorld5 ? 2 : 1);
+      this.weapon = Math.max(isWorld5 ? 2 : 0, data.restoredWeapon ?? 0);
+      this.coins = data.restoredCoins ?? (isWorld5 ? 400 : 200);
       this.eggs = data.restoredEggs ?? 0;
       this.petKeys = this.challengeId === 'night_bats'
         ? (data.pets && data.pets.length > 0 ? data.pets.slice(0, 3) : ['owl', 'hedgehog', 'squirrel'])
@@ -3350,6 +3903,8 @@ export class AviaryScene extends Phaser.Scene {
         ? (data.pets && data.pets.length > 0 ? data.pets.slice(0, 3) : ['woodpecker', 'porcupine', 'squirrel'])
         : this.timeTrial
         ? (data.pets ?? ['hedgehog', 'butterfly', 'squirrel']).slice(0, 3)
+        : isWorld5
+        ? PETS.slice(0, 16).map((p) => p.key) // All 16 companions assemble in World 5 Climax!
         : (data.pets ?? []).slice(0, 3);
     }
     this.ended = false;
@@ -3359,6 +3914,10 @@ export class AviaryScene extends Phaser.Scene {
     this.coinList = [];
     this.predators = [];
     this.pets = [];
+    this.shadowRocBoss?.destroy();
+    this.shadowRocBoss = undefined;
+    this.voidOrbs.forEach((vo) => vo.spr?.destroy());
+    this.voidOrbs = [];
     this.gliders.forEach((g) => g.destroy());
     this.gliders = [];
     this.geckos.forEach((g) => g.destroy());
@@ -3576,6 +4135,17 @@ export class AviaryScene extends Phaser.Scene {
       this.pets.push(new Pet(this, k));
     }
 
+    if (ws.worldId === 5) {
+      this.shadowRocBoss = new ShadowRocBoss(this);
+      if (this.birds.length === 0) {
+        this.birds.push(
+          new Bird(this, 320, 260, 2, false, false, 'canary'),
+          new Bird(this, 680, 260, 2, false, false, 'sparrow'),
+          new Bird(this, 500, 310, 1, false, false, 'canary')
+        );
+      }
+    }
+
     // Wake and sleep event listeners for seamless menu pausing & resuming
     this.events.on('wake', () => {
       window.removeEventListener('keydown', this.onKeyDown);
@@ -3642,6 +4212,31 @@ export class AviaryScene extends Phaser.Scene {
         if (m.destroyed) continue;
         if (Phaser.Math.Distance.Between(p.x, p.y, m.img.x, m.img.y) < 42) {
           this.interceptMissile(m);
+          this.lastAttack = now;
+          return;
+        }
+      }
+
+      // Check if clicked an incoming Void Orb to shoot it down!
+      for (const vo of this.voidOrbs) {
+        if (vo.destroyed) continue;
+        if (Phaser.Math.Distance.Between(p.x, p.y, vo.spr.x, vo.spr.y) < vo.radius + 30) {
+          vo.hit(WEAPON_DMG[this.weapon]);
+          playWeaponSound(this.weapon);
+          this.playAttackFx(this.weapon, p.x, p.y, undefined);
+          this.lastAttack = now;
+          return;
+        }
+      }
+
+      // Check if clicked Malakor the Sovereign Shadow Roc!
+      if (this.shadowRocBoss && !this.shadowRocBoss.dying) {
+        const d = Phaser.Math.Distance.Between(p.x, p.y, this.shadowRocBoss.spr.x, this.shadowRocBoss.spr.y);
+        if (d < this.shadowRocBoss.radius + 50) {
+          const dmg = WEAPON_DMG[this.weapon];
+          this.shadowRocBoss.hit(dmg, p.x, p.y, true);
+          playWeaponSound(this.weapon);
+          this.playAttackFx(this.weapon, p.x, p.y, undefined);
           this.lastAttack = now;
           return;
         }
@@ -4592,9 +5187,11 @@ export class AviaryScene extends Phaser.Scene {
     // World 2: 6 buttons (Quality, More Food, Baby Bird, Falcon, Slingshot, Egg)
     // World 3: 8 buttons (Quality, More Food, Baby Bird, Mama, Tree Creeper, Toucan, Slingshot, Egg)
     // World 4: 8 buttons (Quality, More Food, Baby Bird, Mama, Ember Shrike, Sugar Glider, Slingshot, Egg)
-    const hasEgg = (!this.timeTrial && !this.challengeId) || this.challengeId === 'apex_havoc';
-    const baseCount = this.challengeId === 'apex_havoc' ? 7 : worldId === 1 ? 4 : worldId === 2 ? 5 : 7;
-    const totalButtons = baseCount + (hasEgg ? 1 : 0);
+    // World 5: 6 buttons (Quality, More Food, Baby Bird, Weapon Upgrade, Titan Climax)
+    const isWorld5 = worldId === 5;
+    const hasEgg = ((!this.timeTrial && !this.challengeId) || this.challengeId === 'apex_havoc') && !isWorld5;
+    const baseCount = this.challengeId === 'apex_havoc' ? 7 : worldId === 1 ? 4 : worldId === 2 ? 5 : (isWorld5 ? 4 : 7);
+    const totalButtons = baseCount + (hasEgg ? 1 : 0) + (isWorld5 ? 1 : 0);
 
     let idx = 0;
 
@@ -4866,6 +5463,22 @@ export class AviaryScene extends Phaser.Scene {
             this.win();
           }
         },
+      }, totalButtons);
+    }
+
+    if (isWorld5) {
+      this.addShop(idx++, 'Titan Climax', 'master_trophy', 0.85, {
+        cost: () => 0,
+        enabled: () => false,
+        unlocked: () => true,
+        lockedReason: () => 'Defeat Malakor to banish the Abyssal Eclipse!',
+        texts: () => ({
+          title: 'Titan Climax',
+          sub: `${this.shadowRocBoss?.hp ?? 0} HP`,
+          tiny: 'Defeat Malakor!',
+          icon: 'master_trophy',
+        }),
+        buy: () => {},
       }, totalButtons);
     }
   }
@@ -7143,6 +7756,16 @@ export class AviaryScene extends Phaser.Scene {
     this.burst(f.img.x, f.img.y, 0xffe45e, 5);
     this.removeFood(f);
 
+    // Expressive tactile peck & swallow squash-and-stretch
+    this.tweens.add({
+      targets: bird.body,
+      scaleX: 1.14,
+      scaleY: 0.88,
+      yoyo: true,
+      duration: 100,
+      ease: 'Back.easeOut',
+    });
+
     // Cinder Acorn: dropped by Sugar Glider!
     // If non-adult (stage < 2) eats it -> burns and dies!
     // If adult (stage >= 2) eats it -> consumed by holy fire and reborn as Golden Phoenix!
@@ -7946,6 +8569,8 @@ export class AviaryScene extends Phaser.Scene {
 
     if (this.level === 4) unlockAchievement('world1_clear', this);
     if (this.level === 8) unlockAchievement('world2_clear', this);
+    if (this.level === 12) unlockAchievement('world3_clear', this);
+    if (this.level === 16) unlockAchievement('world4_clear', this);
 
     const sv = loadSave();
     const nextLevel = Math.max(sv.level, this.level + 1);
@@ -7975,6 +8600,49 @@ export class AviaryScene extends Phaser.Scene {
       if (pet) this.add.image(W / 2, 405, 'pet_' + pet.key).setDepth(72).setScale(1.2);
       this.bigButton(ws.isLastStageOfWorld ? 'NEXT WORLD' : 'NEXT STAGE', 495, () =>
         this.scene.start('Menu', { level: this.level + 1 })
+      );
+    });
+  }
+
+  winWorld5FinalBoss() {
+    this.ended = true;
+    playStageClearFanfare();
+
+    unlockAchievement('world3_clear', this);
+    unlockAchievement('world4_clear', this);
+    unlockAchievement('master_keeper', this);
+
+    const sv = loadSave();
+    const nextLevel = Math.max(sv.level, 18);
+    const gemBonus = 100;
+    patchSave({ level: nextLevel, gems: this.gems + gemBonus });
+    this.gems += gemBonus;
+
+    this.time.delayedCall(700, () => {
+      AviaryScene.suspendedGame = undefined;
+      patchSave({ suspendedSession: undefined });
+
+      const lines = [
+        'THE SOVEREIGN SHADOW ROC HAS BEEN BANISHED!',
+        'All 16 companions fought heroically side-by-side!',
+        'The Abyssal Eclipse has parted, bathed in golden dawn.',
+        'You have conquered all 5 worlds of Insaterrarium!',
+        '🏆 Master of the Aviary Trophy Unlocked!',
+        '+100 GEMS BONUS REWARD EARNED!',
+      ];
+
+      this.overlay('GRAND FINALE CONQUERED!', lines, '#ffd700');
+      const trophy = this.add.image(W / 2, 400, 'master_trophy').setDepth(72).setScale(1.4);
+      this.tweens.add({
+        targets: trophy,
+        scale: 1.6,
+        yoyo: true,
+        repeat: -1,
+        duration: 700,
+      });
+
+      this.bigButton('RETURN TO MENU', 495, () =>
+        this.scene.start('Menu', { level: 17 })
       );
     });
   }
@@ -9116,6 +9784,10 @@ export class AviaryScene extends Phaser.Scene {
                 { kind: 'bat', hp: 20, label: 'Vampire Thrall Bat' },
               ];
             }
+          } else if (ws.worldId === 5) {
+            // In World 5 Final Boss, Malakor directly orchestrates all phantom summons and void orbs!
+            enemies = [];
+            this.waveTimer = 999999;
           } else {
             enemies = d.getWaveEnemies(this.waveIndex++);
           }
@@ -9132,6 +9804,13 @@ export class AviaryScene extends Phaser.Scene {
     for (const p of this.pets) p.update(dt, time);
     for (const g of this.gliders) g.update(dt, time);
     for (const g of this.geckos) g.update(dt, time);
+    if (this.shadowRocBoss) {
+      this.shadowRocBoss.update(dt, time);
+    }
+    for (const vo of this.voidOrbs) {
+      vo.update(dt);
+    }
+    this.voidOrbs = this.voidOrbs.filter((vo) => !vo.destroyed);
     for (const p of this.predators) {
       p.update(dt, time);
       if (!p.dying && p.stun <= 0) {

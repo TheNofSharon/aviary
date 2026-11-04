@@ -2422,6 +2422,125 @@ export function makeTextures(scene: Phaser.Scene) {
   g.fillTriangle(4, 26, 40, 8, 26, 34);
   g.generateTexture('enemy_bat_wing_right', 48, 48);
 
+  // =========================================================================
+  // WORLD 5 FINAL BOSS: MALAKOR, THE SOVEREIGN SHADOW ROC
+  // =========================================================================
+  // 1. boss_roc_body (180x140 - Obsidian feathered titan torso, glowing chest core, fiery eyes)
+  g.clear();
+  // Ambient drop shadow
+  g.fillStyle(0x000000, 0.45);
+  g.fillEllipse(90, 80, 150, 95);
+  // Main torso mass (Deep abyssal obsidian & violet plumage)
+  g.fillStyle(0x180b26, 1);
+  g.fillEllipse(90, 75, 130, 90);
+  // Layered feather coats
+  g.fillStyle(0x2a1440, 0.9);
+  g.fillEllipse(90, 72, 110, 75);
+  g.fillStyle(0x3b1d5c, 0.8);
+  g.fillEllipse(90, 70, 90, 60);
+
+  // Armored neck & skull
+  g.fillStyle(0x1a092b, 1);
+  g.fillTriangle(90, 50, 135, 10, 70, 10);
+  // Crowned obsidian skull crest
+  g.fillStyle(0x11051c, 1);
+  g.fillTriangle(90, -5, 105, 25, 75, 25);
+  g.fillTriangle(115, 0, 125, 30, 95, 30);
+  g.fillTriangle(65, 0, 85, 30, 55, 30);
+
+  // Giant razor-sharp basalt beak
+  g.fillStyle(0x0f0b17, 1);
+  g.fillTriangle(90, 48, 125, 35, 90, 22);
+  g.fillStyle(0x475569, 1);
+  g.lineStyle(2, 0x64748b, 0.9);
+  g.lineBetween(90, 35, 125, 35);
+  // Hooked beak tip
+  g.fillTriangle(120, 35, 126, 42, 116, 38);
+
+  // Blazing predatory crimson eyes with slit pupils & purple corona glow
+  g.fillStyle(0x9333ea, 0.5);
+  g.fillCircle(82, 28, 9);
+  g.fillCircle(98, 28, 9);
+  g.fillStyle(0xef4444, 1);
+  g.fillCircle(82, 28, 6);
+  g.fillCircle(98, 28, 6);
+  g.fillStyle(0xfff176, 1);
+  g.fillCircle(82, 28, 3.5);
+  g.fillCircle(98, 28, 3.5);
+  // Slit pupils
+  g.fillStyle(0x000000, 1);
+  g.fillRect(81, 25, 2, 6);
+  g.fillRect(97, 25, 2, 6);
+
+  // Glowing Abyssal Chest Core (Vulnerable Weak Point)
+  g.fillStyle(0x7e22ce, 0.4);
+  g.fillCircle(90, 85, 26);
+  g.fillStyle(0xa855f7, 0.6);
+  g.fillCircle(90, 85, 18);
+  g.fillStyle(0xf43f5e, 0.85);
+  g.fillCircle(90, 85, 12);
+  g.fillStyle(0xfff176, 1);
+  g.fillCircle(90, 85, 6);
+  // Crackling core shield runes
+  g.lineStyle(2, 0x38bdf8, 0.8);
+  g.strokeCircle(90, 85, 20);
+
+  // Titanic talons
+  g.fillStyle(0x334155, 1);
+  g.fillTriangle(60, 115, 52, 132, 68, 122);
+  g.fillTriangle(72, 116, 68, 134, 78, 124);
+  g.fillTriangle(120, 115, 128, 132, 112, 122);
+  g.fillTriangle(108, 116, 112, 134, 102, 124);
+  g.generateTexture('boss_roc_body', 180, 140);
+
+  // 2. boss_roc_wing_l (Left Colossal Wing - 160x120)
+  g.clear();
+  g.fillStyle(0x130821, 1);
+  g.fillTriangle(150, 70, 10, 15, 75, 115);
+  g.fillStyle(0x27103d, 0.95);
+  g.fillTriangle(150, 70, 25, 25, 85, 105);
+  // Primary flight feathers
+  g.fillStyle(0x3e1a61, 0.9);
+  g.fillTriangle(20, 20, 5, 30, 45, 50);
+  g.fillTriangle(35, 45, 15, 60, 65, 70);
+  g.fillTriangle(50, 65, 30, 85, 80, 90);
+  // Void glowing aura rim
+  g.lineStyle(3, 0xc084fc, 0.75);
+  g.lineBetween(150, 70, 10, 15);
+  g.lineBetween(10, 15, 75, 115);
+  g.generateTexture('boss_roc_wing_l', 160, 120);
+
+  // 3. boss_roc_wing_r (Right Colossal Wing - 160x120)
+  g.clear();
+  g.fillStyle(0x130821, 1);
+  g.fillTriangle(10, 70, 150, 15, 85, 115);
+  g.fillStyle(0x27103d, 0.95);
+  g.fillTriangle(10, 70, 135, 25, 75, 105);
+  // Primary flight feathers
+  g.fillStyle(0x3e1a61, 0.9);
+  g.fillTriangle(140, 20, 155, 30, 115, 50);
+  g.fillTriangle(125, 45, 145, 60, 95, 70);
+  g.fillTriangle(110, 65, 130, 85, 80, 90);
+  // Void glowing aura rim
+  g.lineStyle(3, 0xc084fc, 0.75);
+  g.lineBetween(10, 70, 150, 15);
+  g.lineBetween(150, 15, 85, 115);
+  g.generateTexture('boss_roc_wing_r', 160, 120);
+
+  // 4. boss_void_orb (Targeting Dark-Matter Orb - 44x44)
+  g.clear();
+  g.fillStyle(0x7e22ce, 0.35);
+  g.fillCircle(22, 22, 20);
+  g.fillStyle(0x9333ea, 0.65);
+  g.fillCircle(22, 22, 15);
+  g.fillStyle(0x1e1528, 1);
+  g.fillCircle(22, 22, 10);
+  g.fillStyle(0xef4444, 1);
+  g.fillCircle(22, 22, 5);
+  g.lineStyle(2, 0xf43f5e, 0.9);
+  g.strokeCircle(22, 22, 12);
+  g.generateTexture('boss_void_orb', 44, 44);
+
   // --- 2.5D Scenery Props (Depth stones, boulders, and terrain accents) ---
   // scenery_stone_moss (Smooth river boulder with volumetric highlight & velvet moss)
   g.clear();
@@ -3259,6 +3378,34 @@ export function makeTextures(scene: Phaser.Scene) {
   g.fillStyle(0xffffff, 1);
   g.fillCircle(22, 14, 2.5);
   g.generateTexture('icon_trophy', 44, 44);
+
+  // master_trophy (Grand Finale Sovereign Chalice - 64x64)
+  g.clear();
+  // Pedestal & Marble Plinth
+  g.fillStyle(0x1e1b4b, 1);
+  g.fillRoundedRect(12, 50, 40, 12, 3);
+  g.fillStyle(0x4338ca, 1);
+  g.fillRect(18, 42, 28, 9);
+  // Winged Golden Cup
+  g.fillStyle(0xf59e0b, 1);
+  g.fillRoundedRect(16, 12, 32, 32, 8);
+  g.fillStyle(0xfef08a, 1);
+  g.fillCircle(32, 24, 12);
+  // Intricate Winged Handles
+  g.lineStyle(4, 0xd97706, 1);
+  g.beginPath();
+  g.arc(14, 22, 9, -Math.PI / 2, Math.PI / 2);
+  g.strokePath();
+  g.beginPath();
+  g.arc(50, 22, 9, Math.PI / 2, -Math.PI / 2);
+  g.strokePath();
+  // Crimson Amethyst Royal Gem in center
+  g.fillStyle(0xef4444, 1);
+  g.fillTriangle(32, 18, 38, 26, 26, 26);
+  g.fillTriangle(32, 34, 38, 26, 26, 26);
+  g.fillStyle(0xffffff, 0.9);
+  g.fillCircle(30, 24, 2);
+  g.generateTexture('master_trophy', 64, 64);
 
   g.destroy();
 }

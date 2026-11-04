@@ -19,6 +19,8 @@ export const THEMES: Theme[] = [
   { name: 'Blossom Sanctuary', sky1: 0xf391b5, sky2: 0xffe0ec, hillFar: 0xb5838d, hillNear: 0x8f5d69, ground: 0x6d597a, ground2: 0x5b4867, leaf: [0xe56b6f, 0xea9ab2, 0xffccd5], sun: 0xfff0b8 },
   // World 4: Volcanic Mystic Peaks
   { name: 'Volcanic Mystic Peaks', sky1: 0x2e0854, sky2: 0xd84315, hillFar: 0x4a154b, hillNear: 0x2b0938, ground: 0x3e1828, ground2: 0x2a0e1c, leaf: [0xff5722, 0xff7043, 0xffb74d], sun: 0xffe57f },
+  // World 5: The Abyssal Eclipse
+  { name: 'The Abyssal Eclipse', sky1: 0x090514, sky2: 0x2e0854, hillFar: 0x180b2c, hillNear: 0x0f071d, ground: 0x1f0e38, ground2: 0x140824, leaf: [0x581c87, 0x7e22ce, 0xa855f7], sun: 0xf43f5e },
 ];
 
 export interface StageDef {
@@ -100,6 +102,23 @@ export const WORLDS: WorldDef[] = [
       { stage: 4, name: 'The Master Aviary Ascendance', briefing: 'Complete the ultimate Golden Egg to earn the Golden Hen, Nightingale, and Master Aviary Trophy!', baseEggCost: 6000 },
     ],
   },
+  {
+    id: 5,
+    name: 'The Abyssal Eclipse',
+    theme: THEMES[4],
+    subtitle: 'The Titan Showdown: Sovereign Shadow Roc',
+    mechanicTitle: 'The Final Titan: Malakor',
+    mechanicDesc: 'The ultimate battle! All 16 unlocked companions enter the aviary together. Defend them from void missiles and destroy the Eclipse Sovereign!',
+    rewardPetKey: 'master_trophy',
+    stages: [
+      {
+        stage: 1,
+        name: 'Sovereign Shadow Roc',
+        briefing: 'Darkness has consumed the sky! Malakor, the ancient Eclipse Sovereign, has descended to annihilate the aviary. All 16 companions have assembled—protect them, shoot down void orbs, and defeat Malakor to become the Master Aviary Keeper!',
+        baseEggCost: 10000,
+      },
+    ],
+  },
 ];
 
 export interface PetDef {
@@ -153,13 +172,27 @@ export function getUnlockedPets(saveLevel: number): PetDef[] {
 export function getWorldAndStage(level: number) {
   const totalStagesPerWorld = 4;
   const clampedLevel = Math.max(1, level);
+  if (clampedLevel >= 17) {
+    const world = WORLDS[4];
+    const stage = world.stages[0];
+    return {
+      world,
+      stage,
+      worldId: 5,
+      stageNum: 1,
+      stageIndex: 0,
+      label: 'World 5-1 (The Final Showdown)',
+      isLastStageOfWorld: true,
+      isFinalBoss: true,
+    };
+  }
   const worldIndex = Math.min(3, Math.floor((clampedLevel - 1) / totalStagesPerWorld));
   const stageIndex = Math.min(3, (clampedLevel - 1) % totalStagesPerWorld);
   const world = WORLDS[worldIndex];
   const stage = world.stages[stageIndex];
   const label = `World ${world.id}-${stage.stage}`;
   const isLastStageOfWorld = stageIndex === totalStagesPerWorld - 1;
-  const isFinalBoss = world.id === 4 && isLastStageOfWorld;
+  const isFinalBoss = false;
 
   return {
     world,
