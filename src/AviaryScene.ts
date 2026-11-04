@@ -177,6 +177,9 @@ export class Bird {
   layT = 20;
   songT = 14 + Math.random() * 8;
   dir = 1;
+  turnProgress = 1.0;
+  turnFromDir = 1;
+  turnToDir = 1;
   tx = 0;
   ty = 0;
   pause = 0;
@@ -273,6 +276,10 @@ export class Bird {
       owl: 'HAS READ ENCYCLOPEDIA BRITANNICA TWICE.',
     };
     this.additionalNotes = notes[this.species.key] ?? 'LOVES BIRD SEED AND SOARING.';
+
+    this.turnFromDir = this.dir;
+    this.turnToDir = this.dir;
+    this.turnProgress = 1.0;
 
     this.pickSky();
   }
@@ -596,8 +603,6 @@ export class Bird {
       this.scene.burst(this.spr.x + Phaser.Math.Between(-8, 8), this.spr.y - 28, 0xfde047, 1);
     }
     this.layT -= dt;
-    // Smooth 2.5D spring turning transition
-    this.flip.scaleX = Phaser.Math.Linear(this.flip.scaleX, this.dir, 0.28);
 
     // Lifelike blinking animation
     this.blinkTimer -= dt;
@@ -902,6 +907,54 @@ export class Bird {
     }
 
     this.beakTwig.setVisible(this.state === 'buildNest');
+
+    // -----------------------------------------------------------------
+    // 2.5D Volumetric Turning with Volume Conservation & Banking Roll
+    // -----------------------------------------------------------------
+    if (this.dir !== this.turnToDir) {
+      this.turnFromDir = this.turnProgress < 0.5 ? this.turnFromDir : this.turnToDir;
+      this.turnToDir = this.dir;
+      this.turnProgress = 1.0 - this.turnProgress;
+    }
+
+    if (this.turnProgress < 1.0) {
+      // Fluid, natural turn transition (~0.18s)
+      this.turnProgress = Math.min(1.0, this.turnProgress + dt * 5.6);
+    }
+
+    const p = this.turnProgress;
+    const turnSine = Math.sin(p * Math.PI); // 0 at ends, 1.0 at apex of turn
+    const curDir = p < 0.5 ? this.turnFromDir : this.turnToDir;
+
+    // 1. Volume Conservation on X:
+    // Torso maintains rounded frontal chest width (58% minimum width).
+    // NEVER squashes to paper-thin zero width!
+    const widthFactor = 1.0 - turnSine * 0.42;
+    this.flip.scaleX = curDir * widthFactor;
+
+    // 2. Volume Conservation on Y (Spherical chest & belly expansion in 3D):
+    // Preserves 3D mass so the bird stays plump and round throughout the turn
+    this.flip.scaleY = 1.0 + turnSine * 0.16;
+
+    // 3. 3D Banking Roll (Tilts wings into the turn like a soaring bird):
+    if (flying && this.state !== 'rest') {
+      const bankRoll = -turnSine * 0.20 * this.turnToDir;
+      this.spr.rotation += bankRoll;
+    } else if (this.state === 'rest') {
+      // Cute playful little hop on the perch when turning around!
+      this.body.y = -turnSine * 6;
+    }
+
+    // 4. Dual-Wing 3D Volumetric Depth Parallax:
+    const s = Math.min(2, Math.max(0, this.stage));
+    const baseWingX = s === 0 ? -4 : s === 1 ? -6 : -8;
+    const baseWingY = s === 0 ? 3 : s === 1 ? 4 : 5;
+
+    this.wing.x = baseWingX + turnSine * 3;
+    if (this.wingBack) {
+      this.wingBack.x = (baseWingX - 2) - turnSine * 6;
+      this.wingBack.y = (baseWingY - 3) - turnSine * 2;
+    }
 
     const flapRate = this.stage === 0 ? 0.046 : this.stage === 1 ? 0.034 : 0.024;
     const flapAmp = this.stage === 0 ? 0.95 : this.stage === 1 ? 0.88 : 0.78;
@@ -2425,6 +2478,9 @@ export class Pet {
   stepDustTimer = 0;
   flyer?: ReturnType<typeof makeFlyer>;
   stunTimer = 0;
+  turnProgress = 1.0;
+  turnFromDir = 1;
+  turnToDir = 1;
 
   constructor(private scene: AviaryScene, key: string) {
     this.key = key;
@@ -2751,11 +2807,26 @@ export class Pet {
 
         if (dist > 8) {
           const speed = 125;
-          this.dir = dx >= 0 ? 1 : -1;
-          f.flip.scaleX = this.dir;
+          const nextDir = dx >= 0 ? 1 : -1;
+          if (nextDir !== this.turnToDir) {
+            this.turnFromDir = this.turnProgress < 0.5 ? this.turnFromDir : this.turnToDir;
+            this.turnToDir = nextDir;
+            this.turnProgress = 1.0 - this.turnProgress;
+          }
+          this.dir = nextDir;
+          if (this.turnProgress < 1.0) {
+            this.turnProgress = Math.min(1.0, this.turnProgress + dt * 5.6);
+          }
+          const turnSine = Math.sin(this.turnProgress * Math.PI);
+          const curDir = this.turnProgress < 0.5 ? this.turnFromDir : this.turnToDir;
+
+          f.flip.scaleX = curDir * (1.0 - turnSine * 0.42);
+          f.flip.scaleY = 1.0 + turnSine * 0.16;
+
           f.spr.x += (dx / dist) * speed * dt;
           f.spr.y += (dy / dist) * speed * dt;
-          f.spr.rotation = Phaser.Math.Linear(f.spr.rotation, (dy / dist) * 0.25 * this.dir, 0.15);
+          const bankRoll = -turnSine * 0.20 * this.turnToDir;
+          f.spr.rotation = Phaser.Math.Linear(f.spr.rotation, (dy / dist) * 0.25 * this.dir + bankRoll, 0.15);
         } else {
           // Reached sky waypoint
           f.spr.rotation = 0;
