@@ -629,6 +629,7 @@ export class MenuScene extends Phaser.Scene {
     const save = loadSave();
     if (save.suspendedSession) {
       const s = save.suspendedSession;
+      const isWorld5 = s.level >= 17;
       this.scene.start('Aviary', {
         level: s.level,
         restoredCoins: s.coins,
@@ -636,15 +637,16 @@ export class MenuScene extends Phaser.Scene {
         restoredEggs: s.eggs,
         restoredQuality: s.quality,
         restoredMaxFood: s.maxFood,
-        restoredBirds: s.birds,
+        restoredBirds: isWorld5 ? undefined : s.birds,
         pets: s.petKeys,
-        restoredBirdCount: s.birdCount,
+        restoredBirdCount: isWorld5 ? 0 : s.birdCount,
         promptResume: true,
       });
       return;
     }
     if (AviaryScene.suspendedGame) {
       const s = AviaryScene.suspendedGame;
+      const isWorld5 = s.level >= 17;
       this.scene.start('Aviary', {
         level: s.level,
         restoredCoins: s.coins,
@@ -652,9 +654,9 @@ export class MenuScene extends Phaser.Scene {
         restoredEggs: s.eggs,
         restoredQuality: s.quality,
         restoredMaxFood: s.maxFood,
-        restoredBirds: s.birds,
+        restoredBirds: isWorld5 ? undefined : s.birds,
         pets: s.petKeys,
-        restoredBirdCount: s.flockCount,
+        restoredBirdCount: isWorld5 ? 0 : s.flockCount,
         sandbox: s.mode === 'sandbox',
         timeTrial: s.mode === 'timeTrial',
         challengeId: s.challengeId,

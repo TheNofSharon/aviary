@@ -180,6 +180,7 @@ export class Bird {
   turnProgress = 1.0;
   turnFromDir = 1;
   turnToDir = 1;
+  fainted = false;
   tx = 0;
   ty = 0;
   pause = 0;
@@ -1132,6 +1133,8 @@ export class Predator {
   gone = false;
   pause = 0;
   target?: Bird;
+  targetPet?: Pet;
+  private hawkLockedPet?: Pet;
   wx = 0;
   wy = 0;
   phase = Math.random() * 10;
@@ -1434,24 +1437,53 @@ export class Predator {
     this.batTimer -= dt;
     if (this.batTimer <= 0) {
       this.batTimer = 2.5 + Math.random() * 2.0;
-      // 60% chance to target a bird to swoop on
-      const victim = this.scene.nearestBird(this.spr.x, this.spr.y);
-      if (victim && !victim.dead && Math.random() < 0.65) {
-        this.batTarget = victim;
-        this.batSwoop = true;
-        this.scene.burst(this.spr.x, this.spr.y, 0x818cf8, 4);
-        if (Math.random() < 0.35) {
-          this.scene.floatText(this.spr.x, this.spr.y - 25, '🦇 *SCREECH!*', '#c084fc', '#2e1065');
+      const isWorld5 = getWorldAndStage(this.scene.level).worldId === 5 || !!this.scene.shadowRocBoss;
+      if (isWorld5) {
+        const activePets = this.scene.pets.filter((p) => !p.fainted && p.stunTimer <= 0);
+        if (activePets.length > 0 && Math.random() < 0.65) {
+          this.targetPet = Phaser.Utils.Array.GetRandom(activePets);
+          this.batSwoop = true;
+          this.scene.burst(this.spr.x, this.spr.y, 0xf97316, 4);
+          if (Math.random() < 0.35) {
+            this.scene.floatText(this.spr.x, this.spr.y - 25, '🦇 *SCREECH!*', '#f97316', '#451a03');
+          }
+        } else {
+          this.batSwoop = false;
+          this.targetPet = undefined;
+          this.wx = Phaser.Math.Between(150, W - 150);
+          this.wy = Phaser.Math.Between(100, 360);
         }
       } else {
-        this.batSwoop = false;
-        this.batTarget = undefined;
-        this.wx = Phaser.Math.Between(150, W - 150);
-        this.wy = Phaser.Math.Between(100, 360);
+        // 60% chance to target a bird to swoop on
+        const victim = this.scene.nearestBird(this.spr.x, this.spr.y);
+        if (victim && !victim.dead && Math.random() < 0.65) {
+          this.batTarget = victim;
+          this.batSwoop = true;
+          this.scene.burst(this.spr.x, this.spr.y, 0x818cf8, 4);
+          if (Math.random() < 0.35) {
+            this.scene.floatText(this.spr.x, this.spr.y - 25, '🦇 *SCREECH!*', '#c084fc', '#2e1065');
+          }
+        } else {
+          this.batSwoop = false;
+          this.batTarget = undefined;
+          this.wx = Phaser.Math.Between(150, W - 150);
+          this.wy = Phaser.Math.Between(100, 360);
+        }
       }
     }
 
-    if (this.batSwoop && this.batTarget && !this.batTarget.dead) {
+    if (this.batSwoop && this.targetPet && !this.targetPet.fainted) {
+      const px = this.targetPet.img?.x ?? (this.targetPet.flyer?.spr.x ?? W / 2);
+      const py = this.targetPet.img?.y ?? (this.targetPet.flyer?.spr.y ?? 600);
+      const reached = this.moveTo(px, py, 205, dt);
+      if (reached || Phaser.Math.Distance.Between(this.spr.x, this.spr.y, px, py) < 36) {
+        this.scene.hitCompanionPet(this.targetPet);
+        this.batSwoop = false;
+        this.targetPet = undefined;
+        this.batTimer = 4.0;
+        this.wy = 120;
+      }
+    } else if (this.batSwoop && this.batTarget && !this.batTarget.dead) {
       // Direct flutter swoop toward target
       const tx = this.batTarget.spr.x + Math.sin(t * 0.015) * 15;
       const ty = this.batTarget.spr.y;
@@ -1537,55 +1569,91 @@ export class Predator {
       // Periodically scan for birds to lock onto
       this.hawkScanTimer -= dt;
       if (this.hawkScanTimer <= 0) {
-        // Hawks circle high and are free to hunt and lock onto any bird!
-        const victim = this.scene.nearestBird(this.spr.x, this.spr.y);
-        if (victim && !victim.dead) {
-          // Locked onto a bird! Screech & prepare fast swoop
-          this.hawkLockedBird = victim;
-          this.hawkState = 'swoop';
-          this.hawkSwoopTimer = 2.0;
-          this.scene.burst(this.spr.x, this.spr.y, 0xf59e0b, 10);
-          this.scene.floatText(this.spr.x, this.spr.y - 30, '🎯 LOCKED ON TARGET!', '#ef4444', '#7f1d1d');
-          playWeaponSound(0);
+        const isWorld5 = getWorldAndStage(this.scene.level).worldId === 5 || !!this.scene.shadowRocBoss;
+        if (isWorld5) {
+          const activePets = this.scene.pets.filter((p) => !p.fainted && p.stunTimer <= 0);
+          if (activePets.length > 0) {
+            this.hawkLockedPet = Phaser.Utils.Array.GetRandom(activePets);
+            this.hawkState = 'swoop';
+            this.hawkSwoopTimer = 2.0;
+            this.scene.burst(this.spr.x, this.spr.y, 0xf59e0b, 10);
+            this.scene.floatText(this.spr.x, this.spr.y - 30, '🎯 LOCKED ON COMPANION!', '#ef4444', '#7f1d1d');
+            playWeaponSound(0);
+          } else {
+            this.hawkScanTimer = 1.2 + Math.random() * 1.0;
+          }
         } else {
-          // Re-center circle slightly and continue circling
-          this.hawkScanTimer = 1.2 + Math.random() * 1.0;
-          this.hawkCircleCenterX = Phaser.Math.Clamp(this.hawkCircleCenterX + (Math.random() - 0.5) * 90, 240, W - 240);
-          if (Math.random() < 0.22) {
-            this.scene.floatText(this.spr.x, this.spr.y - 30, '🦅 Circling the aviary...', '#f59e0b', '#451a03');
+          // Hawks circle high and are free to hunt and lock onto any bird!
+          const victim = this.scene.nearestBird(this.spr.x, this.spr.y);
+          if (victim && !victim.dead) {
+            // Locked onto a bird! Screech & prepare fast swoop
+            this.hawkLockedBird = victim;
+            this.hawkState = 'swoop';
+            this.hawkSwoopTimer = 2.0;
+            this.scene.burst(this.spr.x, this.spr.y, 0xf59e0b, 10);
+            this.scene.floatText(this.spr.x, this.spr.y - 30, '🎯 LOCKED ON TARGET!', '#ef4444', '#7f1d1d');
+            playWeaponSound(0);
+          } else {
+            // Re-center circle slightly and continue circling
+            this.hawkScanTimer = 1.2 + Math.random() * 1.0;
+            this.hawkCircleCenterX = Phaser.Math.Clamp(this.hawkCircleCenterX + (Math.random() - 0.5) * 90, 240, W - 240);
+            if (Math.random() < 0.22) {
+              this.scene.floatText(this.spr.x, this.spr.y - 30, '🦅 Circling the aviary...', '#f59e0b', '#451a03');
+            }
           }
         }
       }
     } else if (this.hawkState === 'swoop') {
-      // 2. High-speed direct swoop down to catch the locked bird!
-      const target = this.hawkLockedBird;
-      const tx = target && !target.dead ? target.spr.x : this.spr.x + this.dir * 120;
-      const ty = target && !target.dead ? target.spr.y : 580;
+      if (this.hawkLockedPet) {
+        const pet = this.hawkLockedPet;
+        const px = pet.img?.x ?? (pet.flyer?.spr.x ?? W / 2);
+        const py = pet.img?.y ?? (pet.flyer?.spr.y ?? 600);
+        const speed = 420;
+        this.moveTo(px, py, speed, dt);
+        this.hawkSwoopTimer -= dt;
+        const dist = Phaser.Math.Distance.Between(this.spr.x, this.spr.y, px, py);
+        if (dist < 52 && !pet.fainted) {
+          this.scene.hitCompanionPet(pet);
+          this.hawkLockedPet = undefined;
+          this.hawkState = 'climb';
+          this.hawkClimbTimer = 1.3;
+          this.pause = 0.3;
+        } else if (this.hawkSwoopTimer <= 0 || this.spr.y >= 580 || pet.fainted) {
+          this.hawkLockedPet = undefined;
+          this.hawkState = 'climb';
+          this.hawkClimbTimer = 1.5;
+        }
+      } else {
+        // 2. High-speed direct swoop down to catch the locked bird!
+        const target = this.hawkLockedBird;
+        const tx = target && !target.dead ? target.spr.x : this.spr.x + this.dir * 120;
+        const ty = target && !target.dead ? target.spr.y : 580;
 
-      const speed = 400 + this.scene.level * 12;
-      this.moveTo(tx, ty, speed, dt);
+        const speed = 400 + this.scene.level * 12;
+        this.moveTo(tx, ty, speed, dt);
 
-      // Trailing wing gusts
-      if (Math.random() < 0.3) {
-        this.scene.burst(this.spr.x, this.spr.y, 0xe2e8f0, 2);
-      }
+        // Trailing wing gusts
+        if (Math.random() < 0.3) {
+          this.scene.burst(this.spr.x, this.spr.y, 0xe2e8f0, 2);
+        }
 
-      this.hawkSwoopTimer -= dt;
-      const dist = target && !target.dead ? Phaser.Math.Distance.Between(this.spr.x, this.spr.y, target.spr.x, target.spr.y) : 999;
-      if (dist < 52 && target && !target.dead) {
-        // Caught the bird! Hawks are free to snatch any bird!
-        this.scene.killBird(target, 'eaten');
-        this.scene.toast('The hawk swooped in and snatched a bird!');
-        this.scene.floatText(this.spr.x, this.spr.y - 30, 'SNATCHED!', '#ef4444', '#450a0a');
-        this.hawkLockedBird = undefined;
-        this.hawkState = 'climb';
-        this.hawkClimbTimer = 1.3;
-        this.pause = 0.3;
-      } else if (this.hawkSwoopTimer <= 0 || this.spr.y >= 560 || !target || target.dead) {
-        // Missed swoop, pull up into climb!
-        this.hawkLockedBird = undefined;
-        this.hawkState = 'climb';
-        this.hawkClimbTimer = 1.5;
+        this.hawkSwoopTimer -= dt;
+        const dist = target && !target.dead ? Phaser.Math.Distance.Between(this.spr.x, this.spr.y, target.spr.x, target.spr.y) : 999;
+        if (dist < 52 && target && !target.dead) {
+          // Caught the bird! Hawks are free to snatch any bird!
+          this.scene.killBird(target, 'eaten');
+          this.scene.toast('The hawk swooped in and snatched a bird!');
+          this.scene.floatText(this.spr.x, this.spr.y - 30, 'SNATCHED!', '#ef4444', '#450a0a');
+          this.hawkLockedBird = undefined;
+          this.hawkState = 'climb';
+          this.hawkClimbTimer = 1.3;
+          this.pause = 0.3;
+        } else if (this.hawkSwoopTimer <= 0 || this.spr.y >= 560 || !target || target.dead) {
+          // Missed swoop, pull up into climb!
+          this.hawkLockedBird = undefined;
+          this.hawkState = 'climb';
+          this.hawkClimbTimer = 1.5;
+        }
       }
     } else if (this.hawkState === 'climb') {
       // 3. Smooth upward climb back to the upper airspace to circle again
@@ -2030,19 +2098,7 @@ export class VoidOrb {
     this.scene.burst(this.spr.x, this.spr.y, 0xef4444, 16);
     this.scene.cameras.main.shake(160, 0.005);
 
-    // Defensive companions block the boulder
-    const defender = this.scene.pets.find(
-      (p) => (p.key === 'porcupine' || p.key === 'hound' || p.key === 'mole') && p.stunTimer <= 0
-    );
-    const px = this.targetPet.img?.x ?? 500;
-    const py = this.targetPet.img?.y ?? 600;
-    if (defender && Phaser.Math.Distance.Between(px, py, defender.img.x, defender.img.y) < 140) {
-      this.scene.floatText(px, py - 30, '🛡️ BOULDER DEFLECTED!', '#38bdf8', '#0c4a6e');
-      this.scene.burst(px, py - 10, 0x38bdf8, 16);
-    } else {
-      this.targetPet.stunTimer = 6.0;
-      this.scene.floatText(px, py - 25, `💥 ${this.targetPet.name || 'Pet'} Stunned!`, '#f97316', '#7c2d12');
-    }
+    this.scene.hitCompanionPet(this.targetPet);
     this.spr.destroy();
   }
 }
@@ -2306,22 +2362,26 @@ export class ShadowRocBoss {
   }
 
   fireVoidOrb() {
-    if (this.scene.pets.length === 0) return;
-    const target = Phaser.Utils.Array.GetRandom(this.scene.pets);
+    const activePets = this.scene.pets.filter((p) => !p.fainted && p.stunTimer <= 0);
+    if (activePets.length === 0) return;
+    const target = Phaser.Utils.Array.GetRandom(activePets);
     this.scene.burst(this.spr.x, this.spr.y + 20, 0xf97316, 12);
     this.scene.floatText(this.spr.x, this.spr.y - 30, '🌋 MAGMA BOULDER! 🌋', '#f97316', '#431407');
     const orb = new VoidOrb(this.scene, this.spr.x, this.spr.y + 25, target);
     this.scene.voidOrbs.push(orb);
 
     if (this.phase === 3 && Math.random() < 0.5) {
-      const target2 = Phaser.Utils.Array.GetRandom(this.scene.pets);
-      const orb2 = new VoidOrb(this.scene, this.spr.x - 30, this.spr.y + 25, target2);
-      this.scene.voidOrbs.push(orb2);
+      const remainingPets = this.scene.pets.filter((p) => !p.fainted && p.stunTimer <= 0 && p !== target);
+      if (remainingPets.length > 0) {
+        const target2 = Phaser.Utils.Array.GetRandom(remainingPets);
+        const orb2 = new VoidOrb(this.scene, this.spr.x - 30, this.spr.y + 25, target2);
+        this.scene.voidOrbs.push(orb2);
+      }
     }
   }
 
   triggerPetRetaliation() {
-    const activePets = this.scene.pets.filter((p) => p.stunTimer <= 0);
+    const activePets = this.scene.pets.filter((p) => !p.fainted && p.stunTimer <= 0);
     if (activePets.length === 0) return;
 
     // Pick a combat capable pet
@@ -2483,6 +2543,7 @@ export class Pet {
   turnProgress = 1.0;
   turnFromDir = 1;
   turnToDir = 1;
+  fainted = false;
 
   constructor(private scene: AviaryScene, key: string) {
     this.key = key;
@@ -2593,6 +2654,10 @@ export class Pet {
     // Interactive Petting Click (Reactions like Sugar Glider!)
     this.img.setInteractive({ useHandCursor: true });
     this.img.on('pointerdown', () => {
+      if (this.fainted || this.stunTimer > 0) {
+        this.scene.reviveCompanionPet(this);
+        return;
+      }
       this.scene.burst(this.img.x, this.img.y - 12, 0xfef08a, 10);
       const petSounds: Record<string, string> = {
         hedgehog: '🦔 SNORT! ✨',
@@ -2656,7 +2721,13 @@ export class Pet {
   }
 
   update(dt: number, t: number) {
-    if (this.stunTimer > 0) {
+    if (this.fainted || this.stunTimer > 0) {
+      if (this.fainted) {
+        if (Math.random() < 0.08) {
+          this.scene.burst(this.img?.x ?? 500, (this.img?.y ?? 600) - 20, 0xfde047, 2);
+        }
+        return;
+      }
       this.stunTimer -= dt;
       if (Math.random() < 0.15) {
         this.scene.burst(this.img?.x ?? 500, (this.img?.y ?? 600) - 15, 0x8b5cf6, 2);
@@ -2832,6 +2903,18 @@ export class Pet {
         } else {
           // Reached sky waypoint
           f.spr.rotation = 0;
+
+          // In World 5 Pure Boss Arena: Mama Dove rallies companions and drops ruby gems instead of hatching chicks!
+          const isWorld5 = !!this.scene.shadowRocBoss || getWorldAndStage(this.scene.level).worldId === 5;
+          if (isWorld5) {
+            if (this.timer <= 0) {
+              this.timer = 15;
+              this.scene.burst(f.spr.x, f.spr.y - 14, 0xfde047, 14);
+              this.scene.dropCoin(f.spr.x, f.spr.y, 50, 'drop_seed_ruby');
+              this.scene.floatText(f.spr.x, f.spr.y - 30, '💎 Mama Rally Ruby! +50', '#ef4444', '#450a0a');
+            }
+            break;
+          }
 
           // Check if ready to lay an egg in a completed nest!
           if (this.timer <= 0) {
@@ -4144,7 +4227,12 @@ export class AviaryScene extends Phaser.Scene {
       });
       this.time.addEvent({ delay: 4000, loop: true, callback: () => this.saveSandbox() });
     } else {
-      if (this.initData?.restoredBirds && this.initData.restoredBirds.length > 0) {
+      if (ws.worldId === 5) {
+        // Pure Boss Arena (Insaniquarium Tank 5 style): absolutely zero songbirds!
+        this.birds = [];
+        AviaryScene.suspendedGame = undefined;
+        patchSave({ suspendedSession: undefined });
+      } else if (this.initData?.restoredBirds && this.initData.restoredBirds.length > 0) {
         this.initData.restoredBirds.forEach((rb, i) => {
           const bx = 260 + (i % 5) * 120 + Phaser.Math.Between(-15, 15);
           const by = 200 + Math.floor(i / 5) * 80 + Phaser.Math.Between(-15, 15);
@@ -4195,7 +4283,7 @@ export class AviaryScene extends Phaser.Scene {
           );
         }
       }
-      if (!this.sandbox && !this.timeTrial && !this.challengeId) {
+      if (!this.sandbox && !this.timeTrial && !this.challengeId && ws.worldId !== 5) {
         this.time.addEvent({ delay: 5000, loop: true, callback: () => this.saveCampaignSession() });
         window.addEventListener('beforeunload', () => this.saveCampaignSession());
       }
@@ -4280,6 +4368,20 @@ export class AviaryScene extends Phaser.Scene {
           }
         }
       }
+      // In World 5, clicking a companion pet revives them if fainted!
+      if (ws.worldId === 5) {
+        for (const pet of this.pets) {
+          const px = pet.img?.x ?? (pet.flyer?.spr.x ?? -100);
+          const py = pet.img?.y ?? (pet.flyer?.spr.y ?? -100);
+          if (Phaser.Math.Distance.Between(p.x, p.y, px, py) < 55) {
+            if (pet.fainted || pet.stunTimer > 0) {
+              this.reviveCompanionPet(pet);
+              return;
+            }
+          }
+        }
+      }
+
       // Check if clicked an incoming missile to intercept it!
       const now = this.time.now;
       for (const m of this.missiles) {
@@ -7712,7 +7814,9 @@ export class AviaryScene extends Phaser.Scene {
       try {
         const ws = getWorldAndStage(this.level);
         if (ws.worldId === 5) {
-          this.birdText.setText(`🦖 BOSS`);
+          const activePets = this.pets.filter((p) => !p.fainted && p.stunTimer <= 0).length;
+          this.birdText.setText(`🐾 ${activePets}/16 Pets`);
+          this.birdText.setColor(activePets <= 4 ? '#ef4444' : activePets <= 8 ? '#f59e0b' : '#4ade80');
         } else if (this.sandbox) {
           const petCount = this.birds.filter((b) => !b.isFeeder).length;
           const feederCount = this.birds.filter((b) => b.isFeeder).length;
@@ -8058,6 +8162,16 @@ export class AviaryScene extends Phaser.Scene {
 
   killBird(b: Bird, cause: 'eaten' | 'starved') {
     if (b.dead) return;
+    const ws = getWorldAndStage(this.level);
+    if (ws.worldId === 5) {
+      // In World 5 boss arena, songbird deaths do NOT cause game over
+      b.dead = true;
+      b.shadow?.destroy();
+      b.leaveSpot();
+      this.birds = this.birds.filter((o) => o !== b);
+      b.spr?.destroy();
+      return;
+    }
     b.dead = true;
     b.shadow?.destroy();
     b.leaveSpot();
@@ -8114,7 +8228,76 @@ export class AviaryScene extends Phaser.Scene {
       this.lose(['The Royal Hatchling has perished!', 'The royal heir must be protected at all costs!']);
       return;
     }
-    if (this.birds.length === 0) this.lose();
+    if (ws.worldId !== 5 && this.birds.length === 0) this.lose();
+  }
+
+  hitCompanionPet(p: Pet) {
+    if (this.ended) return;
+    const px = p.img?.x ?? (p.flyer?.spr.x ?? 500);
+    const py = p.img?.y ?? (p.flyer?.spr.y ?? 600);
+
+    // 1. Check if an awake defender blocks the attack
+    const defender = this.pets.find(
+      (d) => (d.key === 'porcupine' || d.key === 'hound' || d.key === 'mole') && d !== p && !d.fainted && d.stunTimer <= 0
+    );
+    if (defender && Phaser.Math.Distance.Between(px, py, defender.img.x, defender.img.y) < 160) {
+      this.burst(px, py - 10, 0x38bdf8, 16);
+      this.floatText(px, py - 30, `🛡️ ${defender.name} DEFLECTED!`, '#38bdf8', '#0c4a6e');
+      playWeaponSound(0);
+      return;
+    }
+
+    // 2. Pet is knocked out!
+    p.fainted = true;
+    p.stunTimer = 999999;
+    this.cameras.main.shake(200, 0.008);
+    this.burst(px, py, 0xef4444, 20);
+    this.burst(px, py, 0xfde047, 12);
+    this.floatText(px, py - 30, `💥 ${p.name} DOWN! (Click to Revive!)`, '#f87171', '#450a0a');
+
+    // Visual dizzy/faint effect
+    p.img.setTint(0x94a3b8);
+    p.img.rotation = 0.45;
+    if (p.flyer) {
+      p.flyer.body.setTint(0x94a3b8);
+      p.flyer.spr.y = 590;
+    }
+
+    // Check if ALL 16 companions are down!
+    this.checkWorld5Loss();
+  }
+
+  reviveCompanionPet(p: Pet) {
+    if (!p.fainted && p.stunTimer <= 0) return;
+    p.fainted = false;
+    p.stunTimer = 0;
+    p.img.clearTint();
+    p.img.rotation = 0;
+    if (p.flyer) {
+      p.flyer.body.clearTint();
+      p.flyer.spr.y = p.wy;
+    }
+    const px = p.img?.x ?? (p.flyer?.spr.x ?? 500);
+    const py = p.img?.y ?? (p.flyer?.spr.y ?? 600);
+    this.burst(px, py - 15, 0x4ade80, 24);
+    this.burst(px, py - 15, 0xff69b4, 16);
+    this.floatText(px, py - 35, `❤️ ${p.name} REVIVED!`, '#4ade80', '#064e3b');
+    this.refreshUi();
+  }
+
+  checkWorld5Loss() {
+    if (this.ended) return;
+    const ws = getWorldAndStage(this.level);
+    if (ws.worldId !== 5) return;
+    const activeCount = this.pets.filter((p) => !p.fainted && p.stunTimer <= 0).length;
+    if (activeCount === 0) {
+      this.lose([
+        'All 16 companions have fallen!',
+        'Titanoraptor has overrun the prehistoric skies!',
+        'Protect and click to revive your companions!',
+      ]);
+    }
+    this.refreshUi();
   }
 
   coinKey(v: number) {
@@ -9017,6 +9200,8 @@ export class AviaryScene extends Phaser.Scene {
 
   saveCampaignSession() {
     if (this.sandbox || this.timeTrial || this.challengeId || this.ended) return;
+    const ws = getWorldAndStage(this.level);
+    if (ws.worldId === 5) return;
     const livingBirds: SavedBird[] = this.birds
       .filter((b) => !b.dead)
       .map((b) => ({
@@ -9027,7 +9212,6 @@ export class AviaryScene extends Phaser.Scene {
         species: b.species.key,
       }));
     if (livingBirds.length === 0) return;
-    const ws = getWorldAndStage(this.level);
     patchSave({
       suspendedSession: {
         level: this.level,
@@ -9050,6 +9234,12 @@ export class AviaryScene extends Phaser.Scene {
       this.saveSandbox();
     }
     const ws = getWorldAndStage(this.level);
+    if (ws.worldId === 5) {
+      AviaryScene.suspendedGame = undefined;
+      patchSave({ suspendedSession: undefined });
+      this.scene.start('Menu', { level: this.level });
+      return;
+    }
     const livingBirds: SavedBird[] = this.birds
       .filter((b) => !b.dead)
       .map((b) => ({
@@ -10072,26 +10262,28 @@ export class AviaryScene extends Phaser.Scene {
     this.coinList = this.coinList.filter((c) => !c.collected);
 
     // eggs hatching
-    for (const s of this.spots) {
-      if (!s.egg) continue;
-      s.egg.rotation = Math.sin(time * 0.01) * 0.05 * (s.eggT < 5 ? 3 : 1);
-      // If a bird is currently resting in the nest, it keeps the egg warm!
-      const warmthMult = s.bird && !s.bird.dead ? 1.85 : 1.0;
-      s.eggT -= dt * warmthMult;
-      if (s.eggT <= 0) {
-        this.burst(s.x, s.y - 10, 0xfff5dc, 10);
-        s.egg.destroy();
-        s.egg = undefined;
-        const isPhoenixMother = s.eggMother?.species.key === 'phoenix';
-        const species = isPhoenixMother ? 'phoenix' : 'sparrow';
-        const baby = new Bird(this, s.x, s.y - 20, 0, false, isPhoenixMother, species, false);
-        baby.parent = s.eggMother;
-        this.birds.push(baby);
-        s.eggMother = undefined;
-        this.toast(isPhoenixMother ? '🔥 A sacred Phoenix Chick hatched!' : 'A baby songbird hatched!');
-        this.refreshUi();
-      } else if (s.eggT < 0) {
-        s.eggT = 0;
+    if (ws.worldId !== 5) {
+      for (const s of this.spots) {
+        if (!s.egg) continue;
+        s.egg.rotation = Math.sin(time * 0.01) * 0.05 * (s.eggT < 5 ? 3 : 1);
+        // If a bird is currently resting in the nest, it keeps the egg warm!
+        const warmthMult = s.bird && !s.bird.dead ? 1.85 : 1.0;
+        s.eggT -= dt * warmthMult;
+        if (s.eggT <= 0) {
+          this.burst(s.x, s.y - 10, 0xfff5dc, 10);
+          s.egg.destroy();
+          s.egg = undefined;
+          const isPhoenixMother = s.eggMother?.species.key === 'phoenix';
+          const species = isPhoenixMother ? 'phoenix' : 'sparrow';
+          const baby = new Bird(this, s.x, s.y - 20, 0, false, isPhoenixMother, species, false);
+          baby.parent = s.eggMother;
+          this.birds.push(baby);
+          s.eggMother = undefined;
+          this.toast(isPhoenixMother ? '🔥 A sacred Phoenix Chick hatched!' : 'A baby songbird hatched!');
+          this.refreshUi();
+        } else if (s.eggT < 0) {
+          s.eggT = 0;
+        }
       }
     }
 
