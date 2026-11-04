@@ -136,6 +136,30 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     gemReward: 20,
     category: 'challenge',
   },
+  {
+    id: 'royal_hatchling_clear',
+    title: 'Royal Guardian',
+    desc: 'Nurture and protect the crowned Royal Heir until full maturity in the VIP Escort Trial!',
+    icon: '👑',
+    gemReward: 30,
+    category: 'challenge',
+  },
+  {
+    id: 'apex_havoc_clear',
+    title: 'Apex Dominator',
+    desc: 'Master the high-stakes Carnivore Sanctuary with pure predatory species!',
+    icon: '🦅',
+    gemReward: 35,
+    category: 'challenge',
+  },
+  {
+    id: 'boss_rush_clear',
+    title: 'Gauntlet Champion',
+    desc: 'Defeat all predator bosses back-to-back in the Colosseum Predator Gauntlet!',
+    icon: '⚔️',
+    gemReward: 50,
+    category: 'challenge',
+  },
 ];
 
 export function getAchievement(id: string): AchievementDef | undefined {

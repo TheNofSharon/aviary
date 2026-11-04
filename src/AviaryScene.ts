@@ -209,6 +209,7 @@ export class Bird {
   additionalNotes: string;
   private wasHungry = false;
   chirpTimer = 3.5 + Math.random() * 6.5;
+  isRoyal = false;
 
   constructor(
     private scene: AviaryScene,
@@ -299,7 +300,10 @@ export class Bird {
     this.beakTwig.setOrigin(0.45, 0.55);
     this.beakTwig.setScale(s === 0 ? 0.75 : s === 1 ? 0.85 : 0.95);
     this.crown.setPosition(4, -36);
-    this.crown.setVisible(this.stage === 3 && !this.mama && !this.isFeeder);
+    this.crown.setVisible((this.stage === 3 && !this.mama && !this.isFeeder) || this.isRoyal);
+    if (this.isRoyal) {
+      this.crown.setScale(this.stage === 0 ? 0.72 : this.stage === 1 ? 0.82 : 0.95);
+    }
   }
 
   /** Instantly grows the bird one stage (growth potion). */
@@ -379,6 +383,16 @@ export class Bird {
       this.scene.floatText(this.spr.x, this.spr.y - 40, 'Grew up!', '#fff3c4', '#8a5a00');
       if (this.stage === 2) {
         unlockAchievement('first_adult', this.scene);
+      }
+    } else if (this.isRoyal && this.stage === 2 && this.units >= 25) {
+      this.stage = 3;
+      this.updateTextures();
+      playBirdEvolveSound();
+      this.scene.burst(this.spr.x, this.spr.y, 0xffd700, 28);
+      this.scene.floatText(this.spr.x, this.spr.y - 45, '👑 CORONATION! ROYAL ASCENSION! 👑', '#ffd700', '#78350f');
+      this.scene.toast('👑 The Royal Heir has reached full King Songbird majesty!');
+      if (this.scene.challengeId === 'royal_hatchling') {
+        this.scene.winRoyalChallenge();
       }
     }
   }
@@ -571,6 +585,9 @@ export class Bird {
       }
     }
     if (this.rare) this.badge.setScale(1.4 + 0.4 * Math.sin(t * 0.006));
+    if (this.isRoyal && Math.random() < 0.05) {
+      this.scene.burst(this.spr.x + Phaser.Math.Between(-8, 8), this.spr.y - 28, 0xfde047, 1);
+    }
     this.layT -= dt;
     this.flip.scaleX = this.dir;
 
@@ -3292,6 +3309,12 @@ export class AviaryScene extends Phaser.Scene {
       ? 2
       : this.challengeId === 'predator_onslaught'
       ? 3
+      : this.challengeId === 'royal_hatchling'
+      ? 4
+      : this.challengeId === 'apex_havoc'
+      ? 18
+      : this.challengeId === 'boss_rush'
+      ? 14
       : this.timeTrial
       ? (data.level ?? 1)
       : (data.level ?? sv.level ?? 1);
@@ -3316,9 +3339,15 @@ export class AviaryScene extends Phaser.Scene {
       this.coins = data.restoredCoins ?? 200;
       this.eggs = data.restoredEggs ?? 0;
       this.petKeys = this.challengeId === 'night_bats'
-        ? ['owl', 'hedgehog', 'squirrel']
+        ? (data.pets && data.pets.length > 0 ? data.pets.slice(0, 3) : ['owl', 'hedgehog', 'squirrel'])
         : this.challengeId === 'predator_onslaught'
         ? []
+        : this.challengeId === 'royal_hatchling'
+        ? (data.pets && data.pets.length > 0 ? data.pets.slice(0, 3) : ['pelican', 'squirrel', 'hedgehog'])
+        : this.challengeId === 'apex_havoc'
+        ? (data.pets && data.pets.length > 0 ? data.pets.slice(0, 3) : ['falcon', 'woodpecker', 'owl'])
+        : this.challengeId === 'boss_rush'
+        ? (data.pets && data.pets.length > 0 ? data.pets.slice(0, 3) : ['woodpecker', 'porcupine', 'squirrel'])
         : this.timeTrial
         ? (data.pets ?? ['hedgehog', 'butterfly', 'squirrel']).slice(0, 3)
         : (data.pets ?? []).slice(0, 3);
@@ -3353,6 +3382,12 @@ export class AviaryScene extends Phaser.Scene {
       ? 8
       : this.challengeId === 'predator_onslaught'
       ? 10
+      : this.challengeId === 'royal_hatchling'
+      ? 12
+      : this.challengeId === 'apex_havoc'
+      ? 14
+      : this.challengeId === 'boss_rush'
+      ? 8
       : this.timeTrial
       ? 25
       : d.firstWaveDelay;
@@ -3494,6 +3529,29 @@ export class AviaryScene extends Phaser.Scene {
             const by = 230 + (i % 2) * 60;
             this.birds.push(new Bird(this, bx, by, stage, false, false, 'sparrow'));
           }
+        } else if (this.challengeId === 'royal_hatchling') {
+          const royalChick = new Bird(this, 420, 260, 0, false, false, 'sparrow');
+          royalChick.isRoyal = true;
+          royalChick.name = '👑 Prince Chirp';
+          royalChick.units = 0;
+          royalChick.updateTextures();
+          const companion = new Bird(this, 620, 280, 1, false, false, 'sparrow');
+          this.birds.push(royalChick, companion);
+        } else if (this.challengeId === 'apex_havoc') {
+          const mama1 = new Bird(this, 360, 240, 2, true, false, 'mama');
+          const mama2 = new Bird(this, 680, 240, 2, true, false, 'mama');
+          const falcon = new Bird(this, 500, 190, 2, false, false, 'piranha_finch');
+          this.birds.push(mama1, mama2, falcon);
+          const gecko = new CinderGecko(this, 240, 320);
+          this.geckos.push(gecko);
+        } else if (this.challengeId === 'boss_rush') {
+          this.birds.push(
+            new Bird(this, 360, 250, 2, false, false, 'sparrow'),
+            new Bird(this, 500, 220, 2, false, false, 'sparrow'),
+            new Bird(this, 640, 270, 2, false, false, 'sparrow'),
+            new Bird(this, 450, 320, 2, true, false, 'mama')
+          );
+          this.weapon = Math.max(this.weapon, 1);
         } else if (this.level === 1) {
           this.birds.push(new Bird(this, 500, 260, 0, false, false, 'sparrow'));
         } else {
@@ -4534,8 +4592,8 @@ export class AviaryScene extends Phaser.Scene {
     // World 2: 6 buttons (Quality, More Food, Baby Bird, Falcon, Slingshot, Egg)
     // World 3: 8 buttons (Quality, More Food, Baby Bird, Mama, Tree Creeper, Toucan, Slingshot, Egg)
     // World 4: 8 buttons (Quality, More Food, Baby Bird, Mama, Ember Shrike, Sugar Glider, Slingshot, Egg)
-    const hasEgg = !this.timeTrial && !this.challengeId;
-    const baseCount = worldId === 1 ? 4 : worldId === 2 ? 5 : 7;
+    const hasEgg = (!this.timeTrial && !this.challengeId) || this.challengeId === 'apex_havoc';
+    const baseCount = this.challengeId === 'apex_havoc' ? 7 : worldId === 1 ? 4 : worldId === 2 ? 5 : 7;
     const totalButtons = baseCount + (hasEgg ? 1 : 0);
 
     let idx = 0;
@@ -4584,9 +4642,13 @@ export class AviaryScene extends Phaser.Scene {
     // Slot 2: Baby Sparrow
     this.addShop(idx++, 'Baby Bird', 'bird_sparrow_0', 0.55, {
       cost: () => 35,
-      enabled: () => true,
-      unlocked: () => true,
-      texts: () => ({ sub: '35', tiny: 'Grows up!' }),
+      enabled: () => this.challengeId !== 'apex_havoc',
+      unlocked: () => this.challengeId !== 'apex_havoc',
+      lockedReason: () => 'Sparrows cannot survive here! Rely on Mama Birds!',
+      texts: () => ({
+        sub: this.challengeId === 'apex_havoc' ? '🚫' : '35',
+        tiny: this.challengeId === 'apex_havoc' ? 'Locked in Apex' : 'Grows up!',
+      }),
       buy: () => {
         this.coins -= 35;
         this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 0, false, false, 'sparrow'));
@@ -4594,7 +4656,7 @@ export class AviaryScene extends Phaser.Scene {
     }, totalButtons);
 
     // Slot 3 in World 3+: Mama Songbird (Breeder)
-    if (worldId >= 3) {
+    if (worldId >= 3 || this.challengeId === 'apex_havoc') {
       this.addShop(idx++, 'Mama Songbird', 'bird_mama', 0.5, {
         cost: () => 200,
         enabled: () => true,
@@ -4615,7 +4677,7 @@ export class AviaryScene extends Phaser.Scene {
     }
 
     // Slot in World 2: Peregrine Falcon (Carnivore Raptor)
-    if (worldId === 2) {
+    if (worldId === 2 || this.challengeId === 'apex_havoc') {
       this.addShop(idx++, 'Peregrine Falcon', 'bird_piranha_finch', 0.5, {
         cost: () => 400,
         enabled: () => true,
@@ -4678,7 +4740,7 @@ export class AviaryScene extends Phaser.Scene {
     }
 
     // Slot in World 4: Cinder Gecko & Sugar Glider (Two Non-Bird Canopy Creatures!)
-    if (worldId >= 4) {
+    if (worldId >= 4 || this.challengeId === 'apex_havoc') {
       // Cinder Gecko (Flame Chameleon - Non-Bird Intermediate Predator)
       this.addShop(idx++, 'Cinder Gecko', 'cinder_gecko_icon', 0.95, {
         cost: () => 300,
@@ -4759,9 +4821,10 @@ export class AviaryScene extends Phaser.Scene {
     // Single progressive Egg Piece (Campaign only, not Time Trial or Challenge)
     if (hasEgg) {
       this.addShop(idx++, 'Egg', 'egg', 1.0, {
-        cost: () => eggPieceCost(this.level, this.eggs),
+        cost: () => (this.challengeId === 'apex_havoc' ? 3500 : eggPieceCost(this.level, this.eggs)),
         enabled: () => this.eggs < 3,
         unlocked: () => {
+          if (this.challengeId === 'apex_havoc') return true;
           if (this.eggs === 0) {
             return this.level === 1
               ? this.birds.some((b) => b.stage >= 1 || b.isBreeder)
@@ -4771,19 +4834,26 @@ export class AviaryScene extends Phaser.Scene {
         },
         lockedReason: () => (this.level === 1 ? 'Grow a bird to Fledgling to unlock Egg!' : 'Grow a bird to Adult to unlock Egg!'),
         texts: () => {
-          const cost = eggPieceCost(this.level, this.eggs);
+          const cost = this.challengeId === 'apex_havoc' ? 3500 : eggPieceCost(this.level, this.eggs);
           const locked =
+            this.challengeId !== 'apex_havoc' &&
             this.eggs === 0 &&
             (this.level === 1
               ? !this.birds.some((b) => b.stage >= 1 || b.isBreeder)
               : !this.birds.some((b) => b.stage >= 2 || b.isBreeder));
           return {
             sub: locked ? '🔒' : this.eggs >= 3 ? 'Hatched!' : String(cost),
-            tiny: locked ? (this.level === 1 ? 'Need Fledgling' : 'Need Adult') : this.eggs >= 3 ? 'Victory!' : `Piece ${this.eggs + 1}/3`,
+            tiny: locked ? (this.level === 1 ? 'Need Fledgling' : 'Need Adult') : this.eggs >= 3 ? 'Victory!' : (this.challengeId === 'apex_havoc' ? 'Apex Egg Trophy' : `Piece ${this.eggs + 1}/3`),
             icon: this.eggs >= 2 ? 'goldegg' : 'egg',
           };
         },
         buy: () => {
+          if (this.challengeId === 'apex_havoc') {
+            this.coins -= 3500;
+            this.eggs = 3;
+            this.winApexChallenge();
+            return;
+          }
           const cost = eggPieceCost(this.level, this.eggs);
           this.coins -= cost;
           this.eggs++;
@@ -6804,6 +6874,12 @@ export class AviaryScene extends Phaser.Scene {
       ? '🦇 Night of Bats'
       : this.challengeId === 'predator_onslaught'
       ? '⚡ Predator Onslaught'
+      : this.challengeId === 'royal_hatchling'
+      ? '👑 Royal Hatchling'
+      : this.challengeId === 'apex_havoc'
+      ? '🦅 Apex Havoc'
+      : this.challengeId === 'boss_rush'
+      ? '⚔️ Predator Gauntlet'
       : this.timeTrial
       ? `${ws.label} Timed ⏱️`
       : `${ws.label}`;
@@ -6835,25 +6911,23 @@ export class AviaryScene extends Phaser.Scene {
         })
         .setOrigin(0.5)
         .setDepth(41);
-    } else if (this.challengeId === 'night_bats') {
-      const chalW = 230;
+    } else if (this.challengeId) {
+      const chalW = 260;
       pill.fillRoundedRect(346, 14, chalW, 44, 22);
+      const initGoal =
+        this.challengeId === 'night_bats'
+          ? '🦇 Wave 1/4 (Slay Bats!)'
+          : this.challengeId === 'predator_onslaught'
+          ? '⚡ Wave 1/5 (Survive!)'
+          : this.challengeId === 'royal_hatchling'
+          ? '👑 Protect Royal Heir!'
+          : this.challengeId === 'apex_havoc'
+          ? '🦅 Sustain Carnivores (3500c Egg)'
+          : '⚔️ Boss 1/4 (Alpha Weasels)';
       this.challengeGoalText = this.add
-        .text(346 + chalW / 2, 36, '🦇 Wave 1/4 (Slay Bats!)', {
+        .text(346 + chalW / 2, 36, initGoal, {
           fontFamily: FONT,
-          fontSize: '15px',
-          fontStyle: 'bold',
-          color: '#f0abfc',
-        })
-        .setOrigin(0.5)
-        .setDepth(41);
-    } else if (this.challengeId === 'predator_onslaught') {
-      const chalW = 240;
-      pill.fillRoundedRect(346, 14, chalW, 44, 22);
-      this.challengeGoalText = this.add
-        .text(346 + chalW / 2, 36, '⚡ Wave 1/5 (Survive!)', {
-          fontFamily: FONT,
-          fontSize: '15px',
+          fontSize: '14px',
           fontStyle: 'bold',
           color: '#fde047',
         })
@@ -6868,6 +6942,12 @@ export class AviaryScene extends Phaser.Scene {
       initialHint = 'Challenge: Vanquish all nocturnal bat waves and defeat the Vampire Bat King!';
     } else if (this.challengeId === 'predator_onslaught') {
       initialHint = 'Challenge: Repel 5 rapid onslaught waves of fierce predators with your slingshot!';
+    } else if (this.challengeId === 'royal_hatchling') {
+      initialHint = 'VIP Trial: Guard & feed the crowned Royal Heir! If the heir dies, you lose!';
+    } else if (this.challengeId === 'apex_havoc') {
+      initialHint = 'Apex Sanctuary: Sparrows are banned! Use Mama Birds to hatch chicks for your Falcons & Geckos!';
+    } else if (this.challengeId === 'boss_rush') {
+      initialHint = 'Boss Gauntlet: Face all 4 apex boss encounters back-to-back in the Colosseum!';
     } else if (!this.sandbox) {
       if (ws.worldId === 1 && ws.stageNum === 1) {
         initialHint = 'Tutorial: Click sky to drop seeds for your hungry chick!';
@@ -7319,6 +7399,11 @@ export class AviaryScene extends Phaser.Scene {
       });
     }
     this.refreshUi();
+    if (b.isRoyal && !this.ended && this.challengeId === 'royal_hatchling') {
+      this.toast('👑 The Royal Hatchling has fallen!');
+      this.lose(['The Royal Hatchling has perished!', 'The royal heir must be protected at all costs!']);
+      return;
+    }
     if (this.birds.length === 0) this.lose();
   }
 
@@ -7894,17 +7979,15 @@ export class AviaryScene extends Phaser.Scene {
     });
   }
 
-  private lose() {
+  private lose(customLines?: string[]) {
     this.ended = true;
     AviaryScene.suspendedGame = undefined;
     patchSave({ suspendedSession: undefined });
     this.time.delayedCall(800, () => {
-      this.overlay('Game Over', ['All of your birds are gone.', 'Keep them fed and chase off predators!'], '#ff8a80');
+      this.overlay('Game Over', customLines ?? ['All of your birds are gone.', 'Keep them fed and chase off predators!'], '#ff8a80');
       this.bigButton('TRY AGAIN', 460, () => {
-        if (this.challengeId === 'night_bats') {
-          this.scene.restart({ challengeId: 'night_bats' });
-        } else if (this.challengeId === 'predator_onslaught') {
-          this.scene.restart({ challengeId: 'predator_onslaught' });
+        if (this.challengeId) {
+          this.scene.restart({ challengeId: this.challengeId, pets: this.petKeys });
         } else {
           const sv = loadSave();
           const unlocked = getUnlockedPets(sv.level);
@@ -8012,6 +8095,12 @@ export class AviaryScene extends Phaser.Scene {
       ? '🦇 Challenge: Night of the Bats'
       : this.challengeId === 'predator_onslaught'
       ? '⚡ Challenge: Predator Onslaught'
+      : this.challengeId === 'royal_hatchling'
+      ? '👑 Challenge: The Royal Hatchling'
+      : this.challengeId === 'apex_havoc'
+      ? '🦅 Challenge: Apex Havoc'
+      : this.challengeId === 'boss_rush'
+      ? '⚔️ Challenge: Predator Gauntlet'
       : `${ws.label} • ${ws.stage.name}`;
     const subtitle = this.add
       .text(cardX, cardY - cardH / 2 + 75, stageDesc, {
@@ -8039,6 +8128,12 @@ export class AviaryScene extends Phaser.Scene {
       ? `🦇 Wave ${Math.min(4, this.waveIndex + 1)}/4  •  Defeat Bat King!`
       : this.challengeId === 'predator_onslaught'
       ? `⚡ Wave ${Math.min(5, this.waveIndex + 1)}/5  •  Survive Onslaught!`
+      : this.challengeId === 'royal_hatchling'
+      ? `👑 Royal Heir Wave ${Math.min(4, this.waveIndex + 1)}/4  •  Keep Heir Safe!`
+      : this.challengeId === 'apex_havoc'
+      ? `🦅 Apex Colony  •  🪙 ${this.coins}/3500c Crown Egg Goal`
+      : this.challengeId === 'boss_rush'
+      ? `⚔️ Boss Encounter ${Math.min(4, this.waveIndex + 1)}/4  •  Fight to the Death!`
       : `🐦 ${livingBirds} Birds Alive  •  🪙 ${this.coins} Coins  •  🥚 ${this.eggs}/3 Eggs`;
     const statText = this.add
       .text(cardX, cardY - cardH / 2 + 111, statTextStr, {
@@ -8113,10 +8208,8 @@ export class AviaryScene extends Phaser.Scene {
       this.closePauseModal();
       if (this.sandbox) {
         this.openThemesModal();
-      } else if (this.challengeId === 'night_bats') {
-        this.scene.restart({ challengeId: 'night_bats' });
-      } else if (this.challengeId === 'predator_onslaught') {
-        this.scene.restart({ challengeId: 'predator_onslaught' });
+      } else if (this.challengeId) {
+        this.scene.restart({ challengeId: this.challengeId, pets: this.petKeys });
       } else {
         const sv = loadSave();
         const unlocked = getUnlockedPets(sv.level);
@@ -8225,7 +8318,21 @@ export class AviaryScene extends Phaser.Scene {
       timeTrialTime: this.timeTrialTime,
       challengeId: this.challengeId,
       flockCount: livingBirds.length,
-      label: this.sandbox ? 'My Aviary' : this.timeTrial ? 'Time Trial' : this.challengeId === 'predator_onslaught' ? 'Predator Onslaught' : this.challengeId === 'night_bats' ? 'Night of Bats' : ws.label,
+      label: this.sandbox
+        ? 'My Aviary'
+        : this.timeTrial
+        ? 'Time Trial'
+        : this.challengeId === 'predator_onslaught'
+        ? 'Predator Onslaught'
+        : this.challengeId === 'night_bats'
+        ? 'Night of Bats'
+        : this.challengeId === 'royal_hatchling'
+        ? 'The Royal Hatchling'
+        : this.challengeId === 'apex_havoc'
+        ? 'Apex Havoc'
+        : this.challengeId === 'boss_rush'
+        ? 'Predator Gauntlet'
+        : ws.label,
       stageName: this.sandbox ? 'Sanctuary' : this.timeTrial ? 'Score Attack' : this.challengeId ? 'Special Trial' : ws.stage.name,
     };
     this.gamePaused = true;
@@ -8311,6 +8418,138 @@ export class AviaryScene extends Phaser.Scene {
       mg.fillStyle(0x78350f, 1);
       mg.fillRoundedRect(-120, -10, 240, 50, 16);
       mg.fillStyle(0xb45309, 1);
+      mg.fillRoundedRect(-120, -14, 240, 50, 16);
+      menuBtn.add([
+        mg,
+        this.add
+          .text(0, 11, 'CHALLENGES', {
+            fontFamily: FONT,
+            fontSize: '22px',
+            fontStyle: 'bold',
+            color: '#fff',
+          })
+          .setOrigin(0.5),
+      ]);
+      menuBtn.setSize(240, 50).setInteractive({ useHandCursor: true });
+      menuBtn.on('pointerdown', () => this.scene.start('Menu', { view: 'challenges' }));
+    });
+  }
+
+  winRoyalChallenge() {
+    this.ended = true;
+    unlockAchievement('royal_hatchling_clear', this);
+    const sv = loadSave();
+    const ch = sv.challenges || {};
+    ch['royal_hatchling'] = 'completed';
+    const bonusGems = 30;
+    patchSave({ challenges: ch, gems: (sv.gems || 0) + bonusGems });
+    this.gems = (sv.gems || 0) + bonusGems;
+
+    this.time.delayedCall(500, () => {
+      this.overlay(
+        '👑 ROYAL HEIR ASCENDED! 🏆',
+        [
+          'The Royal Hatchling survived and reached full royal majesty!',
+          'Your vigilant guard kept the heir safe from every predator!',
+          `Challenge Reward: +${bonusGems} Gems!`,
+          '🏆 Unlocked Trophy: Royal Guardian',
+        ],
+        '#facc15'
+      );
+      this.bigButton('PLAY AGAIN', 480, () => this.scene.restart({ challengeId: 'royal_hatchling', pets: this.petKeys }));
+      const menuBtn = this.add.container(W / 2, 550).setDepth(73);
+      const mg = this.add.graphics();
+      mg.fillStyle(0x713f12, 1);
+      mg.fillRoundedRect(-120, -10, 240, 50, 16);
+      mg.fillStyle(0xa16207, 1);
+      mg.fillRoundedRect(-120, -14, 240, 50, 16);
+      menuBtn.add([
+        mg,
+        this.add
+          .text(0, 11, 'CHALLENGES', {
+            fontFamily: FONT,
+            fontSize: '22px',
+            fontStyle: 'bold',
+            color: '#fff',
+          })
+          .setOrigin(0.5),
+      ]);
+      menuBtn.setSize(240, 50).setInteractive({ useHandCursor: true });
+      menuBtn.on('pointerdown', () => this.scene.start('Menu', { view: 'challenges' }));
+    });
+  }
+
+  winApexChallenge() {
+    this.ended = true;
+    unlockAchievement('apex_havoc_clear', this);
+    const sv = loadSave();
+    const ch = sv.challenges || {};
+    ch['apex_havoc'] = 'completed';
+    const bonusGems = 35;
+    patchSave({ challenges: ch, gems: (sv.gems || 0) + bonusGems });
+    this.gems = (sv.gems || 0) + bonusGems;
+
+    this.time.delayedCall(500, () => {
+      this.overlay(
+        '🦅 APEX SANCTUARY MASTERED! 🏆',
+        [
+          'You proved high-tier carnivores can flourish together!',
+          'The Golden Apex Egg has been claimed!',
+          `Challenge Reward: +${bonusGems} Gems!`,
+          '🏆 Unlocked Trophy: Apex Dominator',
+        ],
+        '#fb923c'
+      );
+      this.bigButton('PLAY AGAIN', 480, () => this.scene.restart({ challengeId: 'apex_havoc', pets: this.petKeys }));
+      const menuBtn = this.add.container(W / 2, 550).setDepth(73);
+      const mg = this.add.graphics();
+      mg.fillStyle(0x7c2d12, 1);
+      mg.fillRoundedRect(-120, -10, 240, 50, 16);
+      mg.fillStyle(0xc2410c, 1);
+      mg.fillRoundedRect(-120, -14, 240, 50, 16);
+      menuBtn.add([
+        mg,
+        this.add
+          .text(0, 11, 'CHALLENGES', {
+            fontFamily: FONT,
+            fontSize: '22px',
+            fontStyle: 'bold',
+            color: '#fff',
+          })
+          .setOrigin(0.5),
+      ]);
+      menuBtn.setSize(240, 50).setInteractive({ useHandCursor: true });
+      menuBtn.on('pointerdown', () => this.scene.start('Menu', { view: 'challenges' }));
+    });
+  }
+
+  winBossRushChallenge() {
+    this.ended = true;
+    unlockAchievement('boss_rush_clear', this);
+    const sv = loadSave();
+    const ch = sv.challenges || {};
+    ch['boss_rush'] = 'completed';
+    const bonusGems = 50;
+    patchSave({ challenges: ch, gems: (sv.gems || 0) + bonusGems });
+    this.gems = (sv.gems || 0) + bonusGems;
+
+    this.time.delayedCall(500, () => {
+      this.overlay(
+        '⚔️ GAUNTLET CHAMPION! 🏆',
+        [
+          'All 4 Boss Encounters have been vanquished in sequence!',
+          'Weasels, Glutton Chef, Spider & Vampire King brought to heel!',
+          `Challenge Reward: +${bonusGems} Gems!`,
+          '🏆 Unlocked Trophy: Gauntlet Champion',
+        ],
+        '#f43f5e'
+      );
+      this.bigButton('PLAY AGAIN', 480, () => this.scene.restart({ challengeId: 'boss_rush', pets: this.petKeys }));
+      const menuBtn = this.add.container(W / 2, 550).setDepth(73);
+      const mg = this.add.graphics();
+      mg.fillStyle(0x881337, 1);
+      mg.fillRoundedRect(-120, -10, 240, 50, 16);
+      mg.fillStyle(0xbe123c, 1);
       mg.fillRoundedRect(-120, -14, 240, 50, 16);
       menuBtn.add([
         mg,
@@ -8616,6 +8855,28 @@ export class AviaryScene extends Phaser.Scene {
           this.challengeGoalText.setText(`⚡ Wave ${Math.min(5, this.waveIndex + 1)}/5 (Survive!)`);
           this.challengeGoalText.setColor('#fde047');
         }
+      } else if (this.challengeId === 'royal_hatchling') {
+        const heir = this.birds.find((b) => b.isRoyal);
+        if (!heir || heir.dead) {
+          this.challengeGoalText.setText('👑 The Royal Heir has fallen!');
+          this.challengeGoalText.setColor('#ef4444');
+        } else {
+          const stageName = heir.stage === 0 ? '🐣 Chick' : heir.stage === 1 ? '🐥 Fledgling' : heir.stage === 2 ? '🦅 Adult' : '👑 King Songbird';
+          this.challengeGoalText.setText(`👑 Royal Heir: ${stageName} • Fullness: ${Math.round(heir.fullness)}% • Wave ${Math.min(4, this.waveIndex)}/4`);
+          this.challengeGoalText.setColor(heir.fullness < 35 ? '#ef4444' : '#fde047');
+        }
+      } else if (this.challengeId === 'apex_havoc') {
+        this.challengeGoalText.setText(`🦅 Apex Colony: ${this.birds.length} Birds • ${this.geckos.length} Geckos • ${this.gliders.length} Gliders (3,500c Crown Egg)`);
+        this.challengeGoalText.setColor('#fb923c');
+      } else if (this.challengeId === 'boss_rush') {
+        const bossTitles = ['Alpha Weasels & Fox', 'The Gluttonous Chef', 'Spider Broodmother & Hawk', '👑 Vampire Bat King'];
+        const currentTitle = bossTitles[Math.min(3, Math.max(0, this.waveIndex - (this.predators.length > 0 ? 1 : 0)))];
+        this.challengeGoalText.setText(
+          this.predators.length > 0
+            ? `⚔️ BOSS BATTLE: ${currentTitle}!`
+            : `🏆 Next Encounter: Wave ${Math.min(4, this.waveIndex + 1)}/4: ${bossTitles[Math.min(3, this.waveIndex)]}`
+        );
+        this.challengeGoalText.setColor(this.predators.length > 0 ? '#ef4444' : '#f43f5e');
       }
     }
 
@@ -8714,15 +8975,27 @@ export class AviaryScene extends Phaser.Scene {
           this.winPredatorOnslaught();
           return;
         }
+        if (this.challengeId === 'royal_hatchling' && this.waveIndex >= 4) {
+          this.winRoyalChallenge();
+          return;
+        }
+        if (this.challengeId === 'boss_rush' && this.waveIndex >= 4) {
+          this.winBossRushChallenge();
+          return;
+        }
         this.toast(
           this.challengeId === 'night_bats'
             ? '🦇 Bat swarm repelled! Prepare for next nocturnal wave...'
             : this.challengeId === 'predator_onslaught'
             ? '⚡ Wave cleared! Next onslaught wave inbound...'
+            : this.challengeId === 'royal_hatchling'
+            ? '👑 Royal Heir safe! Prepare for the next strike...'
+            : this.challengeId === 'boss_rush'
+            ? '⚔️ Boss defeated! Prepare for the next titan...'
             : 'Flock safe! The predators have retreated.'
         );
-        this.waveTimer = this.challengeId === 'night_bats' ? 14 : this.challengeId === 'predator_onslaught' ? 12 : d.waveInterval + Math.random() * 6;
-      } else if (d.firstWaveDelay < 90000 || this.challengeId === 'night_bats' || this.challengeId === 'predator_onslaught') {
+        this.waveTimer = this.challengeId === 'night_bats' ? 14 : this.challengeId === 'predator_onslaught' ? 12 : this.challengeId === 'boss_rush' ? 10 : d.waveInterval + Math.random() * 6;
+      } else if (d.firstWaveDelay < 90000 || !!this.challengeId) {
         this.waveTimer -= dt;
         if (this.waveTimer <= 0) {
           let enemies: WaveEnemy[] = [];
@@ -8782,6 +9055,65 @@ export class AviaryScene extends Phaser.Scene {
                 { kind: 'hawk', hp: 90, label: 'Elder Sky Apex Falcon' },
                 { kind: 'hawk', hp: 26, label: 'Swift Forest Hawk' },
                 { kind: 'bat', hp: 18, label: 'Shadow Bat' },
+              ];
+            }
+          } else if (this.challengeId === 'royal_hatchling') {
+            const w = this.waveIndex++;
+            if (w === 0) {
+              enemies = [
+                { kind: 'cat', hp: 30, label: 'Sly Prowler Fox' },
+              ];
+            } else if (w === 1) {
+              enemies = [
+                { kind: 'hawk', hp: 24, label: 'Swift Diver Hawk' },
+                { kind: 'hawk', hp: 24, label: 'Swift Diver Hawk' },
+              ];
+            } else if (w === 2) {
+              enemies = [
+                { kind: 'weasel', hp: 35, label: 'Sneak Weasel' },
+                { kind: 'hawk', hp: 28, label: 'Screeching Hawk' },
+              ];
+            } else {
+              enemies = [
+                { kind: 'bat', hp: 25, label: 'Midnight Raider Bat' },
+                { kind: 'cat', hp: 45, label: 'Alpha Bobcat' },
+                { kind: 'crow', hp: 30, label: 'Cunning Raven' },
+              ];
+            }
+          } else if (this.challengeId === 'apex_havoc') {
+            const w = this.waveIndex++;
+            enemies = [
+              { kind: 'hawk', hp: 28 + w * 6, label: `Apex Rival Hawk ${w + 1}` },
+              { kind: 'weasel', hp: 30 + w * 4, label: 'Territory Weasel' },
+            ];
+            if (w >= 2) {
+              enemies.push({ kind: 'cat', hp: 40 + w * 5, label: 'Ravine Lynx' });
+            }
+          } else if (this.challengeId === 'boss_rush') {
+            const w = this.waveIndex++;
+            if (w === 0) {
+              enemies = [
+                { kind: 'weasel', hp: 45, label: '⚔️ Alpha Weasel Chief' },
+                { kind: 'weasel', hp: 40, label: '⚔️ Weasel Enforcer' },
+                { kind: 'cat', hp: 40, label: '⚔️ Ravine Stalker' },
+              ];
+            } else if (w === 1) {
+              enemies = [
+                { kind: 'glutton', hp: 110, label: '⚔️ The Gluttonous Chef' },
+                { kind: 'crow', hp: 35, label: 'Crow Sous-Chef' },
+              ];
+            } else if (w === 2) {
+              enemies = [
+                { kind: 'spider', hp: 95, label: '⚔️ Spider Broodmother' },
+                { kind: 'hawk', hp: 50, label: '⚔️ War Hawk Veteran' },
+              ];
+            } else {
+              enemies = [
+                { kind: 'bat', hp: 125, label: '👑 Vampire Bat King' },
+                { kind: 'bat', hp: 20, label: 'Vampire Thrall Bat' },
+                { kind: 'bat', hp: 20, label: 'Vampire Thrall Bat' },
+                { kind: 'bat', hp: 20, label: 'Vampire Thrall Bat' },
+                { kind: 'bat', hp: 20, label: 'Vampire Thrall Bat' },
               ];
             }
           } else {

@@ -32,6 +32,7 @@ export class MenuScene extends Phaser.Scene {
   private chosen = new Set<string>();
   private view: MenuView = 'main_menu';
   private aspectRatio: '16:9' | '4:3' = '16:9';
+  private selectedChallengeId = 'predator_onslaught';
 
   constructor() {
     super('Menu');
@@ -59,6 +60,10 @@ export class MenuScene extends Phaser.Scene {
     }
 
     this.chosen = new Set();
+    const unlocked = getUnlockedPets(this.maxUnlockedLevel);
+    for (let i = 0; i < Math.min(3, unlocked.length); i++) {
+      this.chosen.add(unlocked[i].key);
+    }
   }
 
   create() {
@@ -1484,233 +1489,329 @@ export class MenuScene extends Phaser.Scene {
   // =========================================================================
   private renderChallenges() {
     this.createHeaderPill(
-      'KEEPER CHALLENGES',
-      'Survive specialized predator trials, unique conditions, and secret boss encounters'
+      'KEEPER CHALLENGES 🏆',
+      'Survive specialized predator trials, unique constraints, and high-intensity boss gauntlets'
     );
 
     const save = loadSave();
-    const cardW = 500;
-    const cardH = 480;
-    const cardY = 350;
 
-    // --- CARD 1: STANDARD TRIAL: PREDATOR ONSLAUGHT ---
-    const leftX = W / 2 - cardW / 2 - 20;
-    const leftContainer = this.add.container(leftX, cardY);
-    const lg = this.add.graphics();
-    lg.fillStyle(0x000000, 0.45);
-    lg.fillRoundedRect(-cardW / 2 + 4, -cardH / 2 + 6, cardW, cardH, 18);
-    lg.fillStyle(0x1e1528, 0.96);
-    lg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 18);
-    lg.lineStyle(3, 0xf59e0b, 1);
-    lg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 18);
+    interface ChallengeEntry {
+      id: string;
+      badge: string;
+      title: string;
+      subtitle: string;
+      icon: string;
+      iconScale?: number;
+      desc: string;
+      modifiers: string;
+      gemReward: number;
+      bgGrad: number;
+      borderCol: number;
+      btnCol: number;
+      isUnlocked: (s: typeof save) => boolean;
+      lockHint: string;
+      allowPets: boolean;
+    }
 
-    const lSection = this.add.text(0, -cardH / 2 + 26, '⚔️ KEEPER TRIAL 1', {
-      fontFamily: FONT,
-      fontSize: '16px',
-      fontStyle: 'bold',
-      color: '#fbbf24',
-    }).setOrigin(0.5);
-
-    const lTitle = this.add.text(0, -cardH / 2 + 56, 'Predator Onslaught', {
-      fontFamily: FONT,
-      fontSize: '26px',
-      fontStyle: 'bold',
-      color: '#ffffff',
-    }).setOrigin(0.5);
-
-    const onslaughtClear = save.challenges?.['predator_onslaught'] === 'completed';
-    const lBadge = this.add.text(0, -cardH / 2 + 90, onslaughtClear ? '✓ COMPLETED 🏆' : 'ENDURANCE GAUNTLET', {
-      fontFamily: FONT,
-      fontSize: '12px',
-      fontStyle: 'bold',
-      color: onslaughtClear ? '#4ade80' : '#fde047',
-    }).setOrigin(0.5);
-
-    const eagleIcon = this.add.image(0, -cardH / 2 + 145, 'bird_hawk').setScale(1.25);
-
-    const lDesc = this.add.text(
-      0,
-      -cardH / 2 + 225,
-      'Confront surging waves of aggressive predators without companion helpers. Fend off swift hawk dive-bombs and cunning invaders with only your seed supply and slingshot!',
+    const challenges: ChallengeEntry[] = [
       {
-        fontFamily: FONT,
-        fontSize: '14px',
-        color: '#e2e8f0',
-        align: 'center',
-        wordWrap: { width: cardW - 60 },
-      }
-    ).setOrigin(0.5);
-
-    const lModBg = this.add.graphics();
-    lModBg.fillStyle(0x2a1742, 0.9);
-    lModBg.fillRoundedRect(-cardW / 2 + 30, -cardH / 2 + 280, cardW - 60, 48, 12);
-    lModBg.lineStyle(1.5, 0xd97706, 0.7);
-    lModBg.strokeRoundedRect(-cardW / 2 + 30, -cardH / 2 + 280, cardW - 60, 48, 12);
-
-    const lModTxt = this.add.text(
-      0,
-      -cardH / 2 + 304,
-      '⚡ Rapid Raids  •  🛡️ Solo Keeper  •  💎 +25 Gems Reward',
+        id: 'predator_onslaught',
+        badge: '⚔️ KEEPER TRIAL 1',
+        title: 'Predator Onslaught',
+        subtitle: 'ENDURANCE GAUNTLET',
+        icon: 'bird_hawk',
+        iconScale: 1.2,
+        desc: 'Confront 5 surging waves of aggressive predators without companion helpers. Fend off swift hawk dive-bombs and cunning invaders with only your seed supply and slingshot!',
+        modifiers: '⚡ 5 Rapid Raids  •  🛡️ Solo Keeper  •  💎 +25 Gems',
+        gemReward: 25,
+        bgGrad: 0x1e1528,
+        borderCol: 0xf59e0b,
+        btnCol: 0xd97706,
+        isUnlocked: () => true,
+        lockHint: 'Unlocked by default.',
+        allowPets: false,
+      },
       {
-        fontFamily: FONT,
-        fontSize: '13px',
-        fontStyle: 'bold',
-        color: '#fef3c7',
-      }
-    ).setOrigin(0.5);
+        id: 'night_bats',
+        badge: '🦇 SECRET TRIAL 2',
+        title: 'Night of the Bats',
+        subtitle: 'MIDNIGHT BOSS TRIAL',
+        icon: 'enemy_bat',
+        iconScale: 1.25,
+        desc: 'The canopy descends into pitch darkness. Repel 4 waves of nocturnal blood-drinkers and defeat the giant Vampire Bat King before sunrise!',
+        modifiers: '🌙 Total Darkness  •  👑 Vampire Bat King  •  💎 +35 Gems',
+        gemReward: 35,
+        bgGrad: 0x140d24,
+        borderCol: 0xa855f7,
+        btnCol: 0x7e22ce,
+        isUnlocked: (s) =>
+          !!s.achievements?.['bat_hunter'] ||
+          !!s.challenges?.['night_bats'] ||
+          s.challenges?.['night_bats_unlocked'] === 'unlocked' ||
+          s.level >= 5,
+        lockHint: 'Defeat 5 swooping nocturnal bats in campaign combat to discover this secret trial!',
+        allowPets: true,
+      },
+      {
+        id: 'royal_hatchling',
+        badge: '👑 KEEPER TRIAL 3',
+        title: 'The Royal Hatchling',
+        subtitle: 'VIP ESCORT MISSION',
+        icon: 'crown',
+        iconScale: 1.15,
+        desc: 'Guard the crowned Royal Heir! Nurture the chick through fledgling and adult stages to full King ascension. If the Royal Heir starves or is snatched, you instantly lose!',
+        modifiers: '👑 VIP Heir Survival  •  🎯 Targeted Raids  •  💎 +30 Gems',
+        gemReward: 30,
+        bgGrad: 0x241808,
+        borderCol: 0xfacc15,
+        btnCol: 0xb45309,
+        isUnlocked: (s) => s.level >= 4 || !!s.challenges?.['predator_onslaught'],
+        lockHint: 'Clear World 1 or complete Predator Onslaught to unlock!',
+        allowPets: true,
+      },
+      {
+        id: 'apex_havoc',
+        badge: '🦅 KEEPER TRIAL 4',
+        title: 'Apex Havoc',
+        subtitle: 'CARNIVORE SANCTUARY',
+        icon: 'bird_piranha_finch',
+        iconScale: 1.2,
+        desc: 'Basic sparrows are banned! Build a thriving sanctuary of pure predators using Mama Birds, Peregrine Falcons, Cinder Geckos, and Sugar Gliders to purchase the 3,500c Golden Apex Egg!',
+        modifiers: '🚫 No Sparrows  •  🦎 Full Predator Chain  •  💎 +35 Gems',
+        gemReward: 35,
+        bgGrad: 0x261208,
+        borderCol: 0xf97316,
+        btnCol: 0xc2410c,
+        isUnlocked: (s) => s.level >= 8 || !!s.achievements?.['world2_clear'],
+        lockHint: 'Clear World 2 (Mountain Crags) to unlock this predatory trial!',
+        allowPets: true,
+      },
+      {
+        id: 'boss_rush',
+        badge: '⚔️ KEEPER TRIAL 5',
+        title: 'Predator Gauntlet',
+        subtitle: 'COLOSSEUM BOSS RUSH',
+        icon: 'slingshot_laser',
+        iconScale: 1.15,
+        desc: 'Face every apex threat in sequence: Alpha Weasel Pack, The Gluttonous Chef, Spider Broodmother with Dive Hawk, and the Vampire Bat King in the ultimate arena!',
+        modifiers: '🏆 4 Colosseum Bosses  •  ⚔️ Maximum Combat  •  💎 +50 Gems',
+        gemReward: 50,
+        bgGrad: 0x280d19,
+        borderCol: 0xf43f5e,
+        btnCol: 0xbe123c,
+        isUnlocked: (s) => s.level >= 12 || Object.values(s.challenges || {}).filter((v) => v === 'completed').length >= 2,
+        lockHint: 'Clear 2 Keeper Challenges or reach World 3-4 to unlock!',
+        allowPets: true,
+      },
+    ];
 
-    const playTrial1Btn = this.add.container(0, -cardH / 2 + 375);
-    const p1bg = this.add.graphics();
-    p1bg.fillStyle(0xb45309, 1);
-    p1bg.fillRoundedRect(-150, -24, 300, 48, 14);
-    p1bg.fillStyle(0xd97706, 1);
-    p1bg.fillRoundedRect(-150, -28, 300, 48, 14);
-    const p1txt = this.add.text(0, -4, onslaughtClear ? '⚔️  PLAY AGAIN' : '⚔️  PLAY TRIAL 1', {
-      fontFamily: FONT,
-      fontSize: '18px',
-      fontStyle: 'bold',
-      color: '#ffffff',
-    }).setOrigin(0.5);
-    playTrial1Btn.add([p1bg, p1txt]);
-    playTrial1Btn.setSize(300, 48).setInteractive({ useHandCursor: true });
-    playTrial1Btn.on('pointerdown', () => {
-      this.scene.start('Aviary', { challengeId: 'predator_onslaught' });
+    // Ensure selected challenge is valid
+    if (!challenges.some((c) => c.id === this.selectedChallengeId)) {
+      this.selectedChallengeId = 'predator_onslaught';
+    }
+
+    // --- LEFT COLUMN: CHALLENGE LIST TILES ---
+    const listX = 265;
+    const tileW = 420;
+    const tileH = 88;
+    const startY = 155;
+    const gapY = 96;
+
+    challenges.forEach((chal, i) => {
+      const tileY = startY + i * gapY;
+      const isSelected = chal.id === this.selectedChallengeId;
+      const isUnlocked = chal.isUnlocked(save);
+      const isCleared = save.challenges?.[chal.id] === 'completed';
+
+      const tile = this.add.container(listX, tileY);
+      const bg = this.add.graphics();
+
+      // Shadow
+      bg.fillStyle(0x000000, 0.4);
+      bg.fillRoundedRect(-tileW / 2 + 3, -tileH / 2 + 4, tileW, tileH, 14);
+
+      // Card Body
+      bg.fillStyle(isSelected ? chal.bgGrad : 0x13111c, isSelected ? 0.98 : 0.85);
+      bg.fillRoundedRect(-tileW / 2, -tileH / 2, tileW, tileH, 14);
+      bg.lineStyle(isSelected ? 3 : 1.5, isSelected ? chal.borderCol : 0x332b45, 1);
+      bg.strokeRoundedRect(-tileW / 2, -tileH / 2, tileW, tileH, 14);
+
+      // Icon
+      const iconImg = this.add.image(-tileW / 2 + 45, 0, chal.icon).setScale(chal.iconScale ? chal.iconScale * 0.72 : 0.85);
+      if (!isUnlocked) {
+        iconImg.setTint(0x475569);
+      }
+
+      // Title & Subtitle
+      const titleTxt = this.add.text(
+        -tileW / 2 + 95,
+        -16,
+        isUnlocked ? chal.title : '??? (Locked Trial)',
+        {
+          fontFamily: FONT,
+          fontSize: '17px',
+          fontStyle: 'bold',
+          color: isUnlocked ? (isSelected ? '#ffffff' : '#e2e8f0') : '#64748b',
+        }
+      );
+
+      const subTxt = this.add.text(
+        -tileW / 2 + 95,
+        10,
+        isUnlocked ? `${chal.subtitle} • 💎 +${chal.gemReward}` : 'Locked Secret Encounter',
+        {
+          fontFamily: FONT,
+          fontSize: '12px',
+          fontStyle: 'bold',
+          color: isUnlocked ? (isSelected ? '#fde047' : '#94a3b8') : '#475569',
+        }
+      );
+
+      // Status Pill on Right
+      const pillW = 95;
+      const pillH = 24;
+      const pillX = tileW / 2 - 60;
+      const pillBg = this.add.graphics();
+      pillBg.fillStyle(isCleared ? 0x064e3b : isUnlocked ? 0x451a03 : 0x1e293b, 0.9);
+      pillBg.fillRoundedRect(pillX - pillW / 2, -pillH / 2, pillW, pillH, 8);
+      pillBg.lineStyle(1, isCleared ? 0x34d399 : isUnlocked ? 0xf59e0b : 0x475569, 0.8);
+      pillBg.strokeRoundedRect(pillX - pillW / 2, -pillH / 2, pillW, pillH, 8);
+
+      const pillTxt = this.add.text(
+        pillX,
+        0,
+        isCleared ? '✓ CLEAR 🏆' : isUnlocked ? 'ACTIVE' : 'LOCKED 🔒',
+        {
+          fontFamily: FONT,
+          fontSize: '11px',
+          fontStyle: 'bold',
+          color: isCleared ? '#6ee7b7' : isUnlocked ? '#fbbf24' : '#94a3b8',
+        }
+      ).setOrigin(0.5);
+
+      tile.add([bg, iconImg, titleTxt, subTxt, pillBg, pillTxt]);
+      tile.setSize(tileW, tileH).setInteractive({ useHandCursor: true });
+
+      tile.on('pointerdown', () => {
+        playButtonClickSound();
+        this.selectedChallengeId = chal.id;
+        this.switchView('challenges');
+      });
+
+      tile.on('pointerover', () => {
+        if (!isSelected) this.tweens.add({ targets: tile, scale: 1.02, duration: 80 });
+      });
+      tile.on('pointerout', () => {
+        if (!isSelected) this.tweens.add({ targets: tile, scale: 1.0, duration: 80 });
+      });
     });
-    playTrial1Btn.on('pointerover', () => this.tweens.add({ targets: playTrial1Btn, scale: 1.04, duration: 100 }));
-    playTrial1Btn.on('pointerout', () => this.tweens.add({ targets: playTrial1Btn, scale: 1.0, duration: 100 }));
 
-    leftContainer.add([lg, lSection, lTitle, lBadge, eagleIcon, lDesc, lModBg, lModTxt, playTrial1Btn]);
+    // --- RIGHT COLUMN: ACTIVE CHALLENGE DETAIL CARD ---
+    const activeChal = challenges.find((c) => c.id === this.selectedChallengeId) || challenges[0];
+    const isUnlocked = activeChal.isUnlocked(save);
+    const isCleared = save.challenges?.[activeChal.id] === 'completed';
 
-    // --- CARD 2: SECRET TRIAL: NIGHT OF THE BATS ---
-    const batHunter = save.achievements?.['bat_hunter'];
-    const batClear = save.challenges?.['night_bats'] === 'completed';
-    const isBatUnlocked =
-      !!batHunter ||
-      !!batClear ||
-      save.challenges?.['night_bats_unlocked'] === 'unlocked' ||
-      save.level >= 5;
+    const cardX = 845;
+    const cardY = 345;
+    const cardW = 600;
+    const cardH = 475;
 
-    const rightX = W / 2 + cardW / 2 + 20;
-    const rightContainer = this.add.container(rightX, cardY);
+    const rightContainer = this.add.container(cardX, cardY);
     const rg = this.add.graphics();
-    rg.fillStyle(0x000000, 0.45);
-    rg.fillRoundedRect(-cardW / 2 + 4, -cardH / 2 + 6, cardW, cardH, 18);
 
-    if (!isBatUnlocked) {
-      // Mystery Locked Card
-      rg.fillStyle(0x0f0b17, 0.95);
-      rg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 18);
-      rg.lineStyle(3, 0x4c1d95, 1);
-      rg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 18);
+    // Backdrop shadow
+    rg.fillStyle(0x000000, 0.5);
+    rg.fillRoundedRect(-cardW / 2 + 5, -cardH / 2 + 6, cardW, cardH, 20);
 
-      const rSec = this.add.text(0, -cardH / 2 + 26, '🔒 SECRET CHALLENGE', {
+    // Card Surface
+    rg.fillStyle(isUnlocked ? activeChal.bgGrad : 0x0f0b17, 0.96);
+    rg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 20);
+    rg.lineStyle(3, isUnlocked ? activeChal.borderCol : 0x4c1d95, 1);
+    rg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 20);
+
+    if (!isUnlocked) {
+      // Locked Card Presentation
+      const rSec = this.add.text(0, -cardH / 2 + 30, '🔒 LOCKED SECRET CHALLENGE', {
         fontFamily: FONT,
         fontSize: '16px',
         fontStyle: 'bold',
         color: '#a855f7',
       }).setOrigin(0.5);
 
-      const rTitle = this.add.text(0, -cardH / 2 + 56, '??? (Hidden Trial)', {
+      const rTitle = this.add.text(0, -cardH / 2 + 64, '??? (Hidden Encounter)', {
         fontFamily: FONT,
-        fontSize: '26px',
+        fontSize: '28px',
         fontStyle: 'bold',
         color: '#94a3b8',
       }).setOrigin(0.5);
 
-      const rBadge = this.add.text(0, -cardH / 2 + 90, 'LOCKED SECRET', {
-        fontFamily: FONT,
-        fontSize: '12px',
-        fontStyle: 'bold',
-        color: '#ef4444',
-      }).setOrigin(0.5);
-
-      // Silhouette Icon with Padlock
-      const lockSilhouette = this.add.image(0, -cardH / 2 + 145, 'enemy_bat').setScale(1.25).setTint(0x1e1528);
-      const lockIcon = this.add.text(0, -cardH / 2 + 145, '🔒', { fontSize: '42px' }).setOrigin(0.5);
+      const lockSilhouette = this.add.image(0, -cardH / 2 + 155, activeChal.icon).setScale(1.3).setTint(0x1e1528);
+      const lockIcon = this.add.text(0, -cardH / 2 + 155, '🔒', { fontSize: '46px' }).setOrigin(0.5);
 
       const rDesc = this.add.text(
         0,
-        -cardH / 2 + 225,
-        'A shadowy nocturnal terror lurks in the midnight canopy.\n\nDefeat 5 swooping nocturnal bats in campaign combat to discover and unlock this secret trial!',
+        -cardH / 2 + 250,
+        `A fearsome trial awaits your flock.\n\n${activeChal.lockHint}`,
         {
           fontFamily: FONT,
-          fontSize: '14px',
-          color: '#94a3b8',
+          fontSize: '15px',
+          color: '#cbd5e1',
           align: 'center',
-          wordWrap: { width: cardW - 60 },
+          wordWrap: { width: cardW - 70 },
         }
       ).setOrigin(0.5);
 
-      const rModBg = this.add.graphics();
-      rModBg.fillStyle(0x181028, 0.9);
-      rModBg.fillRoundedRect(-cardW / 2 + 30, -cardH / 2 + 280, cardW - 60, 48, 12);
-      rModBg.lineStyle(1.5, 0x3b1d54, 0.7);
-      rModBg.strokeRoundedRect(-cardW / 2 + 30, -cardH / 2 + 280, cardW - 60, 48, 12);
-
-      const rModTxt = this.add.text(
-        0,
-        -cardH / 2 + 304,
-        '🔒 Hidden Nocturnal Encounter  •  👑 Mystery Boss',
-        {
-          fontFamily: FONT,
-          fontSize: '13px',
-          fontStyle: 'bold',
-          color: '#64748b',
-        }
-      ).setOrigin(0.5);
-
-      const lockBtn = this.add.container(0, -cardH / 2 + 375);
+      const lockBtn = this.add.container(0, -cardH / 2 + 400);
       const lbg = this.add.graphics();
       lbg.fillStyle(0x334155, 1);
       lbg.fillRoundedRect(-150, -24, 300, 48, 14);
-      const ltxt = this.add.text(0, -4, '🔒  LOCKED', {
+      const ltxt = this.add.text(0, -2, '🔒  LOCKED', {
         fontFamily: FONT,
         fontSize: '18px',
         fontStyle: 'bold',
         color: '#94a3b8',
       }).setOrigin(0.5);
       lockBtn.add([lbg, ltxt]);
-      lockBtn.setSize(300, 48).setInteractive({ useHandCursor: true });
-      lockBtn.on('pointerdown', () => {
-        this.showLockedToast('Defeat 5 swooping bats in the campaign to unlock!');
-      });
 
-      rightContainer.add([rg, rSec, rTitle, rBadge, lockSilhouette, lockIcon, rDesc, rModBg, rModTxt, lockBtn]);
+      rightContainer.add([rg, rSec, rTitle, lockSilhouette, lockIcon, rDesc, lockBtn]);
     } else {
-      // Unlocked Secret Card
-      rg.fillStyle(0x160e29, 0.95);
-      rg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 18);
-      rg.lineStyle(3, 0xc084fc, 1);
-      rg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 18);
-
-      const rSec = this.add.text(0, -cardH / 2 + 26, '🦇 SECRET CHALLENGE UNLOCKED!', {
+      // Unlocked Active Card Presentation
+      const rSec = this.add.text(0, -cardH / 2 + 28, activeChal.badge, {
         fontFamily: FONT,
-        fontSize: '16px',
+        fontSize: '15px',
         fontStyle: 'bold',
-        color: '#c084fc',
+        color: '#fbbf24',
       }).setOrigin(0.5);
 
-      const rTitle = this.add.text(0, -cardH / 2 + 56, 'Night of the Bats', {
+      const rTitle = this.add.text(0, -cardH / 2 + 58, activeChal.title, {
         fontFamily: FONT,
-        fontSize: '26px',
+        fontSize: '27px',
         fontStyle: 'bold',
         color: '#ffffff',
       }).setOrigin(0.5);
 
-      const rBadge = this.add.text(0, -cardH / 2 + 90, batClear ? '✓ COMPLETED 🏆' : '✨ NEW TRIAL', {
+      const rBadge = this.add.text(0, -cardH / 2 + 90, isCleared ? '✓ COMPLETED 🏆' : activeChal.subtitle, {
         fontFamily: FONT,
         fontSize: '12px',
         fontStyle: 'bold',
-        color: batClear ? '#4ade80' : '#fbbf24',
+        color: isCleared ? '#4ade80' : '#fde047',
       }).setOrigin(0.5);
 
-      const batIcon = this.add.image(0, -cardH / 2 + 145, 'enemy_bat').setScale(1.25);
-      this.tweens.add({ targets: batIcon, y: -cardH / 2 + 140, duration: 900, yoyo: true, repeat: -1 });
+      // Hero Artwork with gentle float
+      const heroIcon = this.add.image(0, -cardH / 2 + 145, activeChal.icon).setScale(activeChal.iconScale ?? 1.2);
+      this.tweens.add({
+        targets: heroIcon,
+        y: heroIcon.y - 6,
+        duration: 1800,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
 
       const rDesc = this.add.text(
         0,
         -cardH / 2 + 225,
-        'The sun has set and deep darkness shrouds the forest canopy. Fend off incoming waves of fluttering Scout Bats, Shadow Bats, and slay the colossal Vampire Bat King!',
+        activeChal.desc,
         {
           fontFamily: FONT,
           fontSize: '14px',
@@ -1720,45 +1821,133 @@ export class MenuScene extends Phaser.Scene {
         }
       ).setOrigin(0.5);
 
+      // Modifiers ribbon
       const rModBg = this.add.graphics();
-      rModBg.fillStyle(0x2a1742, 0.9);
-      rModBg.fillRoundedRect(-cardW / 2 + 30, -cardH / 2 + 280, cardW - 60, 48, 12);
-      rModBg.lineStyle(1.5, 0x9333ea, 0.7);
-      rModBg.strokeRoundedRect(-cardW / 2 + 30, -cardH / 2 + 280, cardW - 60, 48, 12);
+      rModBg.fillStyle(0x0a0612, 0.85);
+      rModBg.fillRoundedRect(-cardW / 2 + 30, -cardH / 2 + 276, cardW - 60, 42, 12);
+      rModBg.lineStyle(1.5, activeChal.borderCol, 0.6);
+      rModBg.strokeRoundedRect(-cardW / 2 + 30, -cardH / 2 + 276, cardW - 60, 42, 12);
 
       const rModTxt = this.add.text(
         0,
-        -cardH / 2 + 304,
-        '🌙 Deep Midnight  •  🦇 Swooping Bats  •  💎 +35 Gems Reward',
+        -cardH / 2 + 297,
+        activeChal.modifiers,
         {
           fontFamily: FONT,
           fontSize: '13px',
           fontStyle: 'bold',
-          color: '#f3e8ff',
+          color: '#fef3c7',
         }
       ).setOrigin(0.5);
 
-      const playBatBtn = this.add.container(0, -cardH / 2 + 375);
-      const pbg = this.add.graphics();
-      pbg.fillStyle(0x6b21a8, 1);
-      pbg.fillRoundedRect(-150, -24, 300, 48, 14);
-      pbg.fillStyle(0x9333ea, 1);
-      pbg.fillRoundedRect(-150, -28, 300, 48, 14);
-      const ptxt = this.add.text(0, -4, '🦇  PLAY NIGHT CHALLENGE', {
-        fontFamily: FONT,
-        fontSize: '18px',
-        fontStyle: 'bold',
-        color: '#ffffff',
-      }).setOrigin(0.5);
-      playBatBtn.add([pbg, ptxt]);
-      playBatBtn.setSize(300, 48).setInteractive({ useHandCursor: true });
-      playBatBtn.on('pointerdown', () => {
-        this.scene.start('Aviary', { challengeId: 'night_bats' });
-      });
-      playBatBtn.on('pointerover', () => this.tweens.add({ targets: playBatBtn, scale: 1.04, duration: 100 }));
-      playBatBtn.on('pointerout', () => this.tweens.add({ targets: playBatBtn, scale: 1.0, duration: 100 }));
+      // Companion Selection Bar (for challenges that allow companions)
+      const companionContainer = this.add.container(0, -cardH / 2 + 345);
+      if (activeChal.allowPets) {
+        const unlockedPets = getUnlockedPets(this.maxUnlockedLevel);
+        const chosenArray = Array.from(this.chosen).slice(0, 3);
 
-      rightContainer.add([rg, rSec, rTitle, rBadge, batIcon, rDesc, rModBg, rModTxt, playBatBtn]);
+        const compLabel = this.add.text(
+          -cardW / 2 + 45,
+          0,
+          `🐾 Companions (${chosenArray.length}/3):`,
+          {
+            fontFamily: FONT,
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#fde047',
+          }
+        ).setOrigin(0, 0.5);
+        companionContainer.add(compLabel);
+
+        // Pet icons
+        chosenArray.forEach((petKey, idx) => {
+          const px = -cardW / 2 + 225 + idx * 48;
+          const petBg = this.add.graphics();
+          petBg.fillStyle(0x2d1b4e, 1);
+          petBg.fillCircle(px, 0, 18);
+          petBg.lineStyle(1.5, 0xf59e0b, 0.9);
+          petBg.strokeCircle(px, 0, 18);
+          const pImg = this.add.image(px, 0, 'pet_' + petKey).setScale(0.38);
+          companionContainer.add([petBg, pImg]);
+        });
+
+        // Quick Cycle / Change Button
+        const changeBtn = this.add.container(cardW / 2 - 110, 0);
+        const cbg = this.add.graphics();
+        cbg.fillStyle(0x312e81, 1);
+        cbg.fillRoundedRect(-55, -14, 110, 28, 8);
+        cbg.lineStyle(1.5, 0x818cf8, 0.9);
+        cbg.strokeRoundedRect(-55, -14, 110, 28, 8);
+        const ctxt = this.add.text(0, 0, 'CHANGE 🐾', {
+          fontFamily: FONT,
+          fontSize: '11px',
+          fontStyle: 'bold',
+          color: '#ffffff',
+        }).setOrigin(0.5);
+        changeBtn.add([cbg, ctxt]);
+        changeBtn.setSize(110, 28).setInteractive({ useHandCursor: true });
+        changeBtn.on('pointerdown', () => {
+          playButtonClickSound();
+          // Cycle selected pets through unlocked companions
+          if (unlockedPets.length > 0) {
+            const allKeys = unlockedPets.map((p) => p.key);
+            const current = Array.from(this.chosen);
+            const firstIdx = allKeys.indexOf(current[0] ?? '');
+            const nextIdx = (firstIdx + 1) % allKeys.length;
+            this.chosen.clear();
+            for (let k = 0; k < Math.min(3, allKeys.length); k++) {
+              this.chosen.add(allKeys[(nextIdx + k) % allKeys.length]);
+            }
+            this.switchView('challenges');
+          }
+        });
+        changeBtn.on('pointerover', () => this.tweens.add({ targets: changeBtn, scale: 1.05, duration: 80 }));
+        changeBtn.on('pointerout', () => this.tweens.add({ targets: changeBtn, scale: 1.0, duration: 80 }));
+        companionContainer.add(changeBtn);
+      } else {
+        const soloTxt = this.add.text(0, 0, '🛡️ Solo Keeper Mode — Companions Not Permitted', {
+          fontFamily: FONT,
+          fontSize: '13px',
+          fontStyle: 'bold',
+          color: '#cbd5e1',
+        }).setOrigin(0.5);
+        companionContainer.add(soloTxt);
+      }
+
+      // Main Action Launch Button
+      const playBtn = this.add.container(0, -cardH / 2 + 412);
+      const pbg = this.add.graphics();
+      pbg.fillStyle(activeChal.btnCol, 1);
+      pbg.fillRoundedRect(-160, -24, 320, 48, 14);
+      pbg.lineStyle(2, 0xffffff, 0.4);
+      pbg.strokeRoundedRect(-160, -24, 320, 48, 14);
+
+      const ptxt = this.add.text(
+        0,
+        -2,
+        isCleared ? '⚔️  PLAY AGAIN' : '⚔️  START TRIAL',
+        {
+          fontFamily: FONT,
+          fontSize: '19px',
+          fontStyle: 'bold',
+          color: '#ffffff',
+        }
+      ).setOrigin(0.5);
+
+      playBtn.add([pbg, ptxt]);
+      playBtn.setSize(320, 48).setInteractive({ useHandCursor: true });
+      playBtn.on('pointerdown', () => {
+        playButtonClickSound();
+        this.scene.start('Aviary', {
+          challengeId: activeChal.id,
+          pets: activeChal.allowPets ? Array.from(this.chosen) : [],
+        });
+      });
+
+      playBtn.on('pointerover', () => this.tweens.add({ targets: playBtn, scale: 1.04, duration: 100 }));
+      playBtn.on('pointerout', () => this.tweens.add({ targets: playBtn, scale: 1.0, duration: 100 }));
+
+      rightContainer.add([rg, rSec, rTitle, rBadge, heroIcon, rDesc, rModBg, rModTxt, companionContainer, playBtn]);
     }
 
     this.createBackButton();
