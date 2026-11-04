@@ -2848,6 +2848,244 @@ export class SugarGlider {
   }
 }
 
+// ------------------------------------------------------------------- Cinder Gecko (World 4 Non-Bird Intermediate)
+export class CinderGecko {
+  scene: AviaryScene;
+  spr: Phaser.GameObjects.Container;
+  body: Phaser.GameObjects.Image;
+  shadow: Phaser.GameObjects.Image;
+  flip: Phaser.GameObjects.Container;
+  tongueGfx: Phaser.GameObjects.Graphics;
+  state: 'perch' | 'crawl' | 'strike' = 'perch';
+  tx = 0;
+  ty = 0;
+  dir = 1;
+  stateTimer = 2.0;
+  huntTimer = 1.5;
+  strikeTimer = 0;
+  targetChick?: Bird;
+  chewingTimer = 0;
+
+  constructor(scene: AviaryScene, x: number, y: number) {
+    this.scene = scene;
+    this.tx = x;
+    this.ty = y;
+
+    this.shadow = scene.add.image(x, 595, 'shadow_bird_adult').setDepth(3).setAlpha(0.24).setScale(0.65, 0.3);
+
+    this.tongueGfx = scene.add.graphics().setDepth(17);
+    this.body = scene.add.image(0, 0, 'cinder_gecko_perch');
+    this.flip = scene.add.container(0, 0, [this.body]);
+    this.spr = scene.add.container(x, y, [this.flip]).setDepth(16);
+    this.spr.setSize(56, 40).setInteractive({ useHandCursor: true });
+
+    this.spr.on('pointerdown', () => {
+      this.scene.burst(this.spr.x, this.spr.y, 0xf97316, 12);
+      this.scene.burst(this.spr.x, this.spr.y, 0xfde047, 8);
+      this.scene.floatText(this.spr.x, this.spr.y - 25, '🦎 HISS-PURR! ✨', '#fde047', '#451a03');
+      this.scene.tweens.add({
+        targets: this.flip,
+        scaleY: 1.3,
+        scaleX: this.dir * 0.8,
+        duration: 160,
+        yoyo: true,
+        ease: 'Quad.easeOut',
+      });
+    });
+
+    this.chooseNextSpot();
+  }
+
+  chooseNextSpot() {
+    const validTargets: { x: number; y: number }[] = [];
+    for (const sp of this.scene.spots) {
+      validTargets.push({
+        x: sp.x + (Math.random() - 0.5) * 20,
+        y: sp.y - (sp.nest ? 12 : 8),
+      });
+    }
+    const trees = this.scene.currentLayout?.trees ?? [];
+    for (const tr of trees) {
+      for (const yOffset of [240, 310, 390, 460]) {
+        validTargets.push({
+          x: tr.trunkX + (tr.trunkX < W / 2 ? 24 : -24),
+          y: yOffset,
+        });
+      }
+    }
+    const candidates = validTargets.filter((t) => Phaser.Math.Distance.Between(this.spr.x, this.spr.y, t.x, t.y) > 70);
+    const target = candidates.length > 0
+      ? Phaser.Utils.Array.GetRandom(candidates)
+      : validTargets.length > 0
+      ? Phaser.Utils.Array.GetRandom(validTargets)
+      : { x: 260, y: 320 };
+
+    this.tx = target.x;
+    this.ty = target.y;
+    this.state = 'crawl';
+    this.stateTimer = 5.0;
+    this.body.setTexture('cinder_gecko_crawl');
+  }
+
+  findNearbyChick(): Bird | undefined {
+    let best: Bird | undefined;
+    let bd = 280; // Extended tongue strike range!
+    for (const b of this.scene.birds) {
+      if (b.dead || b.stage !== 0 || b.isBreeder) continue;
+      const d = Phaser.Math.Distance.Between(this.spr.x, this.spr.y, b.spr.x, b.spr.y);
+      if (d < bd) {
+        bd = d;
+        best = b;
+      }
+    }
+    return best;
+  }
+
+  update(dt: number, t: number) {
+    if (this.chewingTimer > 0) {
+      this.chewingTimer -= dt;
+      this.body.scaleY = 1 + Math.sin(t * 0.03) * 0.12;
+      this.body.scaleX = 1 - Math.sin(t * 0.03) * 0.08;
+      return;
+    }
+
+    // Scan for baby chicks to hunt with tongue
+    this.huntTimer -= dt;
+    if (this.state !== 'strike' && this.huntTimer <= 0) {
+      this.huntTimer = 1.2;
+      const chick = this.findNearbyChick();
+      if (chick) {
+        this.targetChick = chick;
+        this.state = 'strike';
+        this.strikeTimer = 0;
+        this.dir = chick.spr.x < this.spr.x ? -1 : 1;
+        this.flip.scaleX = this.dir;
+        this.body.setTexture('cinder_gecko_perch');
+      }
+    }
+
+    if (this.state === 'strike') {
+      const chick = this.targetChick;
+      if (!chick || chick.dead || chick.stage !== 0) {
+        this.tongueGfx.clear();
+        this.state = 'perch';
+        this.stateTimer = 1.5;
+        this.targetChick = undefined;
+        return;
+      }
+
+      this.strikeTimer += dt;
+      const mouthX = this.spr.x + this.dir * 24;
+      const mouthY = this.spr.y - 4;
+      const targetX = chick.spr.x;
+      const targetY = chick.spr.y;
+
+      const strikeDuration = 0.38; // 380ms lightning tongue extension
+      const pullDuration = 0.28;   // 280ms reel-in
+
+      if (this.strikeTimer <= strikeDuration) {
+        // Shooting tongue out towards chick!
+        const progress = Phaser.Math.Clamp(this.strikeTimer / strikeDuration, 0, 1);
+        const easeProg = Phaser.Math.Easing.Cubic.Out(progress);
+        const curX = Phaser.Math.Linear(mouthX, targetX, easeProg);
+        const curY = Phaser.Math.Linear(mouthY, targetY, easeProg);
+
+        this.tongueGfx.clear();
+        this.tongueGfx.lineStyle(3.5, 0xf43f5e, 1);
+        this.tongueGfx.lineBetween(mouthX, mouthY, curX, curY);
+        this.tongueGfx.fillStyle(0xfb7185, 1);
+        this.tongueGfx.fillCircle(curX, curY, 4.5);
+      } else if (this.strikeTimer <= strikeDuration + pullDuration) {
+        // Latched! Reeling chick back into jaws!
+        const pullProgress = Phaser.Math.Clamp((this.strikeTimer - strikeDuration) / pullDuration, 0, 1);
+        const easePull = Phaser.Math.Easing.Quadratic.In(pullProgress);
+        const curX = Phaser.Math.Linear(targetX, mouthX, easePull);
+        const curY = Phaser.Math.Linear(targetY, mouthY, easePull);
+
+        chick.spr.x = curX;
+        chick.spr.y = curY;
+        chick.spr.rotation = this.strikeTimer * 12;
+
+        this.tongueGfx.clear();
+        this.tongueGfx.lineStyle(3.5, 0xf43f5e, 1);
+        this.tongueGfx.lineBetween(mouthX, mouthY, curX, curY);
+        this.tongueGfx.fillStyle(0xfb7185, 1);
+        this.tongueGfx.fillCircle(curX, curY, 4.5);
+      } else {
+        // Chomp! Devoured!
+        this.tongueGfx.clear();
+        this.scene.killBird(chick, 'eaten');
+        this.targetChick = undefined;
+        this.state = 'perch';
+        this.stateTimer = 2.0;
+        this.chewingTimer = 2.2;
+        this.huntTimer = 3.5;
+
+        playBirdEatSound();
+        this.scene.burst(mouthX, mouthY, 0xf97316, 18);
+        this.scene.burst(mouthX, mouthY, 0xfde047, 14);
+
+        // Drop glowing Amber Nectar for Sugar Glider!
+        this.scene.dropCoin(this.spr.x, this.spr.y + 12, 200, 'drop_nectar');
+        this.scene.floatText(this.spr.x, this.spr.y - 30, '🦎 ZAP-CHOMP! +Amber Nectar!', '#fde047', '#7c2d12');
+        this.scene.toast('🦎 Cinder Gecko snatched a baby chick with its tongue and dropped glowing Amber Nectar (200c)!');
+      }
+      return;
+    }
+
+    if (this.state === 'perch') {
+      this.stateTimer -= dt;
+      // Reptilian throat pouch breathing
+      this.body.y = Math.sin(t * 0.005) * 1.2;
+      if (this.stateTimer <= 0) {
+        this.chooseNextSpot();
+      }
+    } else if (this.state === 'crawl') {
+      const dx = this.tx - this.spr.x;
+      const dy = this.ty - this.spr.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dx > 4) this.dir = 1;
+      else if (dx < -4) this.dir = -1;
+      this.flip.scaleX = this.dir;
+
+      const speed = 75; // Slower, deliberate creeping gecko crawl
+      const step = speed * dt;
+
+      // Climbing pitch along vertical/diagonal bark
+      const angle = Math.atan2(dy, Math.abs(dx));
+      this.flip.rotation = this.dir * Phaser.Math.Clamp(angle, -0.65, 0.65);
+
+      // Body wiggle along stride
+      this.body.y = Math.sin(t * 0.02) * 1.5;
+
+      if (dist <= step || dist < 8) {
+        this.spr.x = this.tx;
+        this.spr.y = this.ty;
+        this.state = 'perch';
+        this.stateTimer = 3.0 + Math.random() * 3.5;
+        this.body.setTexture('cinder_gecko_perch');
+        this.flip.rotation = 0;
+      } else {
+        this.spr.x += (dx / dist) * step;
+        this.spr.y += (dy / dist) * step;
+      }
+    }
+
+    this.shadow.x = this.spr.x;
+    const altitude = Math.max(0, 595 - this.spr.y);
+    const altNorm = Phaser.Math.Clamp(altitude / 450, 0, 1);
+    this.shadow.setScale((0.6 + altNorm * 0.4) * 0.65, (0.3 + altNorm * 0.2) * 0.3);
+    this.shadow.setAlpha(Phaser.Math.Clamp(0.24 - altNorm * 0.15, 0.06, 0.24));
+  }
+
+  destroy() {
+    this.tongueGfx.destroy();
+    this.shadow.destroy();
+    this.spr.destroy();
+  }
+}
+
 // ------------------------------------------------------------------- UI
 type ButtonState = 'normal' | 'selected' | 'disabled' | 'locked';
 
@@ -2934,6 +3172,7 @@ export class AviaryScene extends Phaser.Scene {
   predators: Predator[] = [];
   pets: Pet[] = [];
   gliders: SugarGlider[] = [];
+  geckos: CinderGecko[] = [];
   waveIndex = 0;
   waveTimer = 0;
   waveWarning = false;
@@ -3021,6 +3260,7 @@ export class AviaryScene extends Phaser.Scene {
     this.predators = [];
     this.pets = [];
     this.gliders = [];
+    this.geckos = [];
     this.missiles = [];
     this.webs = [];
     this.pinecones = [];
@@ -3092,6 +3332,8 @@ export class AviaryScene extends Phaser.Scene {
     this.pets = [];
     this.gliders.forEach((g) => g.destroy());
     this.gliders = [];
+    this.geckos.forEach((g) => g.destroy());
+    this.geckos = [];
     this.shops = [];
     this.clouds = [];
     this.waveIndex = 0;
@@ -3169,6 +3411,7 @@ export class AviaryScene extends Phaser.Scene {
     this.predators = [];
     this.pets = [];
     this.gliders = [];
+    this.geckos = [];
     this.missiles = [];
     this.webs = [];
     this.pinecones = [];
@@ -4434,25 +4677,26 @@ export class AviaryScene extends Phaser.Scene {
       }, totalButtons);
     }
 
-    // Slot in World 4: Ember Shrike & Sugar Glider
+    // Slot in World 4: Cinder Gecko & Sugar Glider (Two Non-Bird Canopy Creatures!)
     if (worldId >= 4) {
-      // Ember Shrike (Nectar Harvester)
-      this.addShop(idx++, 'Ember Shrike', 'bird_ember_shrike', 0.5, {
+      // Cinder Gecko (Flame Chameleon - Non-Bird Intermediate Predator)
+      this.addShop(idx++, 'Cinder Gecko', 'cinder_gecko_icon', 0.95, {
         cost: () => 300,
         enabled: () => true,
         unlocked: () => this.birds.some((b) => b.stage >= 2 || b.isBreeder),
-        lockedReason: () => 'Grow a bird to Adult to unlock Ember Shrike!',
+        lockedReason: () => 'Grow a bird to Adult to unlock Cinder Gecko!',
         texts: () => {
           const locked = !this.birds.some((b) => b.stage >= 2 || b.isBreeder);
           return {
             sub: locked ? '🔒' : '300',
-            tiny: locked ? 'Need Adult' : 'Hunts chicks -> Nectar',
+            tiny: locked ? 'Need Adult' : 'Tongue hunts chicks -> Nectar',
           };
         },
         buy: () => {
           this.coins -= 300;
-          this.birds.push(new Bird(this, Phaser.Math.Between(100, 600), -40, 2, false, false, 'ember_shrike'));
-          this.toast('🔥 Ember Shrike joined! Crunches feeder chicks and drops sweet Amber Nectar (200c)!');
+          const gecko = new CinderGecko(this, Phaser.Math.Between(160, W - 160), 320);
+          this.geckos.push(gecko);
+          this.toast('🦎 Cinder Gecko joined! Snatches feeder chicks with its tongue and drops sweet Amber Nectar (200c)!');
         },
       }, totalButtons);
 
@@ -4460,13 +4704,13 @@ export class AviaryScene extends Phaser.Scene {
       this.addShop(idx++, 'Sugar Glider', 'sugar_glider_icon', 0.95, {
         cost: () => 450,
         enabled: () => true,
-        unlocked: () => this.birds.some((b) => b.species.key === 'ember_shrike') || this.eggs >= 1,
-        lockedReason: () => 'Need an Ember Shrike in your flock to unlock Sugar Glider!',
+        unlocked: () => this.geckos.length > 0 || this.eggs >= 1,
+        lockedReason: () => 'Need a Cinder Gecko in your aviary to unlock Sugar Glider!',
         texts: () => {
-          const locked = !this.birds.some((b) => b.species.key === 'ember_shrike') && this.eggs < 1;
+          const locked = this.geckos.length === 0 && this.eggs < 1;
           return {
             sub: locked ? '🔒' : '450',
-            tiny: locked ? 'Need Ember Shrike' : 'Eats Nectar -> Cinder Acorn',
+            tiny: locked ? 'Need Gecko' : 'Eats Nectar -> Cinder Acorn',
           };
         },
         buy: () => {
@@ -5188,14 +5432,6 @@ export class AviaryScene extends Phaser.Scene {
       this.dropCoin(hunter.spr.x, hunter.spr.y + 15, 150, 'drop_beetle');
       this.floatText(hunter.spr.x, hunter.spr.y - 40, '🪲 +Golden Beetle!', '#f59e0b', '#78350f');
       this.toast('The Tree Creeper crunched a feeder chick and dropped a Golden Tree Beetle (150c)!');
-      return;
-    }
-
-    // Ember Shrike special amber nectar drop (feeder for Sugar Glider)
-    if (hunter.species.key === 'ember_shrike') {
-      this.dropCoin(hunter.spr.x, hunter.spr.y + 15, 200, 'drop_nectar');
-      this.floatText(hunter.spr.x, hunter.spr.y - 40, '🍯 +Amber Nectar!', '#f59e0b', '#78350f');
-      this.toast('The Ember Shrike hunted a chick and dropped sweet glowing Amber Nectar (200c)!');
       return;
     }
 
@@ -8563,6 +8799,7 @@ export class AviaryScene extends Phaser.Scene {
     for (const b of [...this.birds]) b.update(dt, time);
     for (const p of this.pets) p.update(dt, time);
     for (const g of this.gliders) g.update(dt, time);
+    for (const g of this.geckos) g.update(dt, time);
     for (const p of this.predators) {
       p.update(dt, time);
       if (!p.dying && p.stun <= 0) {

@@ -206,7 +206,6 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
   const isOwl = key === 'owl' || s.horns;
   const isToucan = key === 'toucan';
   const isTreeCreeper = key === 'tree_creeper';
-  const isShrike = key === 'ember_shrike';
   const isPhoenix = key === 'phoenix';
   const isFalcon = key === 'piranha_finch' || key === 'falcon';
   const isCanary = key === 'canary';
@@ -428,13 +427,6 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
     g.fillTriangle(beakX, beakY - 3, beakX + tcbLen, beakY + 4, beakX, beakY + 3);
     g.lineStyle(1.6, 0x8d6e63, 1);
     g.lineBetween(beakX, beakY, beakX + tcbLen, beakY + 4);
-  } else if (isShrike) {
-    // Sharp hooked butcherbird beak with raptor tooth notch
-    const sbLen = stage === 0 ? 14 : stage === 1 ? 18 : 22;
-    g.fillStyle(0xfde047, 1);
-    g.fillTriangle(beakX, beakY - 4, beakX + sbLen, beakY + 1, beakX, beakY + 5);
-    g.fillStyle(0x18181b, 1);
-    g.fillTriangle(beakX + sbLen - 5, beakY + 1, beakX + sbLen, beakY + 1, beakX + sbLen - 2, beakY + 7);
   } else if (isFalcon) {
     // Sharp Hooked Raptor Tearing Beak with Tomial Tooth Notch!
     const fbLen = stage === 0 ? 14 : stage === 1 ? 18 : 22;
@@ -1756,6 +1748,124 @@ export function makeTextures(scene: Phaser.Scene) {
   g.fillStyle(0xf43f5e, 1);
   g.fillCircle(22, 24, 2);
   g.generateTexture('sugar_glider_icon', 44, 44);
+
+  // ---------- Cinder Gecko / Flame Chameleon (World 4 Non-Bird Intermediate) ----------
+  // cinder_gecko_perch (Resting on trunk / branch with prehensile tail and alert turret eye)
+  g.clear();
+  // Curled prehensile tail
+  g.lineStyle(4.5, 0x9a3412, 1);
+  g.beginPath();
+  g.arc(14, 28, 9, 0, Math.PI * 1.6, false);
+  g.strokePath();
+  g.fillStyle(0xd97706, 1);
+  g.fillCircle(14, 37, 2.5); // tail curled tip
+  // Reptilian Torso (burnt sienna / magma amber)
+  g.fillStyle(0x7c2d12, 1);
+  g.fillEllipse(36, 26, 26, 18);
+  // Fiery glowing belly
+  g.fillStyle(0xf97316, 1);
+  g.fillEllipse(38, 28, 20, 12);
+  // Spines along back
+  g.fillStyle(0xfde047, 1);
+  g.fillTriangle(26, 18, 28, 12, 30, 18);
+  g.fillTriangle(33, 17, 35, 11, 37, 17);
+  g.fillTriangle(40, 18, 42, 13, 44, 18);
+  // Clawed Gecko Limbs gripping bark
+  g.lineStyle(3.2, 0x9a3412, 1);
+  g.lineBetween(28, 30, 24, 40);
+  g.lineBetween(44, 30, 48, 40);
+  // Suction toe pads
+  g.fillStyle(0xf97316, 1);
+  g.fillCircle(22, 41, 2.8);
+  g.fillCircle(25, 42, 2.8);
+  g.fillCircle(47, 41, 2.8);
+  g.fillCircle(50, 42, 2.8);
+  // Chameleon Casque Head
+  g.fillStyle(0x7c2d12, 1);
+  g.fillEllipse(50, 21, 16, 14);
+  g.fillTriangle(44, 14, 52, 9, 54, 18); // raised helmet crest
+  g.fillStyle(0xea580c, 1);
+  g.fillTriangle(45, 14, 51, 11, 52, 17);
+  // Bulging Turret Eye
+  g.fillStyle(0xc2410c, 1);
+  g.fillCircle(51, 19, 5.5);
+  g.fillStyle(0xfde047, 1);
+  g.fillCircle(51.5, 19, 4.2);
+  g.fillStyle(0x000000, 1);
+  g.fillRect(51, 16, 1.8, 6); // vertical reptile slit pupil
+  g.fillStyle(0xffffff, 1);
+  g.fillCircle(50.5, 17.5, 1.2);
+  // Throat pouch
+  g.fillStyle(0xf97316, 0.9);
+  g.fillEllipse(52, 26, 7, 5);
+  g.generateTexture('cinder_gecko_perch', 68, 48);
+
+  // cinder_gecko_crawl (Active crawling gait with flexed limbs)
+  g.clear();
+  // Extended tail waving with momentum
+  g.lineStyle(4, 0x9a3412, 1);
+  g.lineBetween(10, 32, 24, 24);
+  g.fillStyle(0xd97706, 1);
+  g.fillCircle(9, 33, 2.5);
+  // Stretched crawling body
+  g.fillStyle(0x7c2d12, 1);
+  g.fillEllipse(38, 24, 30, 16);
+  g.fillStyle(0xf97316, 1);
+  g.fillEllipse(40, 25, 24, 10);
+  // Spines
+  g.fillStyle(0xfde047, 1);
+  g.fillTriangle(28, 16, 30, 10, 32, 16);
+  g.fillTriangle(36, 15, 38, 9, 40, 15);
+  g.fillTriangle(44, 16, 46, 11, 48, 16);
+  // Stepping splayed legs
+  g.lineStyle(3.2, 0x9a3412, 1);
+  g.lineBetween(30, 26, 22, 36);
+  g.lineBetween(48, 26, 56, 36);
+  g.fillStyle(0xf97316, 1);
+  g.fillCircle(20, 37, 2.8);
+  g.fillCircle(58, 37, 2.8);
+  // Head
+  g.fillStyle(0x7c2d12, 1);
+  g.fillEllipse(54, 20, 16, 13);
+  g.fillTriangle(48, 13, 56, 8, 58, 17);
+  // Turret Eye
+  g.fillStyle(0xc2410c, 1);
+  g.fillCircle(55, 18, 5.2);
+  g.fillStyle(0xfde047, 1);
+  g.fillCircle(55.5, 18, 4);
+  g.fillStyle(0x000000, 1);
+  g.fillRect(55, 15, 1.8, 6);
+  g.fillStyle(0xffffff, 1);
+  g.fillCircle(54.5, 16.5, 1.2);
+  g.generateTexture('cinder_gecko_crawl', 74, 46);
+
+  // cinder_gecko_icon (Shop button thumbnail)
+  g.clear();
+  g.fillStyle(0x7c2d12, 1);
+  g.fillCircle(22, 24, 18);
+  // Head crest
+  g.fillStyle(0x9a3412, 1);
+  g.fillTriangle(14, 14, 24, 4, 30, 14);
+  g.fillStyle(0xf97316, 1);
+  g.fillTriangle(16, 14, 23, 7, 28, 14);
+  // Muzzle & Snout
+  g.fillStyle(0xc2410c, 1);
+  g.fillEllipse(28, 28, 14, 10);
+  // Big Turret Eye
+  g.fillStyle(0x9a3412, 1);
+  g.fillCircle(18, 20, 7.5);
+  g.fillStyle(0xfde047, 1);
+  g.fillCircle(18.5, 20, 6);
+  g.fillStyle(0x000000, 1);
+  g.fillRect(18, 15, 2.2, 10);
+  g.fillStyle(0xffffff, 1);
+  g.fillCircle(17, 17, 1.8);
+  // Glowing tongue tip curled out of snout
+  g.lineStyle(2.5, 0xf43f5e, 1);
+  g.lineBetween(32, 30, 38, 28);
+  g.fillStyle(0xfb7185, 1);
+  g.fillCircle(38, 28, 2.5);
+  g.generateTexture('cinder_gecko_icon', 44, 44);
 
   // ---------- Non-Bird Predators & Props ----------
   // enemy_cat
