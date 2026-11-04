@@ -1647,6 +1647,71 @@ export function makeTextures(scene: Phaser.Scene) {
   g.lineBetween(8, 38, 14, 44);
   g.generateTexture('pet_chameleon', 68, 50);
 
+  // pet_robin (Rusty)
+  g.clear();
+  g.fillStyle(0x854d0e, 1); // brown back
+  g.fillEllipse(32, 28, 36, 26);
+  g.fillStyle(0xe11d48, 1); // red-orange breast
+  g.fillEllipse(36, 32, 26, 20);
+  g.fillStyle(0x78350f, 1); // head
+  g.fillCircle(46, 18, 11);
+  g.fillStyle(0xfde047, 1); // beak
+  g.fillTriangle(52, 18, 62, 20, 52, 23);
+  g.fillStyle(0xffffff, 1);
+  g.fillCircle(48, 16, 3);
+  g.fillStyle(0x000000, 1);
+  g.fillCircle(49, 16, 1.5);
+  g.generateTexture('pet_robin', 66, 52);
+
+  // pet_otter (River)
+  g.clear();
+  g.fillStyle(0x78350f, 1); // rich chestnut body
+  g.fillEllipse(38, 28, 48, 24);
+  g.fillStyle(0xfef3c7, 1); // cream muzzle and belly
+  g.fillEllipse(44, 30, 24, 14);
+  g.fillStyle(0x92400e, 1); // head
+  g.fillCircle(54, 20, 12);
+  g.fillStyle(0x451a03, 1); // round ears
+  g.fillCircle(48, 12, 4);
+  g.fillCircle(58, 12, 4);
+  g.fillStyle(0x000000, 1); // nose and eyes
+  g.fillCircle(62, 20, 2.5);
+  g.fillCircle(55, 17, 2);
+  g.generateTexture('pet_otter', 74, 50);
+
+  // pet_cricket (Chirpy)
+  g.clear();
+  g.fillStyle(0x16a34a, 1); // vibrant green abdomen
+  g.fillEllipse(32, 28, 38, 18);
+  g.fillStyle(0x22c55e, 1); // thorax
+  g.fillCircle(48, 22, 11);
+  g.fillStyle(0x15803d, 1); // jumping legs
+  g.lineStyle(3, 0x15803d, 1);
+  g.lineBetween(26, 26, 14, 14);
+  g.lineBetween(14, 14, 16, 38);
+  g.lineStyle(1.5, 0x86efac, 1); // antennae
+  g.lineBetween(52, 16, 64, 4);
+  g.lineBetween(50, 16, 58, 2);
+  g.fillStyle(0x000000, 1); // eye
+  g.fillCircle(52, 19, 2);
+  g.generateTexture('pet_cricket', 68, 48);
+
+  // pet_dragonfly (Dart)
+  g.clear();
+  g.fillStyle(0x0284c7, 1); // slender electric-blue body
+  g.fillRoundedRect(14, 22, 38, 8, 4);
+  g.fillStyle(0x0369a1, 1); // head
+  g.fillCircle(52, 26, 7);
+  g.fillStyle(0x38bdf8, 0.7); // gossamer wings
+  g.fillEllipse(36, 14, 28, 10);
+  g.fillEllipse(44, 12, 26, 9);
+  g.fillEllipse(36, 38, 26, 9);
+  g.fillEllipse(44, 39, 24, 8);
+  g.fillStyle(0x38bdf8, 1); // compound eyes
+  g.fillCircle(55, 23, 3);
+  g.fillCircle(55, 29, 3);
+  g.generateTexture('pet_dragonfly', 68, 52);
+
   // ---------- Sugar Glider (World 4 Non-Bird Glider) ----------
   // sugar_glider_perch (Sitting / resting on branch or trunk)
   g.clear();

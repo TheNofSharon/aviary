@@ -2629,13 +2629,30 @@ export class Pet {
         break;
       case 'hen':
         this.img = scene.add.image(450, 622, 'pet_hen').setOrigin(0.5, 1).setScale(0.9).setDepth(11);
-        this.timer = 25;
+        this.timer = scene.sandbox ? 42 : 25;
         break;
       case 'phoenix_chick':
         this.img = scene.add.image(350, 616, 'pet_phoenix_chick').setOrigin(0.5, 1).setScale(0.85).setDepth(11);
         break;
       case 'chameleon':
         this.img = scene.add.image(750, 480, 'pet_chameleon').setScale(0.85).setDepth(11);
+        break;
+      case 'robin':
+        this.img = scene.add.image(Phaser.Math.Between(220, 720), 618, 'pet_robin').setOrigin(0.5, 1).setScale(0.85).setDepth(11);
+        this.timer = 18;
+        break;
+      case 'otter':
+        this.img = scene.add.image(Phaser.Math.Between(200, 680), 620, 'pet_otter').setOrigin(0.5, 1).setScale(0.85).setDepth(11);
+        this.timer = 24;
+        break;
+      case 'cricket':
+        this.img = scene.add.image(Phaser.Math.Between(300, 650), 620, 'pet_cricket').setOrigin(0.5, 1).setScale(0.8).setDepth(11);
+        this.timer = 4;
+        break;
+      case 'dragonfly':
+        this.img = scene.add.image(150, 180, 'pet_dragonfly').setScale(0.85).setDepth(11);
+        this.wy = 180;
+        this.timer = 0.5;
         break;
       default: {
         const sp = scene.spots[5];
@@ -2673,6 +2690,10 @@ export class Pet {
         butterfly: '🦋 FLUTTER! 🌸',
         magpie: '🪶 CAW! 💎',
         owl: '🦉 HOOT! 🌙',
+        robin: '🐦 TWEET! 🫐',
+        otter: '🦦 SQUEAK! 🫧',
+        cricket: '🦗 CHIRP! 🎵',
+        dragonfly: '⚡ BZZT! 💨',
       };
       const soundText = petSounds[this.key] ?? '❤️ FRIEND! ✨';
       this.scene.floatText(this.img.x, this.img.y - 30, soundText, '#fef08a', '#451a03');
@@ -2755,6 +2776,10 @@ export class Pet {
       case 'hen': return this.updateHen(dt, t);
       case 'phoenix_chick': return this.updatePhoenixChick(dt, t);
       case 'chameleon': return this.updateChameleon(dt, t);
+      case 'robin': return this.updateRobin(dt, t);
+      case 'otter': return this.updateOtter(dt, t);
+      case 'cricket': return this.updateCricket(dt, t);
+      case 'dragonfly': return this.updateDragonfly(dt, t);
       default: return this.updateSinger(dt, t);
     }
   }
@@ -3371,9 +3396,99 @@ export class Pet {
     }
     this.timer -= dt;
     if (this.timer <= 0) {
-      this.timer = 28;
+      this.timer = this.scene.sandbox ? 42 : 28;
       this.scene.burst(this.img.x, this.img.y - 30, 0xffd23f, 10);
-      this.scene.dropCoin(this.img.x, this.img.y - 30, 250);
+      if (this.scene.sandbox) {
+        this.scene.dropGem(this.img.x, this.img.y - 30, 5);
+      } else {
+        this.scene.dropCoin(this.img.x, this.img.y - 30, 250);
+      }
+    }
+  }
+
+  private updateRobin(dt: number, t: number) {
+    if (this.pause > 0) {
+      this.pause -= dt;
+    } else if (this.walk(this.tx, 45, dt, t)) {
+      this.tx = Phaser.Math.Between(140, 800);
+      this.pause = 1 + Math.random() * 2;
+    }
+    this.timer -= dt;
+    if (this.timer <= 0) {
+      this.timer = 22 + Math.random() * 6;
+      this.scene.burst(this.img.x, this.img.y - 20, 0xa855f7, 8);
+      this.scene.floatText(this.img.x, this.img.y - 30, '🫐 Wild Elderberry! +35c', '#c084fc', '#3b0764');
+      this.scene.dropCoin(this.img.x, this.img.y - 20, 35);
+    }
+  }
+
+  private updateOtter(dt: number, t: number) {
+    if (this.pause > 0) {
+      this.pause -= dt;
+    } else if (this.walk(this.tx, 38, dt, t)) {
+      this.tx = Phaser.Math.Between(180, 760);
+      this.pause = 1.2 + Math.random() * 2.5;
+    }
+    this.timer -= dt;
+    if (this.timer <= 0) {
+      this.timer = 26 + Math.random() * 6;
+      this.scene.burst(this.img.x, this.img.y - 20, 0x38bdf8, 10);
+      this.scene.floatText(this.img.x, this.img.y - 30, '🫧 River Pearl! +100c', '#38bdf8', '#0c4a6e');
+      this.scene.dropCoin(this.img.x, this.img.y - 20, 100, 'drop_pearl');
+    }
+  }
+
+  private updateCricket(dt: number, t: number) {
+    if (this.pause > 0) {
+      this.pause -= dt;
+    } else if (this.walk(this.tx, 50, dt, t)) {
+      this.tx = Phaser.Math.Between(150, 780);
+      this.pause = 0.8 + Math.random() * 1.5;
+    }
+    this.timer -= dt;
+    if (this.timer <= 0) {
+      this.timer = 5;
+      let calmed = false;
+      for (const b of this.scene.birds) {
+        if (!b.dead && b.fullness < 40) {
+          b.fullness = Math.min(100, b.fullness + 20);
+          this.scene.burst(b.spr.x, b.spr.y - 12, 0xa3e635, 4);
+          calmed = true;
+        }
+      }
+      if (calmed) {
+        this.scene.floatText(this.img.x, this.img.y - 25, '🎵 Harmony Song! +Hunger Restored', '#bef264', '#1a2e05');
+      }
+    }
+  }
+
+  private updateDragonfly(dt: number, t: number) {
+    this.wy = 180 + Math.sin(t * 0.003) * 50;
+    this.img.y = this.wy;
+    const p = this.scene.nearestPredator(this.img.x, this.img.y);
+    if (p && !(p.kind === 'vulture' && p.vultureState === 'dormant')) {
+      const dx = p.spr.x - this.img.x;
+      const dy = p.spr.y - this.img.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 5) {
+        this.img.x += (dx / dist) * 220 * dt;
+        this.img.setFlipX(dx < 0);
+      }
+      if (dist < 45) {
+        p.hit(2, this.img.x, this.img.y);
+        this.scene.burst(p.spr.x, p.spr.y, 0x06b6d4, 10);
+        this.scene.floatText(p.spr.x, p.spr.y - 20, '⚡ DRAGONFLY STRIKE! -2', '#22d3ee', '#083344');
+        this.tx = Phaser.Math.Between(100, W - 100);
+      }
+    } else {
+      const dx = this.tx - this.img.x;
+      if (Math.abs(dx) < 15) {
+        this.tx = Phaser.Math.Between(120, W - 120);
+      } else {
+        const dir = Math.sign(dx);
+        this.img.x += dir * 140 * dt;
+        this.img.setFlipX(dir < 0);
+      }
     }
   }
 
@@ -4060,7 +4175,7 @@ export class AviaryScene extends Phaser.Scene {
         : this.timeTrial
         ? (data.pets ?? ['hedgehog', 'butterfly', 'squirrel']).slice(0, 3)
         : isWorld5
-        ? PETS.slice(0, 16).map((p) => p.key) // All 16 companions assemble in World 5 Climax!
+        ? PETS.slice(0, 20).map((p) => p.key) // All 20 companions assemble in World 5 Climax!
         : (data.pets ?? []).slice(0, 3);
     }
     this.ended = false;
@@ -8374,10 +8489,11 @@ export class AviaryScene extends Phaser.Scene {
     const y = fy ?? c.img.y;
     if (c.isGem || this.sandbox) {
       playGemCollectSound();
-      this.gems += c.value;
+      const gemVal = c.isGem ? c.value : Math.min(5, Math.max(1, Math.round(c.value / 50)));
+      this.gems += gemVal;
       this.saveSandbox();
       this.burst(c.img.x, c.img.y, 0x00f0ff, 6);
-      this.floatText(x, y - 10, '+' + c.value + ' Gems', '#7df9ff', '#004d66');
+      this.floatText(x, y - 10, '+' + gemVal + ' Gems', '#7df9ff', '#004d66');
       this.tweens.add({ targets: c.img, x: 40, y: 676, scale: 0.3, duration: 350, ease: 'Quad.easeIn', onComplete: () => c.img.destroy() });
     } else {
       playCoinCollectSound();
@@ -8837,10 +8953,10 @@ export class AviaryScene extends Phaser.Scene {
     }
     if (this.sandbox) return;
 
-    if (this.level === 4) unlockAchievement('world1_clear', this);
-    if (this.level === 8) unlockAchievement('world2_clear', this);
-    if (this.level === 12) unlockAchievement('world3_clear', this);
-    if (this.level === 16) unlockAchievement('world4_clear', this);
+    if (this.level === 5) unlockAchievement('world1_clear', this);
+    if (this.level === 10) unlockAchievement('world2_clear', this);
+    if (this.level === 15) unlockAchievement('world3_clear', this);
+    if (this.level === 20) unlockAchievement('world4_clear', this);
 
     const sv = loadSave();
     const nextLevel = Math.max(sv.level, this.level + 1);
@@ -8883,7 +8999,7 @@ export class AviaryScene extends Phaser.Scene {
     unlockAchievement('master_keeper', this);
 
     const sv = loadSave();
-    const nextLevel = Math.max(sv.level, 18);
+    const nextLevel = Math.max(sv.level, 22);
     const gemBonus = 100;
     patchSave({ level: nextLevel, gems: this.gems + gemBonus });
     this.gems += gemBonus;
@@ -8894,7 +9010,7 @@ export class AviaryScene extends Phaser.Scene {
 
       const lines = [
         'TITANORAPTOR HAS BEEN VANQUISHED!',
-        'All 16 companions fought heroically side-by-side!',
+        'All 20 companions fought heroically side-by-side!',
         'The prehistoric dinosaur ancestor slumbers once more in the earth.',
         'You have conquered all 5 worlds of Insaterrarium!',
         '🏆 Master of the Aviary Trophy Unlocked!',

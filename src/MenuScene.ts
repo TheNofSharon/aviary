@@ -624,6 +624,18 @@ export class MenuScene extends Phaser.Scene {
     this.tweens.add({ targets: toast, y: toast.y - 35, alpha: 0, duration: 1600, onComplete: () => toast.destroy() });
   }
 
+  private toast(msg: string) {
+    const toast = this.add.text(W / 2, H / 2, msg, {
+      fontFamily: FONT,
+      fontSize: '20px',
+      fontStyle: 'bold',
+      color: '#ffd54f',
+      stroke: '#451a03',
+      strokeThickness: 5,
+    }).setOrigin(0.5).setDepth(99);
+    this.tweens.add({ targets: toast, y: toast.y - 35, alpha: 0, duration: 1600, onComplete: () => toast.destroy() });
+  }
+
   private resumeActiveGame() {
     this.scene.stop('Aviary');
     const save = loadSave();
@@ -674,10 +686,10 @@ export class MenuScene extends Phaser.Scene {
     this.createHeaderPill('WORLD & STAGE SELECT', 'Choose any unlocked stage to replay or advance campaign');
 
     const colW = 180;
-    const colH = 436;
+    const colH = 464;
     const startX = 112;
     const gapX = 194;
-    const cardY = 350;
+    const cardY = 356;
 
     WORLDS.forEach((world, wIdx) => {
       const cx = startX + wIdx * gapX;
@@ -702,16 +714,16 @@ export class MenuScene extends Phaser.Scene {
 
       const wName = this.add.text(0, -colH / 2 + 48, world.name, {
         fontFamily: FONT,
-        fontSize: '16px',
+        fontSize: '15px',
         fontStyle: 'bold',
         color: '#ffffff',
         align: 'center',
         wordWrap: { width: colW - 14 },
       }).setOrigin(0.5);
 
-      const wSub = this.add.text(0, -colH / 2 + 76, world.subtitle, {
+      const wSub = this.add.text(0, -colH / 2 + 74, world.subtitle, {
         fontFamily: FONT,
-        fontSize: '11px',
+        fontSize: '10px',
         color: '#ddcfbc',
         align: 'center',
         wordWrap: { width: colW - 16 },
@@ -720,11 +732,11 @@ export class MenuScene extends Phaser.Scene {
       c.add([g, wHeader, wName, wSub]);
 
       // Stage Buttons
-      const stageStartY = -colH / 2 + 124;
-      const stageGap = 52;
+      const stageStartY = -colH / 2 + 116;
+      const stageGap = 47;
 
       world.stages.forEach((stg, sIdx) => {
-        const flatLevel = (world.id - 1) * 4 + stg.stage;
+        const flatLevel = world.id === 5 ? 21 : (world.id - 1) * 5 + stg.stage;
         const isCurrent = flatLevel === this.maxUnlockedLevel;
         const isCompleted = flatLevel < this.maxUnlockedLevel;
         const isLocked = flatLevel > this.maxUnlockedLevel;
@@ -734,7 +746,7 @@ export class MenuScene extends Phaser.Scene {
         const sg = this.add.graphics();
 
         const bw = colW - 20;
-        const bh = 42;
+        const bh = 38;
 
         const petDef = PETS[flatLevel - 1];
         let bgCol = 0x221208;
@@ -783,7 +795,7 @@ export class MenuScene extends Phaser.Scene {
 
         const stext = this.add.text(0, 0, label, {
           fontFamily: FONT,
-          fontSize: world.id === 5 ? '12px' : '13px',
+          fontSize: world.id === 5 ? '12px' : '12px',
           fontStyle: 'bold',
           color: textColor,
         }).setOrigin(0.5);
@@ -808,29 +820,29 @@ export class MenuScene extends Phaser.Scene {
       });
 
       // Bottom World Companions Progress Pill
-      const worldPets = PETS.slice((world.id - 1) * 4, world.id * 4);
+      const worldPets = PETS.slice((world.id - 1) * 5, world.id * 5);
       const rescuedCount = world.id === 5
-        ? (this.maxUnlockedLevel > 17 ? 1 : 0)
+        ? (this.maxUnlockedLevel > 21 ? 1 : 0)
         : worldPets.filter((p) => this.maxUnlockedLevel > p.stageReq).length;
-      const petY = colH / 2 - 34;
+      const petY = colH / 2 - 28;
 
       const petPill = this.add.graphics();
-      petPill.fillStyle(world.id === 5 ? 0x2e1065 : rescuedCount === 4 ? 0x22543d : 0x20140e, 0.85);
-      petPill.fillRoundedRect(-colW / 2 + 10, petY - 20, colW - 20, 40, 10);
-      petPill.lineStyle(1.5, world.id === 5 ? 0xc084fc : rescuedCount === 4 ? 0x48bb78 : 0x60402b, 1);
-      petPill.strokeRoundedRect(-colW / 2 + 10, petY - 20, colW - 20, 40, 10);
+      petPill.fillStyle(world.id === 5 ? 0x2e1065 : rescuedCount === 5 ? 0x22543d : 0x20140e, 0.85);
+      petPill.fillRoundedRect(-colW / 2 + 10, petY - 18, colW - 20, 36, 10);
+      petPill.lineStyle(1.5, world.id === 5 ? 0xc084fc : rescuedCount === 5 ? 0x48bb78 : 0x60402b, 1);
+      petPill.strokeRoundedRect(-colW / 2 + 10, petY - 18, colW - 20, 36, 10);
 
       const petTxt = this.add.text(
         0,
         petY,
         world.id === 5
-          ? (this.maxUnlockedLevel > 17 ? '🏆 Sovereign Master' : '👑 All 16 Climax')
-          : `🐾 ${rescuedCount}/4 Rescued`,
+          ? (this.maxUnlockedLevel > 21 ? '🏆 Sovereign Master' : '👑 All 20 Climax')
+          : `🐾 ${rescuedCount}/5 Rescued`,
         {
           fontFamily: FONT,
           fontSize: '11px',
           fontStyle: 'bold',
-          color: world.id === 5 ? '#f5d0fe' : rescuedCount === 4 ? '#c6f6d5' : '#ffd54f',
+          color: world.id === 5 ? '#f5d0fe' : rescuedCount === 5 ? '#c6f6d5' : '#ffd54f',
         }
       ).setOrigin(0.5);
 
@@ -845,180 +857,440 @@ export class MenuScene extends Phaser.Scene {
   // =========================================================================
   private renderStageBriefing() {
     const ws = getWorldAndStage(this.level);
+    const isWorld5 = ws.worldId === 5;
+    const unlocked = getUnlockedPets(this.maxUnlockedLevel);
+    const slots = 3;
 
-    // Title & Mascots
-    this.add.image(W / 2 - 340, 70, ws.worldId >= 4 ? 'bird_phoenix' : 'bird_s2').setScale(0.9);
-    this.add.image(W / 2 + 340, 70, ws.worldId >= 2 ? 'bird_piranha_finch' : 'bird_s3').setScale(0.9).setFlipX(true);
-    this.txt(W / 2, 50, 'AVIARY', 56, '#ffffff', '#2b4f6e', 8);
+    // Ensure initial selection has reasonable defaults
+    if (isWorld5) {
+      this.chosen.clear();
+      PETS.slice(0, 20).forEach((p) => this.chosen.add(p.key));
+    } else if (this.chosen.size === 0 && unlocked.length > 0) {
+      for (let i = 0; i < Math.min(unlocked.length, slots); i++) {
+        this.chosen.add(unlocked[i].key);
+      }
+    }
 
-    // Stage Heading
-    const headerContainer = this.add.container(W / 2, 112);
-    const hpill = this.add.graphics();
-    hpill.fillStyle(0x000000, 0.45);
-    hpill.fillRoundedRect(-320, -22, 640, 44, 22);
-    hpill.lineStyle(2, 0xffd54f, 0.8);
-    hpill.strokeRoundedRect(-320, -22, 640, 44, 22);
+    // Outer Steampunk Brass Border & Rivets
+    const frameGfx = this.add.graphics();
+    frameGfx.lineStyle(6, 0x8d5c34, 1);
+    frameGfx.strokeRoundedRect(16, 16, W - 32, H - 32, 24);
+    frameGfx.lineStyle(2, 0xd4af37, 0.7);
+    frameGfx.strokeRoundedRect(22, 22, W - 44, H - 44, 20);
 
-    const titleText = this.add
-      .text(0, 0, `${ws.label}: ${ws.stage.name}`, {
-        fontFamily: FONT,
-        fontSize: '25px',
-        fontStyle: 'bold',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5);
-    headerContainer.add([hpill, titleText]);
+    const drawRivet = (rx: number, ry: number) => {
+      frameGfx.fillStyle(0x451a03, 1);
+      frameGfx.fillCircle(rx, ry, 7);
+      frameGfx.fillStyle(0xd4af37, 1);
+      frameGfx.fillCircle(rx, ry, 5);
+      frameGfx.fillStyle(0xfffbeb, 0.9);
+      frameGfx.fillCircle(rx - 2, ry - 2, 2);
+    };
+    drawRivet(28, 28);
+    drawRivet(W - 28, 28);
+    drawRivet(28, H - 28);
+    drawRivet(W - 28, H - 28);
+    drawRivet(W / 2, 22);
+    drawRivet(W / 2, H - 22);
+
+    // Top Header: "CHOOSE YOUR PETS"
+    this.add.text(W / 2, 44, 'CHOOSE YOUR PETS', {
+      fontFamily: FONT,
+      fontSize: '40px',
+      fontStyle: 'bold',
+      color: '#ffd700',
+      stroke: '#3e1a05',
+      strokeThickness: 7,
+    }).setOrigin(0.5);
+
+    // Stage subtitle
+    this.add.text(W / 2, 78, `${ws.label}: ${ws.stage.name} • ${ws.world.name}`, {
+      fontFamily: FONT,
+      fontSize: '15px',
+      fontStyle: 'bold',
+      color: '#e2e8f0',
+      stroke: '#0f172a',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    // Top-Right "MENU" Button
+    const menuBtn = this.add.container(W - 85, 46);
+    const mg = this.add.graphics();
+    mg.fillStyle(0x27170c, 0.95);
+    mg.fillRoundedRect(-50, -18, 100, 36, 18);
+    mg.lineStyle(2, 0xd97706, 1);
+    mg.strokeRoundedRect(-50, -18, 100, 36, 18);
+    const mtxt = this.add.text(0, 0, 'MENU', {
+      fontFamily: FONT,
+      fontSize: '16px',
+      fontStyle: 'bold',
+      color: '#ffd54f',
+    }).setOrigin(0.5);
+    menuBtn.add([mg, mtxt]);
+    menuBtn.setSize(100, 36).setInteractive({ useHandCursor: true });
+    menuBtn.on('pointerdown', () => this.switchView('main_menu'));
+    menuBtn.on('pointerover', () => {
+      mg.clear();
+      mg.fillStyle(0x3e2313, 0.98);
+      mg.fillRoundedRect(-50, -18, 100, 36, 18);
+      mg.lineStyle(2, 0xfde047, 1);
+      mg.strokeRoundedRect(-50, -18, 100, 36, 18);
+    });
+    menuBtn.on('pointerout', () => {
+      mg.clear();
+      mg.fillStyle(0x27170c, 0.95);
+      mg.fillRoundedRect(-50, -18, 100, 36, 18);
+      mg.lineStyle(2, 0xd97706, 1);
+      mg.strokeRoundedRect(-50, -18, 100, 36, 18);
+    });
+
+    // Top-Left "STAGES" Button
+    const stageBtn = this.add.container(85, 46);
+    const sg = this.add.graphics();
+    sg.fillStyle(0x132a45, 0.95);
+    sg.fillRoundedRect(-50, -18, 100, 36, 18);
+    sg.lineStyle(2, 0x38bdf8, 1);
+    sg.strokeRoundedRect(-50, -18, 100, 36, 18);
+    const stxt = this.add.text(0, 0, 'STAGES', {
+      fontFamily: FONT,
+      fontSize: '15px',
+      fontStyle: 'bold',
+      color: '#7dd3fc',
+    }).setOrigin(0.5);
+    stageBtn.add([sg, stxt]);
+    stageBtn.setSize(100, 36).setInteractive({ useHandCursor: true });
+    stageBtn.on('pointerdown', () => this.switchView('world_select'));
 
     // Navigation arrows between unlocked stages
     if (this.level > 1) {
-      const prevBtn = this.add
-        .text(W / 2 - 360, 112, '◀', { fontFamily: FONT, fontSize: '30px', fontStyle: 'bold', color: '#ffd54f' })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
+      const prevBtn = this.add.text(W / 2 - 250, 78, '◀', { fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: '#ffd54f' })
+        .setOrigin(0.5).setInteractive({ useHandCursor: true });
       prevBtn.on('pointerdown', () => this.switchView('stage_briefing', this.level - 1));
     }
     if (this.level < this.maxUnlockedLevel) {
-      const nextBtn = this.add
-        .text(W / 2 + 360, 112, '▶', { fontFamily: FONT, fontSize: '30px', fontStyle: 'bold', color: '#ffd54f' })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true });
+      const nextBtn = this.add.text(W / 2 + 250, 78, '▶', { fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: '#ffd54f' })
+        .setOrigin(0.5).setInteractive({ useHandCursor: true });
       nextBtn.on('pointerdown', () => this.switchView('stage_briefing', this.level + 1));
     }
 
-    // Main Briefing Panel
-    const panel = this.add.graphics();
-    panel.fillStyle(0x422817, 0.94);
-    panel.fillRoundedRect(140, 150, W - 280, 440, 24);
-    panel.lineStyle(4, 0x8d5c34, 1);
-    panel.strokeRoundedRect(140, 150, W - 280, 440, 24);
+    // =======================================================================
+    // CENTRAL SHOWCASE DISPLAY BOX
+    // =======================================================================
+    const boxX = W / 2;
+    const boxY = 285;
+    const boxW = 520;
+    const boxH = 345;
 
-    this.txt(W / 2, 178, `World ${ws.world.id}: ${ws.world.name} — ${ws.world.subtitle}`, 21, '#ffd54f', '#2b1608', 3);
-    this.txt(W / 2, 210, `“${ws.stage.briefing}”`, 18, '#ffffff', '#221105', 3);
+    const boxGfx = this.add.graphics();
+    // Drop shadow
+    boxGfx.fillStyle(0x000000, 0.45);
+    boxGfx.fillRoundedRect(boxX - boxW / 2 + 6, boxY - boxH / 2 + 8, boxW, boxH, 22);
+    // Outer brass frame
+    boxGfx.fillStyle(0x27170c, 0.97);
+    boxGfx.fillRoundedRect(boxX - boxW / 2, boxY - boxH / 2, boxW, boxH, 22);
+    boxGfx.lineStyle(4, 0x8d5c34, 1);
+    boxGfx.strokeRoundedRect(boxX - boxW / 2, boxY - boxH / 2, boxW, boxH, 22);
+    // Inner metallic groove
+    boxGfx.lineStyle(1.5, 0xd97706, 0.8);
+    boxGfx.strokeRoundedRect(boxX - boxW / 2 + 8, boxY - boxH / 2 + 8, boxW - 16, boxH - 16, 16);
 
-    // Feature Banner
-    const spotY = 270;
-    const spotBox = this.add.graphics();
-    spotBox.fillStyle(0x27170c, 0.85);
-    spotBox.fillRoundedRect(180, spotY - 30, W - 360, 64, 16);
-    spotBox.lineStyle(2, 0xffa726, 0.9);
-    spotBox.strokeRoundedRect(180, spotY - 30, W - 360, 64, 16);
+    // Corner rivets on showcase box
+    drawRivet(boxX - boxW / 2 + 18, boxY - boxH / 2 + 18);
+    drawRivet(boxX + boxW / 2 - 18, boxY - boxH / 2 + 18);
+    drawRivet(boxX - boxW / 2 + 18, boxY + boxH / 2 - 18);
+    drawRivet(boxX + boxW / 2 - 18, boxY + boxH / 2 - 18);
 
-    this.txt(W / 2, spotY - 12, `⭐ FEATURE: ${ws.world.mechanicTitle}`, 17, '#ffca28', '#2b1608', 3);
-    this.txt(W / 2, spotY + 14, ws.world.mechanicDesc, 15, '#e0d6cb', '#1a0d05', 2);
+    // Dynamic Top Prompt Text
+    const promptText = this.add.text(boxX, boxY - boxH / 2 + 28, '', {
+      fontFamily: FONT,
+      fontSize: isWorld5 ? '15px' : '17px',
+      fontStyle: 'bold',
+      color: '#fef08a',
+      stroke: '#451a03',
+      strokeThickness: 3,
+      align: 'center',
+    }).setOrigin(0.5);
 
-    // Helper Pets or Tutorial (World 1-1)
-    const unlocked = getUnlockedPets(this.maxUnlockedLevel);
-    if (this.level === 1 || unlocked.length === 0) {
-      const lines = [
-        '1. Click sky to drop seeds (costs 5c). Sparrows grow bigger as they eat.',
-        '2. Sparrows drop silver & gold coins. Hover over coins to collect them!',
-        '3. If predators appear in later levels, tap them with your Slingshot!',
-        '4. Buy all 3 Egg Pieces in the toolbar to clear the stage and rescue companions!',
-      ];
-      lines.forEach((l, i) => this.txt(W / 2, 345 + i * 26, l, 16, '#ffffff', '#221105', 3));
+    // Large Animated Pet Preview in Showcase
+    const previewContainer = this.add.container(boxX, boxY - 55);
+    const previewImg = this.add.image(0, 0, 'pet_hedgehog').setScale(1.45);
+    previewContainer.add(previewImg);
+    this.tweens.add({
+      targets: previewContainer,
+      y: boxY - 65,
+      duration: 1000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
 
-      // 4 Evolution Stages Showcase (Chick, Fledgling, Adult, King)
-      const stagesConfig = [
-        { x: W / 2 - 165, y: 465, stage: 0, scale: 0.82, isKing: false },
-        { x: W / 2 - 55,  y: 465, stage: 1, scale: 0.80, isKing: false },
-        { x: W / 2 + 55,  y: 465, stage: 2, scale: 0.76, isKing: false },
-        { x: W / 2 + 165, y: 465, stage: 2, scale: 0.80, isKing: true },
-      ];
+    // Pet Name
+    const nameText = this.add.text(boxX, boxY + 18, '', {
+      fontFamily: FONT,
+      fontSize: '22px',
+      fontStyle: 'bold',
+      color: '#ffffff',
+      stroke: '#27170c',
+      strokeThickness: 4,
+    }).setOrigin(0.5);
 
-      stagesConfig.forEach((cfg) => {
-        this.createMenu25DBird(cfg.x, cfg.y, cfg.stage, cfg.scale, cfg.isKing);
-      });
-    } else if (ws.worldId === 5) {
-      this.txt(W / 2, 326, '🦖 ALL 16 COMPANIONS ASSEMBLED FOR THE DINO SHOWDOWN! 🦖', 20, '#ffd700', '#221105', 3);
-      this.txt(W / 2, 350, 'Every loyal pet you rescued enters the arena together to defend the sanctuary from Titanoraptor!', 14, '#e2e8f0', '#0f172a', 2);
+    // Pet Role
+    const roleText = this.add.text(boxX, boxY + 44, '', {
+      fontFamily: FONT,
+      fontSize: '13px',
+      fontStyle: 'bold',
+      color: '#fbbf24',
+    }).setOrigin(0.5);
 
-      const allPets = PETS.slice(0, 16);
-      const perRow = 8;
-      const cw = 76;
-      const startX = W / 2 - ((perRow - 1) * (cw + 12)) / 2;
-      for (let i = 0; i < allPets.length; i++) {
-        const row = Math.floor(i / perRow);
-        const col = i % perRow;
-        const cx = startX + col * (cw + 12);
-        const cy = 405 + row * 64;
+    // Pet Description
+    const descText = this.add.text(boxX, boxY + 76, '', {
+      fontFamily: FONT,
+      fontSize: '12px',
+      color: '#f3e8d9',
+      align: 'center',
+      wordWrap: { width: boxW - 60 },
+    }).setOrigin(0.5);
 
-        const pbox = this.add.graphics();
-        pbox.fillStyle(0x1e1b4b, 0.88);
-        pbox.fillRoundedRect(cx - 34, cy - 25, 68, 52, 8);
-        pbox.lineStyle(1.5, 0xa855f7, 0.85);
-        pbox.strokeRoundedRect(cx - 34, cy - 25, 68, 52, 8);
+    // "CLICK HERE TO CONTINUE" Button
+    const contBtn = this.add.container(boxX, boxY + boxH / 2 - 38);
+    const bgCont = this.add.graphics();
+    const btnW = 320;
+    const btnH = 48;
+    const drawContBtn = (hover: boolean) => {
+      bgCont.clear();
+      // Drop shadow
+      bgCont.fillStyle(0x000000, 0.4);
+      bgCont.fillRoundedRect(-btnW / 2 + 2, -btnH / 2 + 4, btnW, btnH, 24);
+      // Magenta/purple base
+      const col = isWorld5 ? (hover ? 0x16a34a : 0x15803d) : (hover ? 0xc026d3 : 0xa21caf);
+      bgCont.fillStyle(col, 1);
+      bgCont.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 24);
+      // Beveled golden border
+      bgCont.lineStyle(3, hover ? 0xfff08a : 0xfde047, 1);
+      bgCont.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 24);
+      // Inner highlight
+      bgCont.lineStyle(1.5, 0xffffff, hover ? 0.6 : 0.35);
+      bgCont.strokeRoundedRect(-btnW / 2 + 3, -btnH / 2 + 3, btnW - 6, (btnH - 6) / 2, 20);
+    };
+    drawContBtn(false);
 
-        this.add.image(cx, cy - 4, 'pet_' + allPets[i].key).setScale(0.72);
-        this.add.text(cx, cy + 16, allPets[i].name, {
-          fontFamily: FONT,
-          fontSize: '10px',
-          color: '#fbbf24',
-          fontStyle: 'bold',
-        }).setOrigin(0.5);
-      }
-    } else {
-      const slots = 3;
-      this.txt(W / 2, 328, `Choose up to ${slots} Companion Helpers for this stage (${this.chosen.size}/${slots} chosen):`, 19, '#ffffff', '#221105', 3);
+    const contLabel = isWorld5
+      ? 'COMMENCE FINAL SHOWDOWN!'
+      : this.level === 1 && unlocked.length === 0
+      ? 'START WORLD 1-1'
+      : 'CLICK HERE TO CONTINUE';
 
-      const count = unlocked.length;
-      if (count <= 4) {
-        const cw = 185;
-        const startX = W / 2 - ((count - 1) * (cw + 14)) / 2;
-        for (let i = 0; i < count; i++) {
-          this.card(startX + i * (cw + 14), 425, cw, i, slots);
-        }
-      } else {
-        const perRow = Math.min(8, Math.ceil(count / 2));
-        const cw = 118;
-        const ch = 90;
-        const startX = W / 2 - ((perRow - 1) * (cw + 10)) / 2;
-        for (let i = 0; i < count; i++) {
-          const row = Math.floor(i / perRow);
-          const col = i % perRow;
-          const cx = startX + col * (cw + 10);
-          const cy = 378 + row * (ch + 10);
-          this.compactCard(cx, cy, cw, ch, i, slots);
-        }
-      }
+    const contTxt = this.add.text(0, 0, contLabel, {
+      fontFamily: FONT,
+      fontSize: isWorld5 ? '16px' : '17px',
+      fontStyle: 'bold',
+      color: '#fef08a',
+      stroke: '#4a044e',
+      strokeThickness: 4,
+    }).setOrigin(0.5);
 
-      if (this.chosen.size === 0) {
-        for (let i = 0; i < Math.min(unlocked.length, slots); i++) {
-          this.chosen.add(unlocked[i].key);
-        }
-      }
-      this.events.emit('refresh');
-    }
-
-    // START Button
-    const btn = this.add.container(W / 2, 545);
-    const g = this.add.graphics();
-    g.fillStyle(0x2a6b25, 1);
-    g.fillRoundedRect(-120, -8, 240, 56, 18);
-    g.fillStyle(0x58c552, 1);
-    g.fillRoundedRect(-120, -14, 240, 56, 18);
-    btn.add([
-      g,
-      this.add.text(0, 14, 'START STAGE', {
-        fontFamily: FONT,
-        fontSize: '32px',
-        fontStyle: 'bold',
-        color: '#fff',
-        stroke: '#2a6b25',
-        strokeThickness: 5,
-      }).setOrigin(0.5),
-    ]);
-    btn.setSize(240, 56).setInteractive({ useHandCursor: true });
-    btn.on('pointerdown', () => {
+    contBtn.add([bgCont, contTxt]);
+    contBtn.setSize(btnW, btnH).setInteractive({ useHandCursor: true });
+    contBtn.on('pointerover', () => drawContBtn(true));
+    contBtn.on('pointerout', () => drawContBtn(false));
+    contBtn.on('pointerdown', () => {
+      playButtonClickSound();
       this.scene.stop('Aviary');
       AviaryScene.suspendedGame = undefined;
       patchSave({ suspendedSession: undefined });
       this.scene.start('Aviary', { level: this.level, pets: [...this.chosen] });
     });
-    this.tweens.add({ targets: btn, scale: 1.05, duration: 700, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: contBtn, scale: 1.04, duration: 800, yoyo: true, repeat: -1 });
 
-    // Secondary Stage Select & Main Menu Navigation Buttons
-    this.createNavButton(180, 645, '🗺️  CHANGE STAGE', 0x204566, 0x3b82f6, () => this.switchView('world_select'));
-    this.createNavButton(W - 180, 645, '◀  MAIN MENU', 0x3e2415, 0x8d5c34, () => this.switchView('main_menu'));
+    // Function to update showcase display
+    const updateShowcase = (petDef: (typeof PETS)[0], _isHover = false) => {
+      const isUnlocked = this.maxUnlockedLevel > petDef.stageReq;
+      previewImg.setTexture('pet_' + petDef.key);
+      if (isUnlocked) {
+        previewImg.clearTint();
+        previewImg.setAlpha(1.0);
+        nameText.setText(petDef.name);
+        roleText.setText(`${petDef.role} (${petDef.stageLabel})`);
+        descText.setText(petDef.desc);
+      } else {
+        previewImg.setTint(0x334155);
+        previewImg.setAlpha(0.65);
+        nameText.setText(`${petDef.name} (LOCKED)`);
+        roleText.setText(`Unlocks in Stage ${petDef.stageLabel}`);
+        descText.setText(`Complete Stage ${petDef.stageLabel} to rescue ${petDef.name} the ${petDef.role}!`);
+      }
+
+      // Update prompt
+      if (isWorld5) {
+        promptText.setText('🦖 ALL 20 COMPANIONS ASSEMBLED TO BATTLE TITANORAPTOR! 🦖');
+      } else if (this.level === 1 && unlocked.length === 0) {
+        promptText.setText('Feed sparrows, harvest coins, and rescue companions!');
+      } else {
+        const remaining = slots - this.chosen.size;
+        if (remaining > 0) {
+          promptText.setText(`Choose ${remaining} more pet${remaining === 1 ? '' : 's'}...`);
+        } else {
+          promptText.setText('Click on pets to add or remove them');
+        }
+      }
+    };
+
+    // Default showcase preview
+    const defaultPet = unlocked[0] ?? PETS[0];
+    updateShowcase(defaultPet);
+
+    // =======================================================================
+    // 24 OVAL FRAMES LAYOUT (10 LEFT, 10 RIGHT, 4 CENTER-BOTTOM)
+    // =======================================================================
+    const ovalPositions: { x: number; y: number }[] = [];
+
+    // Left side: 10 frames (2 cols x 5 rows)
+    const leftCols = [140, 260];
+    const sideRows = [160, 268, 376, 484, 592];
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 2; c++) {
+        ovalPositions.push({ x: leftCols[c], y: sideRows[r] });
+      }
+    }
+
+    // Right side: 10 frames (2 cols x 5 rows)
+    const rightCols = [1020, 1140];
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 2; c++) {
+        ovalPositions.push({ x: rightCols[c], y: sideRows[r] });
+      }
+    }
+
+    // Center bottom: 4 frames (2 cols x 2 rows)
+    const centerCols = [580, 700];
+    const centerRows = [515, 620];
+    for (let r = 0; r < 2; r++) {
+      for (let c = 0; c < 2; c++) {
+        ovalPositions.push({ x: centerCols[c], y: centerRows[r] });
+      }
+    }
+
+    // Create 24 frames
+    const refreshFns: (() => void)[] = [];
+    const rx = 44;
+    const ry = 48;
+
+    PETS.forEach((pet, idx) => {
+      const pos = ovalPositions[idx];
+      if (!pos) return;
+
+      const isUnlocked = this.maxUnlockedLevel > pet.stageReq;
+      const frameContainer = this.add.container(pos.x, pos.y);
+      const fg = this.add.graphics();
+      const petIcon = this.add.image(0, -4, 'pet_' + pet.key).setScale(0.72);
+      if (!isUnlocked) {
+        petIcon.setTint(0x334155);
+        petIcon.setAlpha(0.45);
+      }
+
+      // Checkmark icon for selected pets
+      const checkBg = this.add.graphics();
+      const checkTxt = this.add.text(rx - 14, -ry + 10, '✓', {
+        fontFamily: FONT,
+        fontSize: '15px',
+        fontStyle: 'bold',
+        color: '#4ade80',
+        stroke: '#14532d',
+        strokeThickness: 3,
+      }).setOrigin(0.5);
+
+      // Lock icon if locked
+      const lockTxt = !isUnlocked
+        ? this.add.text(0, -4, '🔒', { fontSize: '20px' }).setOrigin(0.5)
+        : undefined;
+
+      // Stage label underneath
+      const labelTxt = this.add.text(0, ry - 14, isUnlocked ? pet.name : pet.stageLabel, {
+        fontFamily: FONT,
+        fontSize: '10px',
+        fontStyle: 'bold',
+        color: isUnlocked ? '#ffd54f' : '#64748b',
+      }).setOrigin(0.5);
+
+      frameContainer.add([fg, petIcon]);
+      if (lockTxt) frameContainer.add(lockTxt);
+      frameContainer.add([checkBg, checkTxt, labelTxt]);
+
+      const redraw = (hovered = false) => {
+        fg.clear();
+        checkBg.clear();
+        const isSelected = this.chosen.has(pet.key);
+
+        // 1. Drop shadow
+        fg.fillStyle(0x000000, 0.4);
+        fg.fillEllipse(3, 4, rx * 2, ry * 2);
+
+        // 2. Portal backdrop
+        fg.fillStyle(isUnlocked ? (isSelected ? 0x1e293b : 0x0c1929) : 0x050a12, 1);
+        fg.fillEllipse(0, 0, (rx - 4) * 2, (ry - 4) * 2);
+
+        // 3. Brass Oval Rim
+        const rimColor = isSelected ? 0x38bdf8 : hovered && isUnlocked ? 0xfde047 : 0xb8860b;
+        fg.lineStyle(isSelected ? 4 : 3, rimColor, 1);
+        fg.strokeEllipse(0, 0, (rx - 2) * 2, (ry - 2) * 2);
+
+        // 4. Glowing halo if selected
+        if (isSelected) {
+          fg.lineStyle(2, 0x00f0ff, 0.9);
+          fg.strokeEllipse(0, 0, rx * 2 + 4, ry * 2 + 4);
+          checkBg.fillStyle(0x14532d, 1);
+          checkBg.fillCircle(rx - 14, -ry + 10, 10);
+          checkBg.lineStyle(1.5, 0x4ade80, 1);
+          checkBg.strokeCircle(rx - 14, -ry + 10, 10);
+          checkTxt.setVisible(true);
+        } else {
+          checkTxt.setVisible(false);
+        }
+      };
+
+      redraw();
+      refreshFns.push(redraw);
+
+      // Interactions
+      frameContainer.setSize(rx * 2, ry * 2).setInteractive({ useHandCursor: isUnlocked });
+
+      frameContainer.on('pointerover', () => {
+        redraw(true);
+        updateShowcase(pet, true);
+        if (isUnlocked) {
+          this.tweens.add({ targets: frameContainer, scale: 1.08, duration: 120 });
+        }
+      });
+
+      frameContainer.on('pointerout', () => {
+        redraw(false);
+        this.tweens.add({ targets: frameContainer, scale: 1.0, duration: 120 });
+      });
+
+      frameContainer.on('pointerdown', () => {
+        if (!isUnlocked) {
+          this.toast(`Rescue ${pet.name} by clearing Stage ${pet.stageLabel}!`);
+          return;
+        }
+        if (isWorld5) {
+          this.toast('All 20 companions fight together against Titanoraptor!');
+          return;
+        }
+
+        playButtonClickSound();
+        if (this.chosen.has(pet.key)) {
+          this.chosen.delete(pet.key);
+        } else {
+          if (this.chosen.size < slots) {
+            this.chosen.add(pet.key);
+          } else {
+            this.toast(`Maximum ${slots} companions chosen! Click one to remove.`);
+          }
+        }
+        refreshFns.forEach((fn) => fn());
+        updateShowcase(pet);
+      });
+    });
   }
 
   // =========================================================================
@@ -1028,12 +1300,12 @@ export class MenuScene extends Phaser.Scene {
     this.createHeaderPill('PET SANCTUARY & TROPHY ROOM', '16 Stage Companions + Bonus Masters. Unlock one after each stage! Pick 3 in briefings.');
 
     const colW = 256;
-    const colH = 436;
+    const colH = 470;
     const startX = 146;
     const gapX = 272;
-    const cardY = 350;
+    const cardY = 360;
 
-    WORLDS.forEach((world, wIdx) => {
+    WORLDS.slice(0, 4).forEach((world, wIdx) => {
       const cx = startX + wIdx * gapX;
       const c = this.add.container(cx, cardY);
 
@@ -1054,11 +1326,11 @@ export class MenuScene extends Phaser.Scene {
 
       c.add([g, wHeader]);
 
-      const rowStartY = -colH / 2 + 68;
-      const rowGap = 88;
+      const rowStartY = -colH / 2 + 58;
+      const rowGap = 78;
 
-      for (let s = 0; s < 4; s++) {
-        const petIdx = wIdx * 4 + s;
+      for (let s = 0; s < 5; s++) {
+        const petIdx = wIdx * 5 + s;
         const pet = PETS[petIdx];
         if (!pet) continue;
         const isUnlocked = this.maxUnlockedLevel > pet.stageReq;
@@ -1067,35 +1339,35 @@ export class MenuScene extends Phaser.Scene {
         const rc = this.add.container(0, ry);
         const rg = this.add.graphics();
         const rw = colW - 20;
-        const rh = 80;
+        const rh = 72;
 
         rg.fillStyle(isUnlocked ? 0x24150c : 0x1a120c, 1);
         rg.fillRoundedRect(-rw / 2, -rh / 2, rw, rh, 10);
         rg.lineStyle(1.5, isUnlocked ? 0x9333ea : 0x443026, 1);
         rg.strokeRoundedRect(-rw / 2, -rh / 2, rw, rh, 10);
 
-        const icon = this.add.image(-rw / 2 + 30, 0, 'pet_' + pet.key).setScale(0.55);
+        const icon = this.add.image(-rw / 2 + 28, 0, 'pet_' + pet.key).setScale(0.52);
         if (!isUnlocked) icon.setTint(0x333333);
 
-        const pName = this.add.text(-rw / 2 + 62, -26, pet.name, {
+        const pName = this.add.text(-rw / 2 + 58, -24, pet.name, {
           fontFamily: FONT,
-          fontSize: '15px',
+          fontSize: '14px',
           fontStyle: 'bold',
           color: isUnlocked ? '#ffffff' : '#715d50',
         });
 
-        const pRole = this.add.text(-rw / 2 + 62, -8, `${pet.role} (${pet.stageLabel})`, {
+        const pRole = this.add.text(-rw / 2 + 58, -7, `${pet.role} (${pet.stageLabel})`, {
           fontFamily: FONT,
-          fontSize: '11px',
+          fontSize: '10px',
           fontStyle: 'bold',
           color: isUnlocked ? '#facc15' : '#57453a',
         });
 
-        const pDesc = this.add.text(-rw / 2 + 62, 8, pet.desc, {
+        const pDesc = this.add.text(-rw / 2 + 58, 8, pet.desc, {
           fontFamily: FONT,
-          fontSize: '10px',
+          fontSize: '9px',
           color: isUnlocked ? '#f3e8d9' : '#57453a',
-          wordWrap: { width: rw - 70 },
+          wordWrap: { width: rw - 66 },
         });
 
         const pBadge = this.add.text(rw / 2 - 8, -rh / 2 + 8, isUnlocked ? '✓ RESCUED' : 'LOCKED', {

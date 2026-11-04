@@ -53,8 +53,9 @@ export const WORLDS: WorldDef[] = [
     stages: [
       { stage: 1, name: 'Welcome to the Aviary', briefing: 'Click to drop seeds. Feed the baby Sparrow until it grows up, then buy the Egg pieces!', baseEggCost: 60 },
       { stage: 2, name: 'Hawks in the Clouds', briefing: 'Wild hawks are attacking! Tap the hawk repeatedly to protect your birds.', baseEggCost: 120 },
-      { stage: 3, name: 'Golden Plumage', briefing: 'Upgrade your seeds and feed your birds into mature Adult Sparrows to drop valuable golden plumage plumes.', baseEggCost: 220 },
-      { stage: 4, name: 'Meadow Finale', briefing: 'Fend off fierce hawk waves and complete the golden egg to hatch Spike the Hedgehog!', baseEggCost: 380 },
+      { stage: 3, name: 'Golden Plumage', briefing: 'Upgrade your seeds and feed your birds into mature Adult Sparrows to drop valuable golden plumage plumes.', baseEggCost: 200 },
+      { stage: 4, name: 'Alley Cat Incursion', briefing: 'Prowling cats leap across the branches! Defend your flock with quick clicks.', baseEggCost: 320 },
+      { stage: 5, name: 'Meadow Grand Finale', briefing: 'Fend off fierce predator waves to hatch Rusty the Robin and complete World 1!', baseEggCost: 450 },
     ],
   },
   {
@@ -69,7 +70,8 @@ export const WORLDS: WorldDef[] = [
       { stage: 1, name: 'Hunters of the Canopy', briefing: 'Introducing the Peregrine Falcon! Buy baby sparrows to feed it and collect its diamonds.', baseEggCost: 600 },
       { stage: 2, name: 'Thieving Crows', briefing: 'Fast shadow crows dive down to steal coins and food! Tap them before they snatch your loot.', baseEggCost: 850 },
       { stage: 3, name: 'Food Chain Mastery', briefing: 'Balance seed-eating sparrows with voracious falcons to generate diamond fortunes.', baseEggCost: 1150 },
-      { stage: 4, name: 'Canopy Finale', briefing: 'Survive heavy crow & hawk aerial assaults to hatch Flutter the Butterfly!', baseEggCost: 1500 },
+      { stage: 4, name: 'Canopy Shadow Raid', briefing: 'Shadow predators swarm the canopy in coordinated dive-bombs! Keep your weapons ready.', baseEggCost: 1400 },
+      { stage: 5, name: 'Rainforest Grand Finale', briefing: 'Survive heavy aerial predator assaults to hatch River the River Otter and conquer World 2!', baseEggCost: 1750 },
     ],
   },
   {
@@ -81,10 +83,11 @@ export const WORLDS: WorldDef[] = [
     mechanicDesc: 'Mama Songbird flies and nests freely, never needs feeding, and lays eggs in cozy nests that hatch into songbirds!',
     rewardPetKey: 'squirrel',
     stages: [
-      { stage: 1, name: 'The Nest Mother', briefing: 'Introducing Mama Songbird! She flies freely, never needs feeding, and lays eggs in cozy nests that hatch into songbirds.', baseEggCost: 1600 },
-      { stage: 2, name: 'Breeder Symbiosis', briefing: 'Let Mama Songbird supply continuous chicks to grow your flock and feed your Raptors!', baseEggCost: 2100 },
-      { stage: 3, name: 'Sanctuary Incursion', briefing: 'Heavy dual-hawk and creeping viper raids are testing your flock defenses.', baseEggCost: 2600 },
-      { stage: 4, name: 'Sanctuary Finale', briefing: 'Protect your flock through intense predator waves to hatch Nutty the Squirrel!', baseEggCost: 3200 },
+      { stage: 1, name: 'The Nest Mother', briefing: 'Introducing Mama Songbird! She flies freely, never needs feeding, and lays eggs in cozy nests that hatch into songbirds.', baseEggCost: 1800 },
+      { stage: 2, name: 'Breeder Symbiosis', briefing: 'Let Mama Songbird supply continuous chicks to grow your flock and feed your Raptors!', baseEggCost: 2300 },
+      { stage: 3, name: 'Tree Creepers & Toucans', briefing: 'Raise Tree Creepers to crunch feeder chicks into beetles, and Toucans to turn beetles into pearls!', baseEggCost: 2800 },
+      { stage: 4, name: 'Sanctuary Incursion', briefing: 'Heavy dual-hawk and creeping viper raids are testing your flock defenses.', baseEggCost: 3400 },
+      { stage: 5, name: 'Blossom Grand Finale', briefing: 'Overcome the Gourmet Vulture and predator waves to hatch Chirpy the Cricket and conquer World 3!', baseEggCost: 4000 },
     ],
   },
   {
@@ -96,10 +99,11 @@ export const WORLDS: WorldDef[] = [
     mechanicDesc: 'Adopt the Sugar Glider! It glides across trees dropping fiery Cinder Acorns. Young birds perish if they eat it, but Adult birds burn and REBORN as the immortal Golden Phoenix!',
     rewardPetKey: 'hen',
     stages: [
-      { stage: 1, name: 'The Sugar Glider', briefing: 'Adopt the high-flying Sugar Glider! Keep chicks away from its scorching Cinder Acorns, but let adult birds feast to birth a Phoenix!', baseEggCost: 3500 },
-      { stage: 2, name: 'Circle of Rebirth', briefing: 'Breed chicks with Mama Songbird, hunt with Raptors, and let adult birds eat Cinder Acorns to summon divine Phoenixes!', baseEggCost: 4200 },
-      { stage: 3, name: 'Volcanic Wyvern Attack', briefing: 'A massive Volcanic Wyvern has descended from the fiery crater! Aim your slingshot true!', baseEggCost: 5000 },
-      { stage: 4, name: 'The Master Aviary Ascendance', briefing: 'Complete the ultimate Golden Egg to earn the Golden Hen, Nightingale, and Master Aviary Trophy!', baseEggCost: 6000 },
+      { stage: 1, name: 'The Sugar Glider', briefing: 'Adopt the high-flying Sugar Glider! Keep chicks away from its scorching Cinder Acorns, but let adult birds feast to birth a Phoenix!', baseEggCost: 4200 },
+      { stage: 2, name: 'Cinder Geckos & Nectar', briefing: 'Raise Cinder Geckos to hunt chicks for sweet Amber Nectar, then feed it to Sugar Gliders for Cinder Acorns!', baseEggCost: 4800 },
+      { stage: 3, name: 'Circle of Phoenix Rebirth', briefing: 'Breed chicks with Mama Songbird, hunt with Raptors, and let adult birds eat Cinder Acorns to summon divine Phoenixes!', baseEggCost: 5500 },
+      { stage: 4, name: 'Volcanic Wyvern Attack', briefing: 'A massive Volcanic Wyvern has descended from the fiery crater! Aim your slingshot true!', baseEggCost: 6500 },
+      { stage: 5, name: 'Caldera Grand Finale', briefing: 'Conquer the Elder Wyvern raid to hatch Echo the Master Chameleon and assemble all 20 companions for the Final Titan!', baseEggCost: 7800 },
     ],
   },
   {
@@ -108,13 +112,13 @@ export const WORLDS: WorldDef[] = [
     theme: THEMES[4],
     subtitle: 'Prehistoric Titan: Titanoraptor',
     mechanicTitle: 'The Primal Avian Dinosaur: Titanoraptor',
-    mechanicDesc: 'The ultimate battle! All 16 unlocked companions enter the arena together. Protect them from volcanic magma boulders and defeat the primordial dinosaur ancestor!',
+    mechanicDesc: 'The ultimate battle! All 20 unlocked companions enter the arena together. Protect them from volcanic magma boulders and defeat the primordial dinosaur ancestor!',
     rewardPetKey: 'master_trophy',
     stages: [
       {
         stage: 1,
         name: 'Titanoraptor, The Primal Ancestor',
-        briefing: 'The primordial avian dinosaur ancestor has awakened! Titanoraptor descends with razor sickle claws and thunderous roars to reclaim the skies. All 16 companions unite on the battlefield—shoot down magma boulders, protect your flock, and defeat Titanoraptor to conquer the campaign!',
+        briefing: 'The primordial avian dinosaur ancestor has awakened! Titanoraptor descends with razor sickle claws and thunderous roars to reclaim the skies. All 20 companions unite on the battlefield—shoot down magma boulders, protect your flock, and defeat Titanoraptor to conquer the campaign!',
         baseEggCost: 10000,
       },
     ],
@@ -130,37 +134,41 @@ export interface PetDef {
   stageLabel: string;
 }
 
-/** 16 Stage Companions (1 unlocked after each stage) + Bonus Master Champions. */
+/** 20 Campaign Companions (1 unlocked after each stage) + 4 Bonus Master Champions = 24 Total Pets. */
 export const PETS: PetDef[] = [
-  // World 1 Companions
+  // World 1 Companions (Stages 1-1 to 1-5)
   { key: 'hedgehog', name: 'Spike', role: 'Ground Coin Collector', desc: 'Scuttles along the forest floor to scoop up falling and ground coins.', stageReq: 1, stageLabel: '1-1' },
   { key: 'badger', name: 'Barnaby', role: 'Truffle Forager', desc: 'Occasionally digs into the soil to unearth wild truffles worth 20 feathers.', stageReq: 2, stageLabel: '1-2' },
   { key: 'squirrel', name: 'Nutty', role: 'Acorn Sniper', desc: 'Stands guard on perches and hurls acorns at predators to stun and damage them.', stageReq: 3, stageLabel: '1-3' },
   { key: 'porcupine', name: 'Bristle', role: 'Quill Defender', desc: 'Bristles razor-sharp quills to bounce and damage low-diving and leaping predators.', stageReq: 4, stageLabel: '1-4' },
+  { key: 'robin', name: 'Rusty', role: 'Wild Berry Forager', desc: 'Forages the underbrush to periodically drop sweet elderberries worth 35 coins.', stageReq: 5, stageLabel: '1-5' },
 
-  // World 2 Companions
-  { key: 'mama', name: 'Mama Dove', role: 'Flock Mother', desc: 'Flies freely and periodically lays warm eggs in completed nests that hatch into songbirds without needing food!', stageReq: 5, stageLabel: '2-1' },
-  { key: 'woodpecker', name: 'Pip', role: 'Canopy Drummer', desc: 'Takes 5 minutes to excavate a tree-hollow roost. Drums the oak canopy to drop basic Level 1 seeds whenever birds are hungry.', stageReq: 6, stageLabel: '2-2' },
-  { key: 'butterfly', name: 'Flutter', role: 'Sky Sweeper', desc: 'Flutters through the sky and catches airborne coins and floating seeds mid-air.', stageReq: 7, stageLabel: '2-3' },
-  { key: 'magpie', name: 'Grimm', role: 'Treasure Thief', desc: 'Scavenges outside the aviary to periodically bring back shiny stolen loot bags worth 200c.', stageReq: 8, stageLabel: '2-4' },
+  // World 2 Companions (Stages 2-1 to 2-5)
+  { key: 'mama', name: 'Mama Dove', role: 'Flock Mother', desc: 'Flies freely and periodically lays warm eggs in completed nests that hatch into songbirds without needing food!', stageReq: 6, stageLabel: '2-1' },
+  { key: 'woodpecker', name: 'Pip', role: 'Canopy Drummer', desc: 'Takes 5 minutes to excavate a tree-hollow roost. Drums the oak canopy to drop basic Level 1 seeds whenever birds are hungry.', stageReq: 7, stageLabel: '2-2' },
+  { key: 'butterfly', name: 'Flutter', role: 'Sky Sweeper', desc: 'Flutters through the sky and catches airborne coins and floating seeds mid-air.', stageReq: 8, stageLabel: '2-3' },
+  { key: 'magpie', name: 'Grimm', role: 'Treasure Thief', desc: 'Scavenges outside the aviary to periodically bring back shiny stolen loot bags worth 200c.', stageReq: 9, stageLabel: '2-4' },
+  { key: 'otter', name: 'River', role: 'River Pearl Diver', desc: 'Dives into the stream bed to retrieve sparkling river pearls worth 100 coins.', stageReq: 10, stageLabel: '2-5' },
 
-  // World 3 Companions
-  { key: 'snail', name: 'Mossy', role: 'Time Dilator', desc: 'Emits a calming aura that slows down falling coins and seeds by 40% so nothing gets lost.', stageReq: 9, stageLabel: '3-1' },
-  { key: 'mole', name: 'Rocky', role: 'Demolitionist', desc: 'Tosses explosive pinecones up from underground burrows that burst into coins when clicked.', stageReq: 10, stageLabel: '3-2' },
-  { key: 'hound', name: 'Bramble', role: 'Flock Protector', desc: 'Barks fiercely to stun predators for 1.5s and herds chicks into safe hollows.', stageReq: 11, stageLabel: '3-3' },
-  { key: 'owl', name: 'Hoot', role: 'Night Sentry', desc: 'Flashes radar warning rings where predators are about to spawn and reveals enemy HP.', stageReq: 12, stageLabel: '3-4' },
+  // World 3 Companions (Stages 3-1 to 3-5)
+  { key: 'snail', name: 'Mossy', role: 'Time Dilator', desc: 'Emits a calming aura that slows down falling coins and seeds by 40% so nothing gets lost.', stageReq: 11, stageLabel: '3-1' },
+  { key: 'mole', name: 'Rocky', role: 'Demolitionist', desc: 'Tosses explosive pinecones up from underground burrows that burst into coins when clicked.', stageReq: 12, stageLabel: '3-2' },
+  { key: 'hound', name: 'Bramble', role: 'Flock Protector', desc: 'Barks fiercely to stun predators for 1.5s and herds chicks into safe hollows.', stageReq: 13, stageLabel: '3-3' },
+  { key: 'owl', name: 'Hoot', role: 'Night Sentry', desc: 'Flashes radar warning rings where predators are about to spawn and reveals enemy HP.', stageReq: 14, stageLabel: '3-4' },
+  { key: 'cricket', name: 'Chirpy', role: 'Harmony Musician', desc: 'Plays a soothing meadow melody that calms hungry birds, extending their hunger timer by 30%.', stageReq: 15, stageLabel: '3-5' },
 
-  // World 4 Companions
-  { key: 'frog', name: 'Bouncer', role: 'Canopy Springer', desc: 'Leaps high off branches to headbutt descending predators back into the upper sky.', stageReq: 13, stageLabel: '4-1' },
-  { key: 'hummingbird', name: 'Zephyr', role: 'Updraft Blower', desc: 'Flaps furious wings under falling seeds to blow them back upward toward hungry birds.', stageReq: 14, stageLabel: '4-2' },
-  { key: 'firefly', name: 'Sparky', role: 'Solar Energizer', desc: 'Illuminates the canopy and charges mature birds to drop rare glowing sparks.', stageReq: 15, stageLabel: '4-3' },
-  { key: 'ferret', name: 'Fang', role: 'Apex Biter', desc: 'Fierce aerial acrobat! Leaps directly onto invading predators with vicious bite attacks.', stageReq: 16, stageLabel: '4-4' },
+  // World 4 Companions (Stages 4-1 to 4-5)
+  { key: 'frog', name: 'Bouncer', role: 'Canopy Springer', desc: 'Leaps high off branches to headbutt descending predators back into the upper sky.', stageReq: 16, stageLabel: '4-1' },
+  { key: 'hummingbird', name: 'Zephyr', role: 'Updraft Blower', desc: 'Flaps furious wings under falling seeds to blow them back upward toward hungry birds.', stageReq: 17, stageLabel: '4-2' },
+  { key: 'firefly', name: 'Sparky', role: 'Solar Energizer', desc: 'Illuminates the canopy and charges mature birds to drop rare glowing sparks.', stageReq: 18, stageLabel: '4-3' },
+  { key: 'ferret', name: 'Fang', role: 'Apex Biter', desc: 'Fierce aerial acrobat! Leaps directly onto invading predators with vicious bite attacks.', stageReq: 19, stageLabel: '4-4' },
+  { key: 'chameleon', name: 'Echo', role: 'Master Shapeshifter', desc: 'Click Echo anytime to morph him into ANY companion in the sanctuary!', stageReq: 20, stageLabel: '4-5' },
 
   // Bonus Master Champions (Trophy Room & Sanctuary)
-  { key: 'hen', name: 'Goldie', role: 'Golden Egg Layer', desc: 'Lays golden eggs worth 250 coins.', stageReq: 17, stageLabel: 'Bonus' },
-  { key: 'nightingale', name: 'Melody', role: 'Grand Siren', desc: 'Her celestial song inspires all birds to drop bonus currency.', stageReq: 18, stageLabel: 'Master' },
-  { key: 'phoenix_chick', name: 'Asher', role: 'Solar Angel', desc: 'Periodically casts holy embers to revive starved birds.', stageReq: 19, stageLabel: 'Master' },
-  { key: 'chameleon', name: 'Echo', role: 'Shapeshifter', desc: 'Can morph into any companion on click!', stageReq: 20, stageLabel: 'Master' },
+  { key: 'hen', name: 'Goldie', role: 'Golden Egg Layer', desc: 'Lays golden eggs worth 250 coins in campaign or 5 gems in My Aviary.', stageReq: 21, stageLabel: 'Bonus' },
+  { key: 'nightingale', name: 'Melody', role: 'Grand Siren', desc: 'Her celestial song inspires all birds to double their feather yields.', stageReq: 22, stageLabel: 'Master' },
+  { key: 'phoenix_chick', name: 'Asher', role: 'Solar Angel', desc: 'Periodically casts holy embers to revive starved birds.', stageReq: 23, stageLabel: 'Master' },
+  { key: 'dragonfly', name: 'Dart', role: 'Aerial Striker', desc: 'Zooms across the sky at hyper-speed, stunning and damaging predators it passes through.', stageReq: 24, stageLabel: 'Master' },
 ];
 
 export function getUnlockedPets(saveLevel: number): PetDef[] {
@@ -168,11 +176,11 @@ export function getUnlockedPets(saveLevel: number): PetDef[] {
   return PETS.slice(0, unlockedCount);
 }
 
-/** Converts a flat linear level number (1..16+) into world and stage data. */
+/** Converts a flat linear level number (1..20, 21=World 5) into world and stage data. */
 export function getWorldAndStage(level: number) {
-  const totalStagesPerWorld = 4;
+  const totalStagesPerWorld = 5;
   const clampedLevel = Math.max(1, level);
-  if (clampedLevel >= 17) {
+  if (clampedLevel >= 21) {
     const world = WORLDS[4];
     const stage = world.stages[0];
     return {
@@ -187,7 +195,7 @@ export function getWorldAndStage(level: number) {
     };
   }
   const worldIndex = Math.min(3, Math.floor((clampedLevel - 1) / totalStagesPerWorld));
-  const stageIndex = Math.min(3, (clampedLevel - 1) % totalStagesPerWorld);
+  const stageIndex = Math.min(4, (clampedLevel - 1) % totalStagesPerWorld);
   const world = WORLDS[worldIndex];
   const stage = world.stages[stageIndex];
   const label = `World ${world.id}-${stage.stage}`;
@@ -278,17 +286,29 @@ export function difficulty(level: number): Difficulty {
             { kind: 'hawk', hp: 20 + waveIndex, label: 'Wild Hawk' },
           ];
         }
-        // Stage 1-4 World 1 Finale Boss Wave
+        if (ws.stageNum === 4) {
+          if (waveIndex === 0) {
+            return [
+              { kind: 'cat', hp: 28, label: 'Prowling Alley Cat' },
+              { kind: 'hawk', hp: 22, label: 'Wild Hawk' },
+            ];
+          }
+          return [
+            { kind: 'cat', hp: 32 + waveIndex * 2, label: 'Prowling Alley Cat' },
+            { kind: 'hawk', hp: 24 + waveIndex, label: 'Wild Hawk' },
+          ];
+        }
+        // Stage 1-5 World 1 Finale Boss Wave
         if (waveIndex === 0) {
           return [
-            { kind: 'cat', hp: 32, label: 'Alley Cat Alpha' },
-            { kind: 'hawk', hp: 22, label: 'Wild Hawk' },
+            { kind: 'cat', hp: 36, label: 'Alley Cat Alpha' },
+            { kind: 'hawk', hp: 24, label: 'Wild Hawk' },
           ];
         }
         return [
-          { kind: 'cat', hp: 36 + waveIndex * 2, label: 'Alley Cat Alpha' },
-          { kind: 'cat', hp: 26, label: 'Prowling Alley Cat' },
-          { kind: 'hawk', hp: 24 + waveIndex, label: 'Wild Hawk' },
+          { kind: 'cat', hp: 40 + waveIndex * 2, label: 'Alley Cat Alpha' },
+          { kind: 'cat', hp: 28, label: 'Prowling Alley Cat' },
+          { kind: 'hawk', hp: 26 + waveIndex, label: 'Wild Hawk' },
         ];
       },
     };
@@ -336,17 +356,29 @@ export function difficulty(level: number): Difficulty {
             { kind: 'snake', hp: 40 + waveIndex, label: 'Tree Viper' },
           ];
         }
-        // Stage 2-4 Finale
+        if (ws.stageNum === 4) {
+          if (waveIndex === 0) {
+            return [
+              { kind: 'cat', hp: 42, label: 'Jungle Panther' },
+              { kind: 'bombardier', hp: 48, label: 'Bombardier Osprey' },
+            ];
+          }
+          return [
+            { kind: 'bombardier', hp: 52 + waveIndex * 2, label: 'Bombardier Osprey' },
+            { kind: 'snake', hp: 38, label: 'Tree Viper' },
+          ];
+        }
+        // Stage 2-5 Rainforest Finale
         if (waveIndex === 0) {
           return [
-            { kind: 'cat', hp: 46, label: 'Jungle Panther' },
-            { kind: 'bombardier', hp: 52, label: 'Bombardier Osprey' },
+            { kind: 'cat', hp: 50, label: 'Jungle Panther Alpha' },
+            { kind: 'bombardier', hp: 56, label: 'Bombardier Osprey' },
           ];
         }
         return [
-          { kind: 'bombardier', hp: 58 + waveIndex * 3, label: 'Bombardier Osprey' },
-          { kind: 'bombardier', hp: 48, label: 'Bombardier Osprey' },
-          { kind: 'snake', hp: 42, label: 'Tree Viper' },
+          { kind: 'bombardier', hp: 62 + waveIndex * 3, label: 'Bombardier Osprey' },
+          { kind: 'bombardier', hp: 50, label: 'Bombardier Osprey' },
+          { kind: 'snake', hp: 46, label: 'Tree Viper' },
         ];
       },
     };
@@ -383,24 +415,31 @@ export function difficulty(level: number): Difficulty {
             { kind: 'spider', hp: 52 + waveIndex * 2, label: 'Canopy Silk Spider' },
           ];
         }
-        // Stage 3-4 Gourmet Vulture Boss Finale
+        if (ws.stageNum === 4) {
+          return [
+            { kind: 'weasel', hp: 60 + waveIndex * 2, label: 'Sly Woodland Weasel' },
+            { kind: 'spider', hp: 56 + waveIndex * 2, label: 'Canopy Silk Spider' },
+            { kind: 'glutton', hp: 16, label: 'Gorgon the Glutton' },
+          ];
+        }
+        // Stage 3-5 Gourmet Vulture Boss Finale
         if (waveIndex === 0) {
           return [
-            { kind: 'vulture', hp: 100, label: 'Gourmet Vulture' },
-            { kind: 'weasel', hp: 52, label: 'Sly Woodland Weasel' },
+            { kind: 'vulture', hp: 110, label: 'Gourmet Vulture' },
+            { kind: 'weasel', hp: 54, label: 'Sly Woodland Weasel' },
           ];
         }
         return [
-          { kind: 'vulture', hp: 125 + waveIndex * 5, label: 'Gourmet Vulture' },
-          { kind: 'glutton', hp: 16, label: 'Gorgon the Glutton' },
-          { kind: 'spider', hp: 54 + waveIndex * 2, label: 'Canopy Silk Spider' },
+          { kind: 'vulture', hp: 135 + waveIndex * 5, label: 'Gourmet Vulture' },
+          { kind: 'glutton', hp: 18, label: 'Gorgon the Glutton' },
+          { kind: 'spider', hp: 58 + waveIndex * 2, label: 'Canopy Silk Spider' },
         ];
       },
     };
   }
 
   // World 4: Volcanic Mystic Peaks - Wyverns, Magma Vipers, Elder Wyvern
-  const isBoss = ws.stageNum >= 3;
+  const isBoss = ws.stageNum >= 4;
   return {
     firstWaveDelay: 28 - ws.stageNum,
     waveInterval: 36 - ws.stageNum,
@@ -427,12 +466,19 @@ export function difficulty(level: number): Difficulty {
       }
       if (ws.stageNum === 3) {
         return [
-          { kind: 'wyvern', hp: 175 + waveIndex * 15, label: 'Volcanic Wyvern' },
           { kind: 'cat', hp: 76 + waveIndex * 3, label: 'Volcanic Feline' },
+          { kind: 'snake', hp: 74 + waveIndex * 3, label: 'Magma Viper' },
           { kind: 'bombardier', hp: 70, label: 'Volcanic Bombardier' },
         ];
       }
-      // World 4-4 Grand Finale Final Boss!
+      if (ws.stageNum === 4) {
+        return [
+          { kind: 'wyvern', hp: 185 + waveIndex * 15, label: 'Volcanic Wyvern' },
+          { kind: 'cat', hp: 80 + waveIndex * 3, label: 'Volcanic Feline' },
+          { kind: 'bombardier', hp: 72, label: 'Volcanic Bombardier' },
+        ];
+      }
+      // World 4-5 Grand Finale Elder Wyvern Boss!
       if (waveIndex === 0) {
         return [
           { kind: 'wyvern', hp: 260, label: 'Elder Volcanic Wyvern' },
