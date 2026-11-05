@@ -732,10 +732,38 @@ export interface EmporiumSlotDef {
   colorVariant?: BirdColorVariant;
 }
 
+export interface DailyPurchases {
+  date: string; // 'YYYY-MM-DD'
+  slots: string[]; // e.g. ['C', 'upgrade']
+}
+
+export function isEmporiumSlotSoldOut(slotId: string, s?: Save): boolean {
+  if (slotId === 'A' || slotId === 'B') return false;
+  const save = s ?? loadSave();
+  const today = new Date().toISOString().slice(0, 10);
+  if (!save.dailyPurchases || save.dailyPurchases.date !== today) return false;
+  return save.dailyPurchases.slots.includes(slotId);
+}
+
+export function recordEmporiumPurchase(slotId: string) {
+  if (slotId === 'A' || slotId === 'B') return;
+  const s = loadSave();
+  const today = new Date().toISOString().slice(0, 10);
+  const slots = (s.dailyPurchases && s.dailyPurchases.date === today) ? [...s.dailyPurchases.slots] : [];
+  if (!slots.includes(slotId)) {
+    slots.push(slotId);
+  }
+  patchSave({ dailyPurchases: { date: today, slots } });
+}
+
 /**
- * Returns the 6 daily rotating species and items featured in Clara's Emporium,
- * deterministically based on UTC calendar date. All 9 species rotate daily,
- * with guaranteed daily color mutations (Rainbow Chroma, Translucent Ghost, Golden Radiant).
+ * Returns the daily slots featured in Clara's Bird Emporium (matching Insaniquarium's Fish Emporium).
+ * - Slot A: Basic Songbird (Sparrow) - 25 Gems (Never sells out)
+ * - Slot B: Peregrine Falcon (Carnivore) - 100 Gems (Never sells out)
+ * - Slots C, D, E, F: Daily rotating species from the catalogue (500, 1,000, 10,000, 25,000 Gems).
+ *   Runs out upon purchase until tomorrow.
+ * - Upgrade Slot: Elixir of Growth - 20,000 Gems. Runs out upon purchase until tomorrow.
+ * - Backdrop Slot: Sanctuary Wallpaper - 15,000 Gems. Runs out upon purchase until tomorrow.
  */
 export function getDailyEmporiumSlots(dateStr?: string): EmporiumSlotDef[] {
   const dayStr = dateStr ?? new Date().toISOString().slice(0, 10);
@@ -744,84 +772,139 @@ export function getDailyEmporiumSlots(dateStr?: string): EmporiumSlotDef[] {
     hash = (hash * 31 + dayStr.charCodeAt(i)) >>> 0;
   }
 
-  // Shuffle all 9 bird species deterministically for the day
-  const pool = [...BIRD_CATALOGUE];
-  const dailySpecies: BirdSpeciesDef[] = [];
-  while (dailySpecies.length < 6 && pool.length > 0) {
+  // Slot A is ALWAYS Songbird (Sparrow), cost: 25 Gems
+  const sparrowDef = getSpeciesDef('sparrow');
+  const slotA: EmporiumSlotDef = {
+    id: 'A',
+    name: 'Songbird',
+    category: 'bird',
+    speciesKey: 'sparrow',
+    cost: 25,
+    icon: 'bird_sparrow',
+    desc: sparrowDef.desc,
+    badge: 'SONGBIRD',
+    colorVariant: 'normal',
+  };
+
+  // Slot B is ALWAYS Peregrine Falcon (Carnivore), cost: 100 Gems
+  const falconDef = getSpeciesDef('piranha_finch');
+  const slotB: EmporiumSlotDef = {
+    id: 'B',
+    name: 'Peregrine Falcon',
+    category: 'bird',
+    speciesKey: 'piranha_finch',
+    cost: 100,
+    icon: 'bird_piranha_finch',
+    desc: falconDef.desc,
+    badge: 'CARNIVORE',
+    colorVariant: 'normal',
+  };
+
+  // Remaining pool for daily rotating slots C, D, E, F:
+  // 7 species: canary, mama, tree_creeper, toucan, owl, infiltrator, phoenix
+  const rotatingPool = BIRD_CATALOGUE.filter((b) => b.key !== 'sparrow' && b.key !== 'piranha_finch');
+  const pool = [...rotatingPool];
+  const chosen: BirdSpeciesDef[] = [];
+  while (chosen.length < 4 && pool.length > 0) {
     hash = (hash * 1664525 + 1013904223) >>> 0;
     const idx = hash % pool.length;
-    dailySpecies.push(pool.splice(idx, 1)[0]);
+    chosen.push(pool.splice(idx, 1)[0]);
   }
-
-  const slotIds = ['A', 'B', 'C', 'D', 'E', 'F'];
-  const slots: EmporiumSlotDef[] = [];
 
   // Slot C features a Premier Daily Mutation: Rainbow (Color-Changing) or Translucent!
   const premierVariant: BirdColorVariant = (hash % 2 === 0) ? 'rainbow' : 'translucent';
   // Slot E features a Royal Mutation: Golden, Sapphire, or Amethyst!
-  const secondaryVariant: BirdColorVariant = (hash % 3 === 0) ? 'golden' : (hash % 3 === 1) ? 'sapphire' : 'amethyst';
+  const royalVariant: BirdColorVariant = (hash % 3 === 0) ? 'golden' : (hash % 3 === 1) ? 'sapphire' : 'amethyst';
 
-  dailySpecies.forEach((sp, i) => {
-    const slotId = slotIds[i];
-    let variant: BirdColorVariant = 'normal';
-    let badge = sp.rarity.toUpperCase();
-    let name = sp.name;
-    let cost = sp.gemCost;
+  // Slot C: cost 500 Gems
+  const spC = chosen[0];
+  const cBadge = premierVariant === 'rainbow' ? '🌈 RAINBOW' : '✨ TRANSLUCENT';
+  const cName = (premierVariant === 'rainbow' ? 'Rainbow ' : 'Translucent ') + spC.name;
+  const slotC: EmporiumSlotDef = {
+    id: 'C',
+    name: cName,
+    category: 'bird',
+    speciesKey: spC.key,
+    cost: 500,
+    icon: 'bird_' + spC.key,
+    desc: spC.desc,
+    badge: cBadge,
+    colorVariant: premierVariant,
+  };
 
-    if (slotId === 'C') {
-      variant = premierVariant;
-      badge = variant === 'rainbow' ? '🌈 RAINBOW' : '✨ TRANSLUCENT';
-      name = (variant === 'rainbow' ? 'Rainbow ' : 'Translucent ') + sp.name;
-      cost = Math.round(sp.gemCost * 1.35);
-    } else if (slotId === 'E') {
-      variant = secondaryVariant;
-      badge = variant === 'golden' ? '👑 GOLDEN' : variant === 'sapphire' ? '💎 SAPPHIRE' : '🔮 AMETHYST';
-      name = (variant === 'golden' ? 'Golden ' : variant === 'sapphire' ? 'Sapphire ' : 'Amethyst ') + sp.name;
-      cost = Math.round(sp.gemCost * 1.25);
-    }
+  // Slot D: cost 1,000 Gems
+  const spD = chosen[1];
+  const slotD: EmporiumSlotDef = {
+    id: 'D',
+    name: spD.name,
+    category: 'bird',
+    speciesKey: spD.key,
+    cost: 1000,
+    icon: 'bird_' + spD.key,
+    desc: spD.desc,
+    badge: spD.rarity.toUpperCase(),
+    colorVariant: 'normal',
+  };
 
-    slots.push({
-      id: slotId,
-      name,
-      category: 'bird',
-      speciesKey: sp.key,
-      cost,
-      icon: 'bird_' + sp.key,
-      desc: sp.desc,
-      badge,
-      colorVariant: variant,
-    });
-  });
+  // Slot E: cost 10,000 Gems
+  const spE = chosen[2];
+  const eBadge = royalVariant === 'golden' ? '👑 GOLDEN' : royalVariant === 'sapphire' ? '💎 SAPPHIRE' : '🔮 AMETHYST';
+  const eName = (royalVariant === 'golden' ? 'Golden ' : royalVariant === 'sapphire' ? 'Sapphire ' : 'Amethyst ') + spE.name;
+  const slotE: EmporiumSlotDef = {
+    id: 'E',
+    name: eName,
+    category: 'bird',
+    speciesKey: spE.key,
+    cost: 10000,
+    icon: 'bird_' + spE.key,
+    desc: spE.desc,
+    badge: eBadge,
+    colorVariant: royalVariant,
+  };
 
-  // Upgrade Slot (Elixir of Growth)
-  slots.push({
+  // Slot F: cost 25,000 Gems
+  const spF = chosen[3];
+  const slotF: EmporiumSlotDef = {
+    id: 'F',
+    name: spF.name,
+    category: 'bird',
+    speciesKey: spF.key,
+    cost: 25000,
+    icon: 'bird_' + spF.key,
+    desc: spF.desc,
+    badge: spF.rarity.toUpperCase(),
+    colorVariant: 'normal',
+  };
+
+  // Upgrade Slot (Elixir of Growth) - 20,000 Gems
+  const slotUpgrade: EmporiumSlotDef = {
     id: 'upgrade',
     name: 'Elixir of Growth',
     category: 'upgrade',
-    cost: 250,
+    cost: 20000,
     icon: 'emporium_potion',
     desc: 'Ancient alchemical tonic! Instantly matures and boosts every growing bird in your aviary.',
     badge: 'UPGRADE',
-  });
+  };
 
-  // Daily Rotating Wallpaper / Backdrop Slot
+  // Daily Rotating Wallpaper / Backdrop Slot - 15,000 Gems
   const backdrops = [
     { name: 'Blossom Sanctuary', worldId: 3, desc: 'Unlocks the dreamy Blossom Sanctuary botanical wallpaper for your aviary.' },
     { name: 'Rainforest Canopy', worldId: 2, desc: 'Unlocks the lush Rainforest Canopy canopy wallpaper for your aviary.' },
     { name: 'Volcanic Mystic Peaks', worldId: 4, desc: 'Unlocks the dramatic Volcanic Mystic Peaks wallpaper for your aviary.' },
   ];
   const bd = backdrops[(hash >>> 4) % backdrops.length];
-  slots.push({
+  const slotBackdrop: EmporiumSlotDef = {
     id: 'backdrop',
     name: bd.name,
     category: 'backdrop',
-    cost: 1000,
+    cost: 15000,
     icon: 'backdrop_preview',
     desc: bd.desc,
     badge: 'WALLPAPER',
-  });
+  };
 
-  return slots;
+  return [slotA, slotB, slotC, slotD, slotE, slotF, slotUpgrade, slotBackdrop];
 }
 
 export const EMPORIUM_SLOTS: EmporiumSlotDef[] = getDailyEmporiumSlots();
@@ -848,6 +931,8 @@ export interface Save {
   gems: number;
   /** Scenery aspect ratio preference: '16:9' (Widescreen) or '4:3' (Classic). */
   aspectRatio?: '16:9' | '4:3';
+  /** Track daily Bird Emporium purchases for limited daily stock ('SOLD OUT'). */
+  dailyPurchases?: DailyPurchases;
   /** The persistent sandbox aviary. */
   sandbox?: {
     birds: SavedBird[];

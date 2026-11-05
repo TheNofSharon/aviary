@@ -46,9 +46,11 @@ import {
   getTimeUntilNextStoreRotation,
   getUnlockedPets,
   getWorldAndStage,
+  isEmporiumSlotSoldOut,
   loadSave,
   maxPets,
   patchSave,
+  recordEmporiumPurchase,
   themeFor,
 } from './data';
 import {
@@ -382,9 +384,9 @@ export class Bird {
     }
   }
 
-  /** Instantly grows the bird one stage (growth potion). */
+  /** Instantly grows the bird one stage (growth potion). Does not work on farm chicks or feeder birds. */
   growNow() {
-    if (this.isFeeder) return;
+    if (this.isFeeder || this.isMamaSpawn) return;
     if (!this.isBreeder && this.stage < 3) {
       this.addUnits(STAGE_UNITS[this.stage] - this.units);
       this.updateTextures();
@@ -6004,17 +6006,17 @@ export class AviaryScene extends Phaser.Scene {
     this.addShop(idx++, 'Growth Tonic', 'potion', 1.0, {
       cost: () => 5,
       gem: true,
-      enabled: () => this.birds.some((b) => !b.isFeeder && b.stage < 2 && !b.dead),
+      enabled: () => this.birds.some((b) => !b.isFeeder && !b.isMamaSpawn && b.stage < 2 && !b.dead),
       texts: () => {
-        const canGrow = this.birds.some((b) => !b.isFeeder && b.stage < 2 && !b.dead);
+        const canGrow = this.birds.some((b) => !b.isFeeder && !b.isMamaSpawn && b.stage < 2 && !b.dead);
         return {
           sub: '5',
           tiny: canGrow ? 'Grow 1 Bird' : 'All Adults',
         };
       },
       buy: () => {
-        const candidates = this.birds.filter((b) => !b.isFeeder && b.stage < 2 && !b.dead);
-        if (candidates.length === 0) return this.toast('All birds are already fully grown adults!');
+        const candidates = this.birds.filter((b) => !b.isFeeder && !b.isMamaSpawn && b.stage < 2 && !b.dead);
+        if (candidates.length === 0) return this.toast('No eligible growing birds (farm birds must grow naturally)!');
         this.gems -= 5;
         const target = Phaser.Utils.Array.GetRandom(candidates);
         target.growNow();
@@ -7172,6 +7174,16 @@ export class AviaryScene extends Phaser.Scene {
         spr.setScale(0.7);
       }
 
+      // Check if slot is sold out for today (limited daily stock)
+      const isSoldOut = isEmporiumSlotSoldOut(slot.id);
+      const canAfford = !isSoldOut && this.gems >= slot.cost;
+
+      if (isSoldOut) {
+        card.setAlpha(0.65);
+        spr.setTint(0x777777);
+        if (w) w.setTint(0x555555);
+      }
+
       // Name
       const nameTxt = this.add
         .text(0, pos.h / 2 - 36, slot.name, {
@@ -7184,31 +7196,71 @@ export class AviaryScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
 
-      // Price button
-      const canAfford = this.gems >= slot.cost;
+      // Price button / Sold Out indicator
       const pbtn = this.add.graphics();
-      pbtn.fillStyle(canAfford ? 0xf5a623 : 0x4a3b2b, 1);
-      pbtn.fillRoundedRect(-pos.w / 2 + 12, pos.h / 2 - 22, pos.w - 24, 18, 9);
-      pbtn.lineStyle(1.5, canAfford ? 0xfff0b3 : 0x6d5740, 1);
-      pbtn.strokeRoundedRect(-pos.w / 2 + 12, pos.h / 2 - 22, pos.w - 24, 18, 9);
+      let pTxt: Phaser.GameObjects.Text;
+      let pIcon: Phaser.GameObjects.Image | undefined;
 
-      const pIcon = this.add.image(-pos.w / 2 + 25, pos.h / 2 - 13, 'gem').setScale(0.55);
-      const pTxt = this.add
-        .text(10, pos.h / 2 - 13, `${slot.cost.toLocaleString()}`, {
-          fontFamily: FONT,
-          fontSize: '11px',
-          fontStyle: 'bold',
-          color: canAfford ? '#1a0d05' : '#a19282',
-        })
-        .setOrigin(0.5);
+      if (isSoldOut) {
+        pbtn.fillStyle(0x450a0a, 0.95);
+        pbtn.fillRoundedRect(-pos.w / 2 + 12, pos.h / 2 - 22, pos.w - 24, 18, 9);
+        pbtn.lineStyle(1.5, 0xef4444, 0.9);
+        pbtn.strokeRoundedRect(-pos.w / 2 + 12, pos.h / 2 - 22, pos.w - 24, 18, 9);
+        pTxt = this.add
+          .text(0, pos.h / 2 - 13, 'SOLD OUT', {
+            fontFamily: FONT,
+            fontSize: '11px',
+            fontStyle: 'bold',
+            color: '#fca5a5',
+          })
+          .setOrigin(0.5);
 
-      card.add([abg, pill, bTxt, spr, nameTxt, pbtn, pIcon, pTxt]);
-      card.setSize(pos.w, pos.h).setInteractive({ useHandCursor: canAfford });
+        // Prominent SOLD OUT stamp banner across alcove center
+        const soldBanner = this.add.graphics();
+        soldBanner.fillStyle(0xd90429, 0.92);
+        soldBanner.fillRoundedRect(-pos.w / 2 + 10, -10, pos.w - 20, 22, 6);
+        soldBanner.lineStyle(1.5, 0xffffff, 0.95);
+        soldBanner.strokeRoundedRect(-pos.w / 2 + 10, -10, pos.w - 20, 22, 6);
+        const soldTxt = this.add
+          .text(0, 1, 'SOLD OUT', {
+            fontFamily: FONT,
+            fontSize: '11.5px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            stroke: '#5c0000',
+            strokeThickness: 3,
+          })
+          .setOrigin(0.5);
+        card.add([soldBanner, soldTxt]);
+      } else {
+        pbtn.fillStyle(canAfford ? 0xf5a623 : 0x4a3b2b, 1);
+        pbtn.fillRoundedRect(-pos.w / 2 + 12, pos.h / 2 - 22, pos.w - 24, 18, 9);
+        pbtn.lineStyle(1.5, canAfford ? 0xfff0b3 : 0x6d5740, 1);
+        pbtn.strokeRoundedRect(-pos.w / 2 + 12, pos.h / 2 - 22, pos.w - 24, 18, 9);
+
+        pIcon = this.add.image(-pos.w / 2 + 25, pos.h / 2 - 13, 'gem').setScale(0.55);
+        pTxt = this.add
+          .text(10, pos.h / 2 - 13, `${slot.cost.toLocaleString()}`, {
+            fontFamily: FONT,
+            fontSize: '11px',
+            fontStyle: 'bold',
+            color: canAfford ? '#1a0d05' : '#a19282',
+          })
+          .setOrigin(0.5);
+      }
+
+      card.add([abg, pill, bTxt, spr, nameTxt, pbtn, pTxt]);
+      if (pIcon) card.add(pIcon);
+      card.setSize(pos.w, pos.h).setInteractive({ useHandCursor: !isSoldOut && canAfford });
 
       // Hover feedback
       card.on('pointerover', () => {
         card.setScale(1.05);
-        speechText.setText(`[${slot.name}]: ${slot.desc}`);
+        if (isSoldOut) {
+          speechText.setText(`[${slot.name}]: Sold out for today! Restocks tomorrow.`);
+        } else {
+          speechText.setText(`[${slot.name}]: ${slot.desc}`);
+        }
       });
       card.on('pointerout', () => {
         card.setScale(1.0);
@@ -7217,12 +7269,16 @@ export class AviaryScene extends Phaser.Scene {
 
       // Purchase handler
       card.on('pointerdown', () => {
+        if (isSoldOut) {
+          return this.toast(`${slot.name} is sold out for today! Clara restocks tomorrow.`);
+        }
         if (this.gems < slot.cost) {
           return this.toast(`Need ${slot.cost.toLocaleString()} gems! Visit the Gem Store.`);
         }
 
         if (slot.category === 'bird') {
           this.gems -= slot.cost;
+          recordEmporiumPurchase(slot.id);
           const isMama = slot.speciesKey === 'mama';
           const b = new Bird(
             this,
@@ -7245,9 +7301,10 @@ export class AviaryScene extends Phaser.Scene {
           return;
         } else if (slot.category === 'upgrade') {
           this.gems -= slot.cost;
+          recordEmporiumPurchase(slot.id);
           let count = 0;
           for (const b of this.birds) {
-            if (!b.dead && !b.mama && b.stage < 3) {
+            if (!b.dead && !b.mama && !b.isFeeder && !b.isMamaSpawn && b.stage < 3) {
               b.growNow();
               this.burst(b.spr.x, b.spr.y, 0xb48cff, 20);
               count++;
@@ -7256,14 +7313,21 @@ export class AviaryScene extends Phaser.Scene {
           this.saveSandbox();
           this.refreshUi();
           this.toast(`Elixir applied! Matured ${count} growing bird${count === 1 ? '' : 's'}!`);
+          this.closeModal();
+          this.openPetStoreModal();
+          return;
         } else if (slot.category === 'backdrop') {
           this.gems -= slot.cost;
+          recordEmporiumPurchase(slot.id);
           let targetLevel = 9;
           if (slot.name.includes('Canopy')) targetLevel = 5;
           else if (slot.name.includes('Volcanic')) targetLevel = 13;
           this.level = targetLevel;
           this.saveSandbox();
           this.toast(`Unlocked and applied the ${slot.name} Wallpaper!`);
+          this.closeModal();
+          this.openPetStoreModal();
+          return;
         }
 
         gemText.setText(`${this.gems.toLocaleString()} GEMS`);
@@ -7488,7 +7552,7 @@ export class AviaryScene extends Phaser.Scene {
     let best: Bird | undefined;
     let minD = 75;
     for (const b of this.birds) {
-      if (b.dead || b.mama || b.stage >= 3) continue;
+      if (b.dead || b.mama || b.isFeeder || b.isMamaSpawn || b.stage >= 3) continue;
       const d = Phaser.Math.Distance.Between(x, y, b.spr.x, b.spr.y);
       if (d < minD) {
         minD = d;
@@ -7503,7 +7567,14 @@ export class AviaryScene extends Phaser.Scene {
       this.toast('Potion used! Bird grew!');
       this.saveSandbox();
     } else {
-      this.toast('Click directly on a bird to grow it!');
+      const clickedFarmChick = this.birds.find(
+        (b) => !b.dead && b.isMamaSpawn && Phaser.Math.Distance.Between(x, y, b.spr.x, b.spr.y) < 75
+      );
+      if (clickedFarmChick) {
+        this.toast('Growth potions do not work on farm chicks! They must be fed naturally.');
+      } else {
+        this.toast('Click directly on an eligible growing bird to grow it!');
+      }
     }
   }
 
@@ -8983,11 +9054,12 @@ export class AviaryScene extends Phaser.Scene {
     this.coinList.push({ img, value, landed: false, groundY: 596 + Math.random() * 20, life: 7.0, collected: false, isGem: true });
   }
 
-  nearestCoin(x: number, y: number): Coin | undefined {
+  nearestCoin(x: number, y: number, allowFoodCoins = false): Coin | undefined {
     let best: Coin | undefined;
     let bd = Infinity;
     for (const c of this.coinList) {
       if (c.collected) continue;
+      if (!allowFoodCoins && (c.isBeetle || c.isNectar)) continue;
       const d = Phaser.Math.Distance.Between(x, y, c.img.x, c.img.y);
       if (d < bd) {
         bd = d;
@@ -8997,11 +9069,12 @@ export class AviaryScene extends Phaser.Scene {
     return best;
   }
 
-  nearestGroundCoin(x: number): Coin | undefined {
+  nearestGroundCoin(x: number, allowFoodCoins = false): Coin | undefined {
     let best: Coin | undefined;
     let bd = Infinity;
     for (const c of this.coinList) {
       if (c.collected || !c.landed) continue;
+      if (!allowFoodCoins && (c.isBeetle || c.isNectar)) continue;
       const d = Math.abs(x - c.img.x);
       if (d < bd) {
         bd = d;
