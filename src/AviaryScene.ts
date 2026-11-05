@@ -28,6 +28,7 @@ import { unlockAchievement } from './achievements';
 import { LogbookUI } from './LogbookUI';
 import {
   BIRD_CATALOGUE,
+  BirdColorVariant,
   BirdSpeciesDef,
   EMPORIUM_SLOTS,
   GEM_PACKS,
@@ -39,6 +40,7 @@ import {
   WaveEnemy,
   difficulty,
   eggPieceCost,
+  getDailyEmporiumSlots,
   getDailyPetStoreBirds,
   getSpeciesDef,
   getTimeUntilNextStoreRotation,
@@ -88,6 +90,7 @@ interface Spot {
   egg?: Phaser.GameObjects.Image;
   eggT: number;
   eggMother?: Bird;
+  eggFromMama?: boolean;
   nestStage?: number;
   nestGfx?: Phaser.GameObjects.Graphics;
   nestRaidCooldown?: number;
@@ -211,6 +214,8 @@ export class Bird {
   purchaseDate: string;
   mentalState: string;
   additionalNotes: string;
+  colorVariant?: BirdColorVariant;
+  isMamaSpawn = false;
   private wasHungry = false;
   chirpTimer = 3.5 + Math.random() * 6.5;
   isRoyal = false;
@@ -223,10 +228,12 @@ export class Bird {
     public mama = false,
     public rare = false,
     speciesKey = 'sparrow',
-    public isFeeder = false
+    public isFeeder = false,
+    colorVariant?: BirdColorVariant
   ) {
     this.stage = stage;
     this.species = getSpeciesDef(speciesKey);
+    this.colorVariant = colorVariant;
     if (this.species.behavior === 'breeder') this.mama = true;
     this.coinT = 4 + Math.random() * 5;
     const texKey = (this.mama && this.species.key !== 'phoenix') ? 'mama' : this.species.key;
@@ -246,6 +253,10 @@ export class Bird {
     this.flip.add(this.eyelid);
     this.beakTwig = scene.add.image(33, -1, 'sparrow_twig').setOrigin(0.45, 0.55).setScale(0.95).setVisible(false);
     this.flip.add(this.beakTwig);
+
+    if (colorVariant) {
+      this.applyColorVariant(colorVariant);
+    }
 
     // Clean single soft ground shadow
     const shadowC = scene.add.container(x, y + 36).setDepth(4);
@@ -318,6 +329,56 @@ export class Bird {
     this.crown.setVisible((this.stage === 3 && !this.mama && !this.isFeeder) || this.isRoyal);
     if (this.isRoyal) {
       this.crown.setScale(this.stage === 0 ? 0.72 : this.stage === 1 ? 0.82 : 0.95);
+    }
+    if (this.colorVariant) {
+      this.applyColorVariant(this.colorVariant);
+    }
+  }
+
+  applyColorVariant(variant?: BirdColorVariant) {
+    this.colorVariant = variant;
+    if (!variant || variant === 'normal') {
+      this.body.setAlpha(1.0);
+      this.wing.setAlpha(1.0);
+      this.body.clearTint();
+      this.wing.clearTint();
+      return;
+    }
+    if (variant === 'translucent') {
+      this.body.setAlpha(0.52);
+      this.wing.setAlpha(0.62);
+      this.body.setTint(0x93c5fd);
+      this.wing.setTint(0xc7d2fe);
+    } else if (variant === 'golden') {
+      this.body.setAlpha(1.0);
+      this.wing.setAlpha(1.0);
+      this.body.setTint(0xffd700);
+      this.wing.setTint(0xf59e0b);
+    } else if (variant === 'sapphire') {
+      this.body.setAlpha(1.0);
+      this.wing.setAlpha(1.0);
+      this.body.setTint(0x38bdf8);
+      this.wing.setTint(0x2563eb);
+    } else if (variant === 'emerald') {
+      this.body.setAlpha(1.0);
+      this.wing.setAlpha(1.0);
+      this.body.setTint(0x4ade80);
+      this.wing.setTint(0x16a34a);
+    } else if (variant === 'ruby') {
+      this.body.setAlpha(1.0);
+      this.wing.setAlpha(1.0);
+      this.body.setTint(0xf43f5e);
+      this.wing.setTint(0xbe123c);
+    } else if (variant === 'amethyst') {
+      this.body.setAlpha(1.0);
+      this.wing.setAlpha(1.0);
+      this.body.setTint(0xc084fc);
+      this.wing.setTint(0x7e22ce);
+    } else if (variant === 'inverted') {
+      this.body.setAlpha(1.0);
+      this.wing.setAlpha(1.0);
+      this.body.setTint(0x06b6d4);
+      this.wing.setTint(0xf43f5e);
     }
   }
 
@@ -559,7 +620,8 @@ export class Bird {
       if (this.fullness <= 0) {
         this.sick = 1;
         // In Insaniquarium, reaching 0 fullness after ~10s of being green causes starvation death!
-        const canDie = !this.scene.sandbox || this.isFeeder;
+        // In the aviary, farm chicks from Mama Dove can starve to death if still a baby!
+        const canDie = !this.scene.sandbox || this.isFeeder || (this.isMamaSpawn && this.stage === 0);
         if (canDie) {
           this.scene.killBird(this, 'starved');
           return;
@@ -577,8 +639,31 @@ export class Bird {
         } else {
           this.wasHungry = false;
           if (!this.easterEgg) {
-            this.body.clearTint();
-            this.wing.clearTint();
+            if (this.colorVariant) {
+              if (this.colorVariant === 'rainbow') {
+                const hue = (t * 0.00075 + this.phase * 0.1) % 1;
+                const col = Phaser.Display.Color.HSVToRGB(hue, 0.85, 1.0).color;
+                this.body.setTint(col);
+                this.wing.setTint(col);
+                if (Math.random() < 0.04) {
+                  this.scene.burst(this.spr.x, this.spr.y, col, 1);
+                }
+              } else if (this.colorVariant === 'translucent') {
+                const pulse = 0.46 + Math.sin(t * 0.004 + this.phase) * 0.12;
+                this.body.setAlpha(pulse);
+                this.wing.setAlpha(pulse + 0.12);
+                this.body.setTint(0x93c5fd);
+                this.wing.setTint(0xc7d2fe);
+                if (Math.random() < 0.03) {
+                  this.scene.burst(this.spr.x, this.spr.y, 0xe0f2fe, 1);
+                }
+              } else {
+                this.applyColorVariant(this.colorVariant);
+              }
+            } else {
+              this.body.clearTint();
+              this.wing.clearTint();
+            }
           }
         }
       }
@@ -2951,13 +3036,14 @@ export class Pet {
               this.tx = nest.x;
               this.wy = nest.y - 12;
               break;
-            } else if (this.timer < -8) {
-              // If no completed nest available after waiting, hatch a chick mid-air!
-              this.timer = 20;
+            } else if (this.timer < -8 || this.scene.sandbox) {
+              // If no completed nest available after waiting (or in sandbox farm), hatch a chick mid-air!
+              this.timer = this.scene.sandbox ? 32 : 20;
               this.scene.burst(f.spr.x, f.spr.y - 14, 0xffd54f, 12);
               const b = new Bird(this.scene, f.spr.x, f.spr.y - 25, 0, false, false, 'sparrow', false);
+              b.isMamaSpawn = true;
               this.scene.birds.push(b);
-              this.scene.floatText(f.spr.x, f.spr.y - 35, '🥚 Free Songbird Chick Hatched!', '#ffd54f', '#422817');
+              this.scene.floatText(f.spr.x, f.spr.y - 35, '🥚 Free Songbird Farm Chick!', '#ffd54f', '#422817');
             }
           }
 
@@ -3024,7 +3110,7 @@ export class Pet {
           // Settled in nest! Lay egg!
           const nest = this.mamaSpot;
           if (nest && nest.nest && !nest.egg) {
-            this.scene.layEgg(nest);
+            this.scene.layEgg(nest, undefined, true);
             this.scene.burst(nest.x, nest.y - 12, 0xffd54f, 16);
             this.scene.floatText(nest.x, nest.y - 35, '🥚 Mama Dove laid a warm egg in the nest!', '#ffd54f', '#422817');
             this.scene.toast('Mama Dove laid a warm egg in a cozy nest cup!');
@@ -4338,6 +4424,7 @@ export class AviaryScene extends Phaser.Scene {
         if (sb.purchaseDate) b.purchaseDate = sb.purchaseDate;
         if (sb.mentalState) b.mentalState = sb.mentalState;
         if (sb.additionalNotes) b.additionalNotes = sb.additionalNotes;
+        if (sb.colorVariant) b.applyColorVariant(sb.colorVariant);
         this.birds.push(b);
       });
       this.time.addEvent({ delay: 4000, loop: true, callback: () => this.saveSandbox() });
@@ -4458,10 +4545,16 @@ export class AviaryScene extends Phaser.Scene {
               this.burst(b.spr.x, b.spr.y, 0xffd54f, 4);
               return;
             }
+            if (b.isMamaSpawn) {
+              this.floatText(b.spr.x, b.spr.y - 25, '🥚 Farm Chick (Mama)', '#ffd54f', '#422817');
+              this.burst(b.spr.x, b.spr.y, 0xffd54f, 4);
+              return;
+            }
             const displayName = b.name ? b.name : b.species.name;
             playBirdChirpSound('warble', 1.0);
             playPettingSound();
-            this.floatText(b.spr.x, b.spr.y - 25, `♥ ${displayName} ♥`, '#ff69b4', '#4a0e2e');
+            const colorPrefix = b.colorVariant === 'rainbow' ? '🌈 ' : b.colorVariant === 'translucent' ? '✨ ' : b.colorVariant === 'golden' ? '👑 ' : '';
+            this.floatText(b.spr.x, b.spr.y - 25, `♥ ${colorPrefix}${displayName} ♥`, '#ff69b4', '#4a0e2e');
             this.burst(b.spr.x, b.spr.y, 0xff69b4, 6);
             return;
           }
@@ -6341,7 +6434,7 @@ export class AviaryScene extends Phaser.Scene {
   saveSandbox() {
     if (!this.sandbox) return;
     const list: SavedBird[] = this.birds
-      .filter((b) => !b.isFeeder && !b.dead)
+      .filter((b) => !b.isFeeder && !b.dead && !b.isMamaSpawn)
       .map((b) => ({
         stage: b.stage,
         units: b.units,
@@ -6354,6 +6447,7 @@ export class AviaryScene extends Phaser.Scene {
         purchaseDate: b.purchaseDate,
         mentalState: b.mentalState,
         additionalNotes: b.additionalNotes,
+        colorVariant: b.colorVariant,
       }));
     patchSave({
       gems: this.gems,
@@ -6373,8 +6467,8 @@ export class AviaryScene extends Phaser.Scene {
     let bd = Infinity;
     for (const b of this.birds) {
       if (b === hunter || b.dead) continue;
-      // In Sandbox mode, predators specifically target feeder birds to protect permanent pets!
-      if (this.sandbox && !b.isFeeder) continue;
+      // In Sandbox mode, predators specifically target feeder birds and baby mama farm chicks:
+      if (this.sandbox && !b.isFeeder && !(b.isMamaSpawn && b.stage === 0)) continue;
 
       if (hunter.species.behavior === 'apex') {
         // Apex hunts carnivores or feeder birds
@@ -6536,8 +6630,8 @@ export class AviaryScene extends Phaser.Scene {
       .text(
         W / 2,
         H / 2 - ph / 2 + 55,
-        'Clara\'s Sanctuary Market • Adopt exotic species, brews & biomes for your Aviary',
-        { fontFamily: FONT, fontSize: '13px', fontStyle: 'bold', color: '#ecd7bb' }
+        `Clara's Sanctuary Market • Rotates in ${getTimeUntilNextStoreRotation()} • Exotic Species & Daily Color Mutations`,
+        { fontFamily: FONT, fontSize: '12.5px', fontStyle: 'bold', color: '#ecd7bb' }
       )
       .setOrigin(0.5)
       .setDepth(82);
@@ -6546,8 +6640,9 @@ export class AviaryScene extends Phaser.Scene {
 
     // Clara Keeper quotes
     const keeperQuotes = [
-      'Welcome to the Bird Emporium! Every species here thrives in your Sanctuary.',
+      'Welcome to the Bird Emporium! Today\'s species and color mutations rotate daily!',
       'Did you know? Peregrine Falcons only hunt feeder chicks, but drop lustrous diamonds!',
+      'Look out for rare daily mutations: Color-Changing Rainbow, Spectral Translucent, or Royal Gold feathers!',
       'The Golden Phoenix blesses the entire aviary with sacred 500c Solar Embers!',
       'Great Horned Owls hunt carnivore birds and drop giant gem treasure chests!',
       'The Elixir of Growth immediately matures all young fledglings in your flock!',
@@ -6714,10 +6809,17 @@ export class AviaryScene extends Phaser.Scene {
       APEX: 0x4a148c,
       UPGRADE: 0x00838f,
       WALLPAPER: 0x2e7d32,
+      '🌈 RAINBOW': 0xdb2777,
+      '✨ TRANSLUCENT': 0x0284c7,
+      '👑 GOLDEN': 0xb45309,
+      '💎 SAPPHIRE': 0x0369a1,
+      '🔮 AMETHYST': 0x6d28d9,
     };
 
+    const emporiumSlots = getDailyEmporiumSlots();
+
     // Render each alcove
-    EMPORIUM_SLOTS.forEach((slot) => {
+    emporiumSlots.forEach((slot) => {
       const pos = slotCoords[slot.id];
       if (!pos) return;
 
@@ -6747,11 +6849,43 @@ export class AviaryScene extends Phaser.Scene {
 
       // Item Thumbnail
       const spr = this.add.image(0, -pos.h / 2 + 48, slot.icon);
+      let w: Phaser.GameObjects.Image | undefined;
       if (slot.category === 'bird') {
         spr.setScale(0.85);
         if (slot.speciesKey) {
-          const w = this.add.image(-7, -pos.h / 2 + 52, 'wing_' + slot.speciesKey).setScale(0.85).setOrigin(0.78, 0.5);
+          w = this.add.image(-7, -pos.h / 2 + 52, 'wing_' + slot.speciesKey).setScale(0.85).setOrigin(0.78, 0.5);
           card.add(w);
+        }
+        if (slot.colorVariant && slot.colorVariant !== 'normal') {
+          if (slot.colorVariant === 'translucent') {
+            spr.setAlpha(0.55);
+            spr.setTint(0x93c5fd);
+            if (w) {
+              w.setAlpha(0.65);
+              w.setTint(0xc7d2fe);
+            }
+          } else if (slot.colorVariant === 'rainbow') {
+            spr.setTint(0xf43f5e);
+            if (w) w.setTint(0x38bdf8);
+          } else if (slot.colorVariant === 'golden') {
+            spr.setTint(0xffd700);
+            if (w) w.setTint(0xf59e0b);
+          } else if (slot.colorVariant === 'sapphire') {
+            spr.setTint(0x38bdf8);
+            if (w) w.setTint(0x2563eb);
+          } else if (slot.colorVariant === 'emerald') {
+            spr.setTint(0x4ade80);
+            if (w) w.setTint(0x16a34a);
+          } else if (slot.colorVariant === 'ruby') {
+            spr.setTint(0xf43f5e);
+            if (w) w.setTint(0xbe123c);
+          } else if (slot.colorVariant === 'amethyst') {
+            spr.setTint(0xc084fc);
+            if (w) w.setTint(0x7e22ce);
+          } else if (slot.colorVariant === 'inverted') {
+            spr.setTint(0x06b6d4);
+            if (w) w.setTint(0xf43f5e);
+          }
         }
       } else if (slot.category === 'upgrade') {
         spr.setScale(0.85);
@@ -6818,7 +6952,9 @@ export class AviaryScene extends Phaser.Scene {
             isMama ? 2 : 0,
             isMama,
             false,
-            slot.speciesKey
+            slot.speciesKey,
+            false,
+            slot.colorVariant
           );
           this.birds.push(b);
           this.saveSandbox();
@@ -6843,9 +6979,12 @@ export class AviaryScene extends Phaser.Scene {
           this.toast(`Elixir applied! Matured ${count} growing bird${count === 1 ? '' : 's'}!`);
         } else if (slot.category === 'backdrop') {
           this.gems -= slot.cost;
-          this.level = 9; // Blossom Sanctuary World theme
+          let targetLevel = 9;
+          if (slot.name.includes('Canopy')) targetLevel = 5;
+          else if (slot.name.includes('Volcanic')) targetLevel = 13;
+          this.level = targetLevel;
           this.saveSandbox();
-          this.toast('Unlocked and applied the Blossom Sanctuary Wallpaper!');
+          this.toast(`Unlocked and applied the ${slot.name} Wallpaper!`);
         }
 
         gemText.setText(`${this.gems.toLocaleString()} GEMS`);
@@ -7191,8 +7330,8 @@ export class AviaryScene extends Phaser.Scene {
     banner.add([bbg, btxt]);
     this.modalItems.push(banner);
 
-    // Filter pet birds (non-feeder, non-dead)
-    const petBirds = this.birds.filter((b) => !b.isFeeder && !b.dead);
+    // Filter pet birds (non-feeder, non-dead, non-mama farm spawn)
+    const petBirds = this.birds.filter((b) => !b.isFeeder && !b.dead && !b.isMamaSpawn);
     let selectedIndex = 0;
     if (initialBird) {
       const idx = petBirds.indexOf(initialBird);
@@ -7284,9 +7423,44 @@ export class AviaryScene extends Phaser.Scene {
           // Miniature bird preview
           const miniBody = this.add.image(0, 0, b.mama ? 'bird_mama' : 'bird_' + b.species.key).setScale(0.62);
           const miniWing = this.add.image(-5, 3, b.mama ? 'wing_mama' : 'wing_' + b.species.key).setScale(0.62).setOrigin(0.78, 0.5);
-          if (b.body.isTinted) miniBody.setTint(b.body.tintTopLeft);
-          if (b.wing.isTinted) miniWing.setTint(b.wing.tintTopLeft);
+          if (b.colorVariant && b.colorVariant !== 'normal') {
+            if (b.colorVariant === 'translucent') {
+              miniBody.setAlpha(0.55);
+              miniWing.setAlpha(0.65);
+              miniBody.setTint(0x93c5fd);
+              miniWing.setTint(0xc7d2fe);
+            } else if (b.colorVariant === 'rainbow') {
+              miniBody.setTint(0xf43f5e);
+              miniWing.setTint(0x38bdf8);
+            } else if (b.colorVariant === 'golden') {
+              miniBody.setTint(0xffd700);
+              miniWing.setTint(0xf59e0b);
+            } else if (b.colorVariant === 'sapphire') {
+              miniBody.setTint(0x38bdf8);
+              miniWing.setTint(0x2563eb);
+            } else if (b.colorVariant === 'emerald') {
+              miniBody.setTint(0x4ade80);
+              miniWing.setTint(0x16a34a);
+            } else if (b.colorVariant === 'ruby') {
+              miniBody.setTint(0xf43f5e);
+              miniWing.setTint(0xbe123c);
+            } else if (b.colorVariant === 'amethyst') {
+              miniBody.setTint(0xc084fc);
+              miniWing.setTint(0x7e22ce);
+            } else if (b.colorVariant === 'inverted') {
+              miniBody.setTint(0x06b6d4);
+              miniWing.setTint(0xf43f5e);
+            }
+          } else {
+            if (b.body.isTinted) miniBody.setTint(b.body.tintTopLeft);
+            if (b.wing.isTinted) miniWing.setTint(b.wing.tintTopLeft);
+          }
           slotC.add([miniBody, miniWing]);
+
+          if (b.colorVariant && b.colorVariant !== 'normal') {
+            const vIcon = b.colorVariant === 'rainbow' ? '🌈' : b.colorVariant === 'translucent' ? '✨' : b.colorVariant === 'golden' ? '👑' : '💎';
+            slotC.add(this.add.text(-24, -24, vIcon, { fontSize: '13px' }));
+          }
 
           if (b.stage === 3 && !b.mama) {
             slotC.add(this.add.image(8, -20, 'crown').setScale(0.6).setRotation(0.2));
@@ -7398,8 +7572,38 @@ export class AviaryScene extends Phaser.Scene {
       const birdPreviewC = this.add.container(cx, oy).setDepth(84);
       const prevBody = this.add.image(0, 0, currentBird.mama ? 'bird_mama' : 'bird_' + currentBird.species.key).setScale(1.4);
       const prevWing = this.add.image(-11, 7, currentBird.mama ? 'wing_mama' : 'wing_' + currentBird.species.key).setScale(1.4).setOrigin(0.78, 0.5);
-      if (currentBird.body.isTinted) prevBody.setTint(currentBird.body.tintTopLeft);
-      if (currentBird.wing.isTinted) prevWing.setTint(currentBird.wing.tintTopLeft);
+      if (currentBird.colorVariant && currentBird.colorVariant !== 'normal') {
+        if (currentBird.colorVariant === 'translucent') {
+          prevBody.setAlpha(0.55);
+          prevWing.setAlpha(0.65);
+          prevBody.setTint(0x93c5fd);
+          prevWing.setTint(0xc7d2fe);
+        } else if (currentBird.colorVariant === 'rainbow') {
+          prevBody.setTint(0xf43f5e);
+          prevWing.setTint(0x38bdf8);
+        } else if (currentBird.colorVariant === 'golden') {
+          prevBody.setTint(0xffd700);
+          prevWing.setTint(0xf59e0b);
+        } else if (currentBird.colorVariant === 'sapphire') {
+          prevBody.setTint(0x38bdf8);
+          prevWing.setTint(0x2563eb);
+        } else if (currentBird.colorVariant === 'emerald') {
+          prevBody.setTint(0x4ade80);
+          prevWing.setTint(0x16a34a);
+        } else if (currentBird.colorVariant === 'ruby') {
+          prevBody.setTint(0xf43f5e);
+          prevWing.setTint(0xbe123c);
+        } else if (currentBird.colorVariant === 'amethyst') {
+          prevBody.setTint(0xc084fc);
+          prevWing.setTint(0x7e22ce);
+        } else if (currentBird.colorVariant === 'inverted') {
+          prevBody.setTint(0x06b6d4);
+          prevWing.setTint(0xf43f5e);
+        }
+      } else {
+        if (currentBird.body.isTinted) prevBody.setTint(currentBird.body.tintTopLeft);
+        if (currentBird.wing.isTinted) prevWing.setTint(currentBird.wing.tintTopLeft);
+      }
       birdPreviewC.add([prevBody, prevWing]);
 
       // Flapping wing tween
@@ -7450,48 +7654,64 @@ export class AviaryScene extends Phaser.Scene {
       dossier.strokeRoundedRect(cx - 221, py - 61, 442, 122, 10);
       showcaseItems.push(dossier);
 
-      const labelStyle = { fontFamily: FONT, fontSize: '12px', fontStyle: 'bold', color: '#ffd54f' };
-      const valStyle = { fontFamily: FONT, fontSize: '13px', fontStyle: 'bold', color: '#ffffff' };
+      const labelStyle = { fontFamily: FONT, fontSize: '11px', fontStyle: 'bold', color: '#ffd54f' };
+      const valStyle = { fontFamily: FONT, fontSize: '12px', fontStyle: 'bold', color: '#ffffff' };
+
+      const variantLabels: Record<string, string> = {
+        normal: 'STANDARD PLUMAGE',
+        rainbow: '🌈 RAINBOW CHROMA',
+        translucent: '✨ TRANSLUCENT GHOST',
+        golden: '👑 RADIANT GOLD',
+        sapphire: '💎 ELECTRIC SAPPHIRE',
+        emerald: '🌿 RADIANT EMERALD',
+        ruby: '🌹 CRIMSON RUBY',
+        amethyst: '🔮 MYSTIC AMETHYST',
+        inverted: '⚡ INVERTED NEON',
+      };
+      const vLabel = variantLabels[currentBird.colorVariant || 'normal'] || 'STANDARD PLUMAGE';
 
       const l1 = this.add.text(cx - 205, py - 52, 'PURCHASED:', labelStyle).setDepth(83);
-      const v1 = this.add.text(cx - 105, py - 52, currentBird.purchaseDate || 'OCT 25, 2026', valStyle).setDepth(83);
+      const v1 = this.add.text(cx - 125, py - 52, currentBird.purchaseDate || 'OCT 25, 2026', valStyle).setDepth(83);
+
+      const lVar = this.add.text(cx + 10, py - 52, 'FEATHERS:', labelStyle).setDepth(83);
+      const vVar = this.add.text(cx + 80, py - 52, vLabel, { ...valStyle, color: '#fef08a' }).setDepth(83);
 
       const l2 = this.add.text(cx - 205, py - 28, 'HOMETOWN:', labelStyle).setDepth(83);
-      const v2 = this.add.text(cx - 105, py - 28, (currentBird.hometown || 'Canopy Aviary').toUpperCase(), valStyle).setDepth(83);
+      const v2 = this.add.text(cx - 125, py - 28, (currentBird.hometown || 'Canopy Aviary').toUpperCase(), valStyle).setDepth(83);
 
-      const l3 = this.add.text(cx - 205, py - 4, 'MENTAL STATE:', labelStyle).setDepth(83);
-      const v3 = this.add.text(cx - 90, py - 4, (currentBird.mentalState || 'TOTALLY STOKED').toUpperCase(), { ...valStyle, color: '#86efac' }).setDepth(83);
+      const l3 = this.add.text(cx + 10, py - 28, 'MENTAL:', labelStyle).setDepth(83);
+      const v3 = this.add.text(cx + 80, py - 28, (currentBird.mentalState || 'TOTALLY STOKED').toUpperCase(), { ...valStyle, color: '#86efac' }).setDepth(83);
 
-      const l4 = this.add.text(cx - 205, py + 20, 'ADDITIONAL NOTES:', labelStyle).setDepth(83);
-      const v4 = this.add.text(cx - 205, py + 36, (currentBird.additionalNotes || currentBird.species.desc).toUpperCase(), {
+      const l4 = this.add.text(cx - 205, py - 4, 'ADDITIONAL NOTES:', labelStyle).setDepth(83);
+      const v4 = this.add.text(cx - 205, py + 12, (currentBird.additionalNotes || currentBird.species.desc).toUpperCase(), {
         fontFamily: FONT,
         fontSize: '11px',
         color: '#e2e8f0',
         wordWrap: { width: 410 },
       }).setDepth(83);
 
-      showcaseItems.push(l1, v1, l2, v2, l3, v3, l4, v4);
+      showcaseItems.push(l1, v1, lVar, vVar, l2, v2, l3, v3, l4, v4);
 
-      // 4. Action Buttons: [ HIDE / SHOW ], [ RENAME ], [ RELEASE ]
+      // 4. Action Buttons: [ HIDE / SHOW ], [ RENAME ], [ COLOR SHIFT (10💎) ], [ RELEASE ]
       const ay = H / 2 + 175;
 
       // Button 1: HIDE / SHOW
-      const hideBtn = this.add.container(cx - 145, ay).setDepth(83);
+      const hideBtn = this.add.container(cx - 172, ay).setDepth(83);
       const hbg = this.add.graphics();
       hbg.fillStyle(0x6a1b9a, 1);
-      hbg.fillRoundedRect(-58, -19, 116, 38, 19);
+      hbg.fillRoundedRect(-52, -19, 104, 38, 19);
       hbg.lineStyle(2.5, 0xffd54f, 1);
-      hbg.strokeRoundedRect(-58, -19, 116, 38, 19);
+      hbg.strokeRoundedRect(-52, -19, 104, 38, 19);
       const htxt = this.add.text(0, 0, currentBird.hidden ? 'SHOW' : 'HIDE', {
         fontFamily: FONT,
-        fontSize: '15px',
+        fontSize: '14px',
         fontStyle: 'bold',
         color: '#ffea75',
         stroke: '#240733',
         strokeThickness: 3,
       }).setOrigin(0.5);
       hideBtn.add([hbg, htxt]);
-      hideBtn.setSize(116, 38).setInteractive({ useHandCursor: true });
+      hideBtn.setSize(104, 38).setInteractive({ useHandCursor: true });
       hideBtn.on('pointerdown', () => {
         currentBird.hidden = !currentBird.hidden;
         currentBird.spr.setVisible(!currentBird.hidden);
@@ -7505,22 +7725,22 @@ export class AviaryScene extends Phaser.Scene {
       showcaseItems.push(hideBtn);
 
       // Button 2: RENAME
-      const renameBtn = this.add.container(cx, ay).setDepth(83);
+      const renameBtn = this.add.container(cx - 58, ay).setDepth(83);
       const rbg = this.add.graphics();
       rbg.fillStyle(0x6a1b9a, 1);
-      rbg.fillRoundedRect(-58, -19, 116, 38, 19);
+      rbg.fillRoundedRect(-52, -19, 104, 38, 19);
       rbg.lineStyle(2.5, 0xffd54f, 1);
-      rbg.strokeRoundedRect(-58, -19, 116, 38, 19);
+      rbg.strokeRoundedRect(-52, -19, 104, 38, 19);
       const rtxt = this.add.text(0, 0, 'RENAME', {
         fontFamily: FONT,
-        fontSize: '15px',
+        fontSize: '14px',
         fontStyle: 'bold',
         color: '#ffea75',
         stroke: '#240733',
         strokeThickness: 3,
       }).setOrigin(0.5);
       renameBtn.add([rbg, rtxt]);
-      renameBtn.setSize(116, 38).setInteractive({ useHandCursor: true });
+      renameBtn.setSize(104, 38).setInteractive({ useHandCursor: true });
       renameBtn.on('pointerdown', () => {
         const typed = window.prompt('Enter a new name for this bird:', currentBird.name);
         if (typed !== null) {
@@ -7532,24 +7752,59 @@ export class AviaryScene extends Phaser.Scene {
       });
       showcaseItems.push(renameBtn);
 
-      // Button 3: RELEASE / SELL
+      // Button 3: COLOR SHIFT (10💎)
+      const colorBtn = this.add.container(cx + 58, ay).setDepth(83);
+      const cbg = this.add.graphics();
+      cbg.fillStyle(0x0284c7, 1);
+      cbg.fillRoundedRect(-54, -19, 108, 38, 19);
+      cbg.lineStyle(2.5, 0x7dd3fc, 1);
+      cbg.strokeRoundedRect(-54, -19, 108, 38, 19);
+      const ctxt = this.add.text(0, 0, 'COLOR (10💎)', {
+        fontFamily: FONT,
+        fontSize: '12px',
+        fontStyle: 'bold',
+        color: '#ffffff',
+        stroke: '#082f49',
+        strokeThickness: 3,
+      }).setOrigin(0.5);
+      colorBtn.add([cbg, ctxt]);
+      colorBtn.setSize(108, 38).setInteractive({ useHandCursor: true });
+      colorBtn.on('pointerdown', () => {
+        if (this.gems < 10) {
+          return this.toast('Need 10 Gems to shift feather plumage!');
+        }
+        this.gems -= 10;
+        const VARIANTS: BirdColorVariant[] = ['normal', 'rainbow', 'translucent', 'golden', 'sapphire', 'emerald', 'ruby', 'amethyst', 'inverted'];
+        const currentIdx = VARIANTS.indexOf(currentBird.colorVariant || 'normal');
+        const nextVar = VARIANTS[(currentIdx + 1) % VARIANTS.length];
+        currentBird.applyColorVariant(nextVar);
+        this.saveSandbox();
+        this.refreshUi();
+        this.burst(cx, oy, 0xffd54f, 16);
+        renderSlots();
+        renderShowcase();
+        this.toast(`Shifted plumage to ${variantLabels[nextVar]}! (-10 Gems)`);
+      });
+      showcaseItems.push(colorBtn);
+
+      // Button 4: RELEASE / SELL
       const sellPrice = Math.max(10, Math.round(currentBird.species.gemCost * 0.5));
-      const sellBtn = this.add.container(cx + 145, ay).setDepth(83);
+      const sellBtn = this.add.container(cx + 172, ay).setDepth(83);
       const sbg = this.add.graphics();
       sbg.fillStyle(0x6a1b9a, 1);
-      sbg.fillRoundedRect(-58, -19, 116, 38, 19);
+      sbg.fillRoundedRect(-52, -19, 104, 38, 19);
       sbg.lineStyle(2.5, 0xffd54f, 1);
-      sbg.strokeRoundedRect(-58, -19, 116, 38, 19);
+      sbg.strokeRoundedRect(-52, -19, 104, 38, 19);
       const stxt = this.add.text(0, 0, `SELL (${sellPrice}💎)`, {
         fontFamily: FONT,
-        fontSize: '13px',
+        fontSize: '12px',
         fontStyle: 'bold',
         color: '#7df9ff',
         stroke: '#240733',
         strokeThickness: 3,
       }).setOrigin(0.5);
       sellBtn.add([sbg, stxt]);
-      sellBtn.setSize(116, 38).setInteractive({ useHandCursor: true });
+      sellBtn.setSize(104, 38).setInteractive({ useHandCursor: true });
       sellBtn.on('pointerdown', () => {
         const confirmName = currentBird.name ? `"${currentBird.name}"` : currentBird.species.name;
         if (window.confirm(`Release ${confirmName} for ${sellPrice} Gems?`)) {
@@ -7560,7 +7815,7 @@ export class AviaryScene extends Phaser.Scene {
           this.gems += sellPrice;
           this.saveSandbox();
           this.refreshUi();
-          const remaining = this.birds.filter((b) => !b.isFeeder && !b.dead);
+          const remaining = this.birds.filter((b) => !b.isFeeder && !b.dead && !b.isMamaSpawn);
           selectedIndex = Math.min(selectedIndex, Math.max(0, remaining.length - 1));
           renderSlots();
           renderShowcase();
@@ -8343,7 +8598,8 @@ export class AviaryScene extends Phaser.Scene {
       this.lose(['The Royal Hatchling has perished!', 'The royal heir must be protected at all costs!']);
       return;
     }
-    if (ws.worldId !== 5 && this.birds.length === 0) this.lose();
+    if (!this.sandbox && ws.worldId !== 5 && this.birds.length === 0) this.lose();
+    if (this.sandbox) this.saveSandbox();
   }
 
   hitCompanionPet(p: Pet) {
@@ -8525,12 +8781,13 @@ export class AviaryScene extends Phaser.Scene {
     this.refreshUi();
   }
 
-  layEgg(spot: Spot, mother?: Bird) {
+  layEgg(spot: Spot, mother?: Bird, fromMama = false) {
     playEggDropSound();
     const isPhoenix = mother?.species.key === 'phoenix';
     spot.egg = this.add.image(spot.x, spot.y - 4, isPhoenix ? 'goldegg' : 'egg').setDepth(5).setScale(0.9);
     spot.eggT = isPhoenix ? 20 : 15;
     spot.eggMother = mother;
+    spot.eggFromMama = fromMama;
     this.burst(spot.x, spot.y - 10, isPhoenix ? 0xffd54f : 0xffffff, isPhoenix ? 12 : 6);
     if (mother) {
       this.toast(isPhoenix ? '🔥 Phoenix Mama laid a radiant Golden Egg in the nest!' : `${mother.species.name} laid an egg in the nest!`);
@@ -10393,9 +10650,13 @@ export class AviaryScene extends Phaser.Scene {
           const species = isPhoenixMother ? 'phoenix' : 'sparrow';
           const baby = new Bird(this, s.x, s.y - 20, 0, false, isPhoenixMother, species, false);
           baby.parent = s.eggMother;
+          if (s.eggFromMama) {
+            baby.isMamaSpawn = true;
+            s.eggFromMama = false;
+          }
           this.birds.push(baby);
           s.eggMother = undefined;
-          this.toast(isPhoenixMother ? '🔥 A sacred Phoenix Chick hatched!' : 'A baby songbird hatched!');
+          this.toast(isPhoenixMother ? '🔥 A sacred Phoenix Chick hatched!' : baby.isMamaSpawn ? '🥚 A farm songbird chick hatched from Mama Dove!' : 'A baby songbird hatched!');
           this.refreshUi();
         } else if (s.eggT < 0) {
           s.eggT = 0;

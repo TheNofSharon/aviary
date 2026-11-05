@@ -496,6 +496,17 @@ export function difficulty(level: number): Difficulty {
 
 const KEY = 'aviary-save-v1';
 
+export type BirdColorVariant =
+  | 'normal'
+  | 'rainbow'       // cycles through vibrant rainbow spectrum
+  | 'translucent'   // ghost/crystal semi-transparent ethereal body
+  | 'golden'        // radiant shimmering pure gold tint
+  | 'sapphire'      // rich iridescent electric blue tint
+  | 'emerald'       // radiant emerald green tint
+  | 'ruby'          // vibrant ruby crimson tint
+  | 'amethyst'      // glowing mystical purple/magenta tint
+  | 'inverted';     // high-contrast neon/negative tint
+
 export interface SavedBird {
   stage: number;
   units: number;
@@ -508,6 +519,7 @@ export interface SavedBird {
   purchaseDate?: string;
   mentalState?: string;
   additionalNotes?: string;
+  colorVariant?: BirdColorVariant;
 }
 
 export type BirdBehavior = 'standard' | 'breeder' | 'carnivore' | 'gourmet' | 'apex' | 'singer';
@@ -717,96 +729,102 @@ export interface EmporiumSlotDef {
   icon: string;
   desc: string;
   badge?: string;
+  colorVariant?: BirdColorVariant;
 }
 
-export const EMPORIUM_SLOTS: EmporiumSlotDef[] = [
-  // Slot A: 25 Gems (Top-Left Niche)
-  {
-    id: 'A',
-    name: 'House Sparrow',
-    category: 'bird',
-    speciesKey: 'sparrow',
-    cost: 25,
-    icon: 'bird_sparrow',
-    desc: 'Cheerful common sparrow. Grows into an adult and drops silver/gold coins.',
-    badge: 'COMMON',
-  },
-  // Slot B: 100 Gems (Mid-Left Niche)
-  {
-    id: 'B',
-    name: 'Peregrine Falcon',
-    category: 'bird',
-    speciesKey: 'piranha_finch',
-    cost: 100,
-    icon: 'bird_piranha_finch',
-    desc: 'Apex raptor hunter! Dives to hunt feeder chicks and drops valuable 200c Diamonds.',
-    badge: 'CARNIVORE',
-  },
-  // Slot C: 500 Gems (Top Niche 1)
-  {
-    id: 'C',
-    name: 'Yellow Canary',
-    category: 'bird',
-    speciesKey: 'canary',
-    cost: 500,
-    icon: 'bird_canary',
-    desc: 'Golden songbird! Sings melodic songs that prompt nearby birds to drop extra currency.',
-    badge: 'SONGBIRD',
-  },
-  // Slot D: 1,000 Gems (Top Niche 2)
-  {
-    id: 'D',
-    name: 'Mama Songbird',
-    category: 'bird',
-    speciesKey: 'mama',
-    cost: 1000,
-    icon: 'bird_mama',
-    desc: 'Flies freely and lays warm eggs in completed nests that hatch into songbirds.',
-    badge: 'BREEDER',
-  },
-  // Slot E: 10,000 Gems (Top Niche 3)
-  {
-    id: 'E',
-    name: 'Golden Phoenix',
-    category: 'bird',
-    speciesKey: 'phoenix',
-    cost: 10000,
-    icon: 'bird_phoenix',
-    desc: 'Immortal firebird! Radiates divine golden embers worth 500c currency.',
-    badge: 'LEGENDARY',
-  },
-  // Slot F: 25,000 Gems (Top Niche 4)
-  {
-    id: 'F',
-    name: 'Great Horned Owl',
-    category: 'bird',
-    speciesKey: 'owl',
-    cost: 25000,
-    icon: 'bird_owl',
-    desc: 'Master apex predator! Hunts carnivores and drops giant gem treasure chests.',
-    badge: 'APEX',
-  },
-  // Upgrade Slot: 20,000 Gems (Bottom-Left Niche)
-  {
+/**
+ * Returns the 6 daily rotating species and items featured in Clara's Emporium,
+ * deterministically based on UTC calendar date. All 9 species rotate daily,
+ * with guaranteed daily color mutations (Rainbow Chroma, Translucent Ghost, Golden Radiant).
+ */
+export function getDailyEmporiumSlots(dateStr?: string): EmporiumSlotDef[] {
+  const dayStr = dateStr ?? new Date().toISOString().slice(0, 10);
+  let hash = 0;
+  for (let i = 0; i < dayStr.length; i++) {
+    hash = (hash * 31 + dayStr.charCodeAt(i)) >>> 0;
+  }
+
+  // Shuffle all 9 bird species deterministically for the day
+  const pool = [...BIRD_CATALOGUE];
+  const dailySpecies: BirdSpeciesDef[] = [];
+  while (dailySpecies.length < 6 && pool.length > 0) {
+    hash = (hash * 1664525 + 1013904223) >>> 0;
+    const idx = hash % pool.length;
+    dailySpecies.push(pool.splice(idx, 1)[0]);
+  }
+
+  const slotIds = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const slots: EmporiumSlotDef[] = [];
+
+  // Slot C features a Premier Daily Mutation: Rainbow (Color-Changing) or Translucent!
+  const premierVariant: BirdColorVariant = (hash % 2 === 0) ? 'rainbow' : 'translucent';
+  // Slot E features a Royal Mutation: Golden, Sapphire, or Amethyst!
+  const secondaryVariant: BirdColorVariant = (hash % 3 === 0) ? 'golden' : (hash % 3 === 1) ? 'sapphire' : 'amethyst';
+
+  dailySpecies.forEach((sp, i) => {
+    const slotId = slotIds[i];
+    let variant: BirdColorVariant = 'normal';
+    let badge = sp.rarity.toUpperCase();
+    let name = sp.name;
+    let cost = sp.gemCost;
+
+    if (slotId === 'C') {
+      variant = premierVariant;
+      badge = variant === 'rainbow' ? '🌈 RAINBOW' : '✨ TRANSLUCENT';
+      name = (variant === 'rainbow' ? 'Rainbow ' : 'Translucent ') + sp.name;
+      cost = Math.round(sp.gemCost * 1.35);
+    } else if (slotId === 'E') {
+      variant = secondaryVariant;
+      badge = variant === 'golden' ? '👑 GOLDEN' : variant === 'sapphire' ? '💎 SAPPHIRE' : '🔮 AMETHYST';
+      name = (variant === 'golden' ? 'Golden ' : variant === 'sapphire' ? 'Sapphire ' : 'Amethyst ') + sp.name;
+      cost = Math.round(sp.gemCost * 1.25);
+    }
+
+    slots.push({
+      id: slotId,
+      name,
+      category: 'bird',
+      speciesKey: sp.key,
+      cost,
+      icon: 'bird_' + sp.key,
+      desc: sp.desc,
+      badge,
+      colorVariant: variant,
+    });
+  });
+
+  // Upgrade Slot (Elixir of Growth)
+  slots.push({
     id: 'upgrade',
     name: 'Elixir of Growth',
     category: 'upgrade',
-    cost: 20000,
+    cost: 250,
     icon: 'emporium_potion',
     desc: 'Ancient alchemical tonic! Instantly matures and boosts every growing bird in your aviary.',
     badge: 'UPGRADE',
-  },
-  // Backdrop Slot: 15,000 Gems (Bottom-Right Niche)
-  {
+  });
+
+  // Daily Rotating Wallpaper / Backdrop Slot
+  const backdrops = [
+    { name: 'Blossom Sanctuary', worldId: 3, desc: 'Unlocks the dreamy Blossom Sanctuary botanical wallpaper for your aviary.' },
+    { name: 'Rainforest Canopy', worldId: 2, desc: 'Unlocks the lush Rainforest Canopy canopy wallpaper for your aviary.' },
+    { name: 'Volcanic Mystic Peaks', worldId: 4, desc: 'Unlocks the dramatic Volcanic Mystic Peaks wallpaper for your aviary.' },
+  ];
+  const bd = backdrops[(hash >>> 4) % backdrops.length];
+  slots.push({
     id: 'backdrop',
-    name: 'Blossom Sanctuary',
+    name: bd.name,
     category: 'backdrop',
-    cost: 15000,
+    cost: 1000,
     icon: 'backdrop_preview',
-    desc: 'Unlocks the dreamy Blossom Sanctuary botanical wallpaper for your aviary.',
+    desc: bd.desc,
     badge: 'WALLPAPER',
-  },
-];
+  });
+
+  return slots;
+}
+
+export const EMPORIUM_SLOTS: EmporiumSlotDef[] = getDailyEmporiumSlots();
 
 export interface SuspendedSession {
   level: number;
