@@ -5452,8 +5452,8 @@ export class AviaryScene extends Phaser.Scene {
   }
 
   private reason(tiny: string) {
-    if (tiny.includes('Needs Falcon')) {
-      return 'You need a baby-eating predator (like Peregrine Falcon) to spawn feeder chicks!';
+    if (tiny.includes('Needs Falcon') || tiny.includes('Needs Predator')) {
+      return 'Adopt a predator or specialized feeder bird (Falcon, Owl, Toucan, etc.) to dispense live feeds!';
     }
     if (tiny.includes('Active') || tiny.includes('1:1')) {
       return '1:1 ratio reached: Wait for your carnivores to eat existing feeder chicks!';
@@ -5930,55 +5930,46 @@ export class AviaryScene extends Phaser.Scene {
       },
     }, totalButtons);
 
-    // 3: Feeder Chick (FREE - 1:1 ratio with baby-eating predators like Peregrine Falcon)
-    this.addShop(idx++, 'Feeder Chick', 'bird_sparrow_0', 0.55, {
+    // 3: Creature Feed Dispenser (Opens feeder modal to select which specialized food you want)
+    this.addShop(idx++, 'Feeder Menu', 'bird_sparrow_0', 0.55, {
       cost: () => 0,
       gem: false,
-      enabled: () => {
-        const predatorCount = this.birds.filter(
-          (b) => !b.dead && !b.isFeeder && b.species.behavior === 'carnivore'
-        ).length;
-        const activeFeeders = this.birds.filter((b) => !b.dead && b.isFeeder).length;
-        return predatorCount > 0 && activeFeeders < predatorCount;
-      },
+      enabled: () => true,
       texts: () => {
-        const predatorCount = this.birds.filter(
+        const carnivoreCount = this.birds.filter(
           (b) => !b.dead && !b.isFeeder && b.species.behavior === 'carnivore'
+        ).length + this.geckos.length;
+        const owlCount = this.birds.filter(
+          (b) => !b.dead && !b.isFeeder && (b.species.behavior === 'apex' || b.species.key === 'owl')
         ).length;
-        const activeFeeders = this.birds.filter((b) => !b.dead && b.isFeeder).length;
-        if (predatorCount === 0) {
+        const toucanCount = this.birds.filter(
+          (b) => !b.dead && !b.isFeeder && b.species.key === 'toucan'
+        ).length;
+        const gliderCount = this.gliders.length;
+        const phoenixCount = this.birds.filter(
+          (b) => !b.dead && !b.isFeeder && b.species.key === 'phoenix'
+        ).length;
+
+        const unlockedTypes =
+          (carnivoreCount > 0 ? 1 : 0) +
+          (owlCount > 0 ? 1 : 0) +
+          (toucanCount > 0 ? 1 : 0) +
+          (gliderCount > 0 ? 1 : 0) +
+          (phoenixCount > 0 ? 1 : 0);
+
+        if (unlockedTypes === 0) {
           return {
             sub: 'FREE',
-            tiny: 'Needs Falcon',
-          };
-        }
-        if (activeFeeders >= predatorCount) {
-          return {
-            sub: '1:1 MAX',
-            tiny: `${activeFeeders}/${predatorCount} Active`,
+            tiny: 'Needs Predator',
           };
         }
         return {
-          sub: 'FREE',
-          tiny: `${activeFeeders}/${predatorCount} Ready`,
+          sub: 'FEED',
+          tiny: `${unlockedTypes} Feeds Ready`,
         };
       },
       buy: () => {
-        const predatorCount = this.birds.filter(
-          (b) => !b.dead && !b.isFeeder && b.species.behavior === 'carnivore'
-        ).length;
-        const activeFeeders = this.birds.filter((b) => !b.dead && b.isFeeder).length;
-        if (predatorCount === 0) {
-          return this.toast('You need a baby-eating predator (like Peregrine Falcon) to spawn feeder chicks!');
-        }
-        if (activeFeeders >= predatorCount) {
-          return this.toast(`1:1 Ratio: Wait for your ${predatorCount} carnivore${predatorCount > 1 ? 's' : ''} to feed!`);
-        }
-        const chick = new Bird(this, Phaser.Math.Between(150, W - 150), -30, 0, false, false, 'sparrow', true);
-        this.birds.push(chick);
-        this.saveSandbox();
-        this.refreshUi();
-        this.toast(`Spawned Free Feeder Chick! (${activeFeeders + 1}/${predatorCount})`);
+        this.openFeedDispenserModal();
       },
     }, totalButtons);
 
@@ -6201,145 +6192,437 @@ export class AviaryScene extends Phaser.Scene {
     this.modalItems.push(closeBtn);
   }
 
-  openFeedModal() {
+  openFeedDispenserModal() {
     this.modal = true;
     const shade = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.78).setDepth(80).setInteractive();
     this.modalItems.push(shade);
 
-    const pw = 740;
-    const ph = 480;
+    const pw = 1060;
+    const ph = 600;
     const panel = this.add.graphics().setDepth(81);
-    panel.fillStyle(0x22140a, 1);
+    // Outer wooden frame with gold inlay
+    panel.fillStyle(0x28160a, 1);
     panel.fillRoundedRect(W / 2 - pw / 2, H / 2 - ph / 2, pw, ph, 24);
     panel.lineStyle(5, 0xd4a034, 1);
     panel.strokeRoundedRect(W / 2 - pw / 2, H / 2 - ph / 2, pw, ph, 24);
+    panel.lineStyle(2, 0x8a5b23, 1);
+    panel.strokeRoundedRect(W / 2 - pw / 2 + 6, H / 2 - ph / 2 + 6, pw - 12, ph - 12, 18);
+
+    // Decorative header ribbon
+    panel.fillStyle(0x421f0b, 1);
+    panel.fillRoundedRect(W / 2 - 340, H / 2 - ph / 2 + 14, 680, 56, 16);
+    panel.lineStyle(3, 0xf1c40f, 1);
+    panel.strokeRoundedRect(W / 2 - 340, H / 2 - ph / 2 + 14, 680, 56, 16);
     this.modalItems.push(panel);
 
-    const title = this.add.text(W / 2, H / 2 - ph / 2 + 36, 'FEED & FLOCK SUPPLIES', {
-      fontFamily: FONT,
-      fontSize: '28px',
-      fontStyle: 'bold',
-      color: '#ffdd77',
-      stroke: '#1a0d05',
-      strokeThickness: 5,
-    }).setOrigin(0.5).setDepth(82);
-    this.modalItems.push(title);
+    const title = this.add
+      .text(W / 2, H / 2 - ph / 2 + 34, 'CREATURE FEED DISPENSER', {
+        fontFamily: FONT,
+        fontSize: '28px',
+        fontStyle: 'bold',
+        color: '#ffdd77',
+        stroke: '#1a0d05',
+        strokeThickness: 5,
+      })
+      .setOrigin(0.5)
+      .setDepth(82);
 
-    // Food Quality Card
-    const qCard = this.add.container(W / 2 - 180, H / 2 - 40).setDepth(82);
-    const qbg = this.add.graphics();
-    qbg.fillStyle(0x3a2312, 1);
-    qbg.fillRoundedRect(-110, -110, 220, 220, 16);
-    qbg.lineStyle(2.5, 0xd4a034, 1);
-    qbg.strokeRoundedRect(-110, -110, 220, 220, 16);
-    const qIcon = this.add.image(0, -45, FOOD_TEX[this.quality - 1]).setScale(2.0);
-    const qTitle = this.add.text(0, 0, 'Food Quality', { fontFamily: FONT, fontSize: '18px', fontStyle: 'bold', color: '#ffffff' }).setOrigin(0.5);
-    const qLevel = this.add.text(0, 25, `Level ${this.quality}/3 (${['Seeds', 'Corn', 'Berries'][this.quality - 1]})`, { fontFamily: FONT, fontSize: '13px', color: '#ffd54f' }).setOrigin(0.5);
-    const qBtn = this.add.graphics();
-    qBtn.fillStyle(this.quality < 3 ? 0x6a1b9a : 0x555555, 1);
-    qBtn.fillRoundedRect(-80, 50, 160, 36, 18);
-    const qBtnTxt = this.add.text(0, 68, this.quality < 3 ? 'UPGRADE (15💎)' : 'MAX LEVEL', { fontFamily: FONT, fontSize: '14px', fontStyle: 'bold', color: '#ffea75' }).setOrigin(0.5);
-    qCard.add([qbg, qIcon, qTitle, qLevel, qBtn, qBtnTxt]);
-    qCard.setSize(220, 220).setInteractive({ useHandCursor: this.quality < 3 });
-    qCard.on('pointerdown', () => {
-      if (this.quality >= 3) return;
-      if (this.gems < 15) return this.toast('Need 15 Gems! Visit Store or Gem Store.');
-      this.gems -= 15;
-      this.quality++;
-      this.saveSandbox();
-      this.refreshUi();
-      this.closeModal();
-      this.toast(`Upgraded Food Quality to Level ${this.quality}!`);
-    });
-    this.modalItems.push(qCard);
+    const subtitle = this.add
+      .text(
+        W / 2,
+        H / 2 - ph / 2 + 55,
+        'Dispense specialized feeds & live prey • Available only if you own the creature that eats it',
+        { fontFamily: FONT, fontSize: '13px', fontStyle: 'bold', color: '#ecd7bb' }
+      )
+      .setOrigin(0.5)
+      .setDepth(82);
 
-    // Food Quantity Card
-    const mCard = this.add.container(W / 2 + 180, H / 2 - 40).setDepth(82);
-    const mbg = this.add.graphics();
-    mbg.fillStyle(0x3a2312, 1);
-    mbg.fillRoundedRect(-110, -110, 220, 220, 16);
-    mbg.lineStyle(2.5, 0xd4a034, 1);
-    mbg.strokeRoundedRect(-110, -110, 220, 220, 16);
-    const mIcon = this.add.image(0, -45, 'seed').setScale(2.0);
-    const mTitle = this.add.text(0, 0, 'Max Food Drops', { fontFamily: FONT, fontSize: '18px', fontStyle: 'bold', color: '#ffffff' }).setOrigin(0.5);
-    const mLevel = this.add.text(0, 25, `Capacity: ${this.maxFood}/5 Seeds`, { fontFamily: FONT, fontSize: '13px', color: '#ffd54f' }).setOrigin(0.5);
-    const mBtn = this.add.graphics();
-    mBtn.fillStyle(this.maxFood < 5 ? 0x6a1b9a : 0x555555, 1);
-    mBtn.fillRoundedRect(-80, 50, 160, 36, 18);
-    const mBtnTxt = this.add.text(0, 68, this.maxFood < 5 ? 'UPGRADE (15💎)' : 'MAX CAPACITY', { fontFamily: FONT, fontSize: '14px', fontStyle: 'bold', color: '#ffea75' }).setOrigin(0.5);
-    mCard.add([mbg, mIcon, mTitle, mLevel, mBtn, mBtnTxt]);
-    mCard.setSize(220, 220).setInteractive({ useHandCursor: this.maxFood < 5 });
-    mCard.on('pointerdown', () => {
-      if (this.maxFood >= 5) return;
-      if (this.gems < 15) return this.toast('Need 15 Gems! Visit Store or Gem Store.');
-      this.gems -= 15;
-      this.maxFood++;
-      this.saveSandbox();
-      this.refreshUi();
-      this.closeModal();
-      this.toast(`Max food capacity increased to ${this.maxFood}!`);
-    });
-    this.modalItems.push(mCard);
+    this.modalItems.push(title, subtitle);
 
-    // Feeder Chick Row (1:1 Ratio with Baby-Eating Carnivore Predators, FREE 0💎)
-    const predatorBirds = this.birds.filter(
-      (b) => !b.dead && !b.isFeeder && b.species.behavior === 'carnivore'
-    );
-    const predatorCount = predatorBirds.length;
-    const activeFeeders = this.birds.filter((b) => !b.dead && b.isFeeder).length;
-    const canSpawn = predatorCount > 0 && activeFeeders < predatorCount;
+    const cardContainers: Phaser.GameObjects.Container[] = [];
 
-    const feederBtn = this.add.container(W / 2, H / 2 + 130).setDepth(82);
-    const fbg = this.add.graphics();
-    fbg.fillStyle(canSpawn ? 0x27170c : 0x1c1917, 1);
-    fbg.fillRoundedRect(-210, -22, 420, 44, 22);
-    fbg.lineStyle(2, canSpawn ? 0xd4a034 : 0x44403c, 1);
-    fbg.strokeRoundedRect(-210, -22, 420, 44, 22);
+    const renderCards = () => {
+      cardContainers.forEach((c) => c.destroy());
+      cardContainers.length = 0;
 
-    let feederLabel = `🐣 Spawn Free Feeder Chick (${activeFeeders}/${predatorCount} Active - FREE)`;
-    if (predatorCount === 0) {
-      feederLabel = '🐣 Feeder Chick (Requires Baby-Eating Predator in Aviary)';
-    } else if (activeFeeders >= predatorCount) {
-      feederLabel = `🐣 Feeder Limit Reached (${activeFeeders}/${predatorCount} 1:1 Ratio)`;
-    }
+      // Count owned creatures & active items
+      const carnivoreBirds = this.birds.filter(
+        (b) => !b.dead && !b.isFeeder && b.species.behavior === 'carnivore'
+      );
+      const carnivoreCount = carnivoreBirds.length + this.geckos.length;
+      const activeChickFeeders = this.birds.filter(
+        (b) => !b.dead && b.isFeeder && b.stage === 0 && b.species.key !== 'piranha_finch'
+      ).length;
 
-    const ftxt = this.add.text(0, 0, feederLabel, {
-      fontFamily: FONT,
-      fontSize: '13px',
-      fontStyle: 'bold',
-      color: canSpawn ? '#ffea75' : '#78716c',
-    }).setOrigin(0.5);
-    feederBtn.add([fbg, ftxt]);
-    feederBtn.setSize(420, 44).setInteractive({ useHandCursor: canSpawn });
-    feederBtn.on('pointerdown', () => {
-      if (!canSpawn) {
-        if (predatorCount === 0) {
-          this.toast('You need a baby-eating predator (like Peregrine Falcon) to spawn feeder chicks!');
-        } else {
-          this.toast(`1:1 ratio: Wait for your carnivores to eat the active feeder chicks (${activeFeeders}/${predatorCount})!`);
-        }
-        return;
+      const owlCount = this.birds.filter(
+        (b) => !b.dead && !b.isFeeder && (b.species.behavior === 'apex' || b.species.key === 'owl')
+      ).length;
+      const activeFalconFeeders = this.birds.filter(
+        (b) => !b.dead && b.isFeeder && b.species.key === 'piranha_finch'
+      ).length;
+
+      const toucanCount = this.birds.filter(
+        (b) => !b.dead && !b.isFeeder && b.species.key === 'toucan'
+      ).length;
+      const activeBeetles = this.coinList.filter((c) => !c.collected && c.isBeetle).length;
+      const maxBeetles = Math.max(2, toucanCount * 2);
+
+      const gliderCount = this.gliders.length;
+      const activeNectar = this.coinList.filter((c) => !c.collected && c.isNectar).length;
+      const maxNectar = Math.max(2, gliderCount * 2);
+
+      const phoenixCount = this.birds.filter(
+        (b) => !b.dead && !b.isFeeder && b.species.key === 'phoenix'
+      ).length;
+      const activeSparks = this.foods.filter((f) => !f.eaten && f.isPetFood && f.units >= 3).length;
+      const maxSparks = Math.max(2, phoenixCount * 2);
+
+      interface DispenserItem {
+        title: string;
+        icon: string;
+        scale: number;
+        targetStr: string;
+        descStr: string;
+        owned: boolean;
+        limitReached: boolean;
+        statusStr: string;
+        statusColor: string;
+        action: () => void;
       }
-      // FREE! 0 gems!
-      const chick = new Bird(this, Phaser.Math.Between(150, 750), -40, 0, false, false, 'sparrow', true);
-      this.birds.push(chick);
-      this.saveSandbox();
-      this.refreshUi();
-      this.toast(`Feeder chick arrived! (${activeFeeders + 1}/${predatorCount} for carnivore birds)`);
-      this.closeModal();
-    });
-    this.modalItems.push(feederBtn);
 
-    // Close button
-    const closeBtn = this.add.container(W / 2 + pw / 2 - 32, H / 2 - ph / 2 + 32).setDepth(83);
+      const items: DispenserItem[] = [
+        // 0: Live Feeder Chick
+        {
+          title: 'Live Feeder Chick',
+          icon: 'bird_sparrow_0',
+          scale: 0.7,
+          targetStr: 'Target: Peregrine Falcon & Tree Creeper',
+          descStr: 'Carnivores dive to hunt it & drop Brilliant Diamonds (4💎)!',
+          owned: carnivoreCount > 0,
+          limitReached: activeChickFeeders >= carnivoreCount,
+          statusStr:
+            carnivoreCount === 0
+              ? '🔒 LOCKED: Requires Falcon or Tree Creeper'
+              : activeChickFeeders >= carnivoreCount
+              ? `⏳ 1:1 ACTIVE: ${activeChickFeeders}/${carnivoreCount} Active (Wait to feed)`
+              : `✓ UNLOCKED & READY: (${activeChickFeeders}/${carnivoreCount} Active) - FREE`,
+          statusColor:
+            carnivoreCount === 0
+              ? '#f87171'
+              : activeChickFeeders >= carnivoreCount
+              ? '#fbbf24'
+              : '#4ade80',
+          action: () => {
+            const chick = new Bird(
+              this,
+              Phaser.Math.Between(180, W - 180),
+              -30,
+              0,
+              false,
+              false,
+              'sparrow',
+              true
+            );
+            this.birds.push(chick);
+            this.saveSandbox();
+            this.refreshUi();
+            this.burst(chick.spr.x, 140, 0xffd54f, 14);
+            this.toast(`🐣 Spawned Feeder Chick for carnivores! (${activeChickFeeders + 1}/${carnivoreCount})`);
+            renderCards();
+          },
+        },
+        // 1: Feeder Carnivore Bird
+        {
+          title: 'Feeder Carnivore Bird',
+          icon: 'bird_piranha_finch',
+          scale: 0.55,
+          targetStr: 'Target: Great Horned Owl (Apex Raptor)',
+          descStr: 'Owl devours carnivore bird & drops a Gem Treasure Chest (15💎)!',
+          owned: owlCount > 0,
+          limitReached: activeFalconFeeders >= owlCount,
+          statusStr:
+            owlCount === 0
+              ? '🔒 LOCKED: Requires Great Horned Owl in Aviary'
+              : activeFalconFeeders >= owlCount
+              ? `⏳ 1:1 ACTIVE: ${activeFalconFeeders}/${owlCount} Active (Wait to hunt)`
+              : `✓ UNLOCKED & READY: (${activeFalconFeeders}/${owlCount} Active) - FREE`,
+          statusColor:
+            owlCount === 0
+              ? '#f87171'
+              : activeFalconFeeders >= owlCount
+              ? '#fbbf24'
+              : '#4ade80',
+          action: () => {
+            const falcon = new Bird(
+              this,
+              Phaser.Math.Between(180, W - 180),
+              -30,
+              1,
+              false,
+              false,
+              'piranha_finch',
+              true
+            );
+            this.birds.push(falcon);
+            this.saveSandbox();
+            this.refreshUi();
+            this.burst(falcon.spr.x, 140, 0x38bdf8, 14);
+            this.toast(`🦅 Spawned Feeder Carnivore bird for Owl! (${activeFalconFeeders + 1}/${owlCount})`);
+            renderCards();
+          },
+        },
+        // 2: Golden Tree Beetle
+        {
+          title: 'Golden Tree Beetle',
+          icon: 'drop_beetle',
+          scale: 1.1,
+          targetStr: 'Target: Rainbow Toucan (Beetle Muncher)',
+          descStr: 'Toucan swoops down to catch it & drops Forest Pearls (6💎)!',
+          owned: toucanCount > 0,
+          limitReached: activeBeetles >= maxBeetles,
+          statusStr:
+            toucanCount === 0
+              ? '🔒 LOCKED: Requires Rainbow Toucan in Aviary'
+              : activeBeetles >= maxBeetles
+              ? `⏳ LIMIT REACHED: ${activeBeetles}/${maxBeetles} on screen`
+              : `✓ UNLOCKED & READY: (${activeBeetles}/${maxBeetles} Active) - FREE`,
+          statusColor:
+            toucanCount === 0
+              ? '#f87171'
+              : activeBeetles >= maxBeetles
+              ? '#fbbf24'
+              : '#4ade80',
+          action: () => {
+            const sx = Phaser.Math.Between(180, W - 180);
+            this.dropCoin(sx, 110, 150, 'drop_beetle');
+            this.burst(sx, 110, 0xf59e0b, 12);
+            this.toast(`🪲 Dispensed Golden Tree Beetle for Toucan! (${activeBeetles + 1}/${maxBeetles})`);
+            renderCards();
+          },
+        },
+        // 3: Sweet Amber Nectar
+        {
+          title: 'Sweet Amber Nectar',
+          icon: 'drop_nectar',
+          scale: 1.1,
+          targetStr: 'Target: Sugar Glider',
+          descStr: 'Glider feasted on nectar & drops a blazing Cinder Acorn (5💎)!',
+          owned: gliderCount > 0,
+          limitReached: activeNectar >= maxNectar,
+          statusStr:
+            gliderCount === 0
+              ? '🔒 LOCKED: Requires Sugar Glider in Aviary'
+              : activeNectar >= maxNectar
+              ? `⏳ LIMIT REACHED: ${activeNectar}/${maxNectar} on screen`
+              : `✓ UNLOCKED & READY: (${activeNectar}/${maxNectar} Active) - FREE`,
+          statusColor:
+            gliderCount === 0
+              ? '#f87171'
+              : activeNectar >= maxNectar
+              ? '#fbbf24'
+              : '#4ade80',
+          action: () => {
+            const sx = Phaser.Math.Between(180, W - 180);
+            this.dropCoin(sx, 110, 200, 'drop_nectar');
+            this.burst(sx, 110, 0xf59e0b, 12);
+            this.toast(`🍯 Dispensed Amber Nectar for Sugar Glider! (${activeNectar + 1}/${maxNectar})`);
+            renderCards();
+          },
+        },
+        // 4: Sacred Solar Spark
+        {
+          title: 'Sacred Solar Sparks',
+          icon: 'spark',
+          scale: 1.25,
+          targetStr: 'Target: Golden Phoenix (Solar Deity)',
+          descStr: 'Celestial fire. Phoenix feeds & radiates 500c Sun Embers (8💎)!',
+          owned: phoenixCount > 0,
+          limitReached: activeSparks >= maxSparks,
+          statusStr:
+            phoenixCount === 0
+              ? '🔒 LOCKED: Requires Golden Phoenix in Aviary'
+              : activeSparks >= maxSparks
+              ? `⏳ LIMIT REACHED: ${activeSparks}/${maxSparks} on screen`
+              : `✓ UNLOCKED & READY: (${activeSparks}/${maxSparks} Active) - FREE`,
+          statusColor:
+            phoenixCount === 0
+              ? '#f87171'
+              : activeSparks >= maxSparks
+              ? '#fbbf24'
+              : '#4ade80',
+          action: () => {
+            const sx = Phaser.Math.Between(180, W - 180);
+            this.dropFood(sx, 70, true, 3);
+            this.burst(sx, 70, 0xff7700, 16);
+            this.burst(sx, 70, 0xffea00, 12);
+            this.toast(`🔥 Offered Sacred Solar Spark to Golden Phoenix! (${activeSparks + 1}/${maxSparks})`);
+            renderCards();
+          },
+        },
+      ];
+
+      // Coordinates for 5 cards:
+      // Row 0: Items 0, 1
+      // Row 1: Items 2, 3
+      // Row 2: Item 4
+      const coords = [
+        { x: W / 2 - 250, y: H / 2 - 145, w: 480, h: 112 },
+        { x: W / 2 + 250, y: H / 2 - 145, w: 480, h: 112 },
+        { x: W / 2 - 250, y: H / 2 - 20, w: 480, h: 112 },
+        { x: W / 2 + 250, y: H / 2 - 20, w: 480, h: 112 },
+        { x: W / 2, y: H / 2 + 105, w: 560, h: 112 },
+      ];
+
+      items.forEach((item, i) => {
+        const pos = coords[i];
+        const cardC = this.add.container(pos.x, pos.y).setDepth(82);
+        const canClick = item.owned && !item.limitReached;
+
+        // Background
+        const cbg = this.add.graphics();
+        cbg.fillStyle(0x190d05, 0.95);
+        cbg.fillRoundedRect(-pos.w / 2, -pos.h / 2, pos.w, pos.h, 14);
+        cbg.lineStyle(2, canClick ? 0x22c55e : item.owned ? 0xd4a034 : 0x4a2a14, 1);
+        cbg.strokeRoundedRect(-pos.w / 2, -pos.h / 2, pos.w, pos.h, 14);
+
+        // Icon Box
+        const iconBg = this.add.graphics();
+        iconBg.fillStyle(canClick ? 0x14532d : 0x27170c, 1);
+        iconBg.fillCircle(-pos.w / 2 + 45, 0, 30);
+        iconBg.lineStyle(2, canClick ? 0x4ade80 : 0x784a1e, 1);
+        iconBg.strokeCircle(-pos.w / 2 + 45, 0, 30);
+
+        const spr = this.add.image(-pos.w / 2 + 45, 0, item.icon).setScale(item.scale);
+        if (item.icon === 'spark') spr.setTint(0xffd700);
+
+        // Texts
+        const titleTxt = this.add
+          .text(-pos.w / 2 + 88, -pos.h / 2 + 16, item.title, {
+            fontFamily: FONT,
+            fontSize: '15px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+          });
+
+        const targetTxt = this.add
+          .text(-pos.w / 2 + 88, -pos.h / 2 + 38, item.targetStr, {
+            fontFamily: FONT,
+            fontSize: '11.5px',
+            fontStyle: 'bold',
+            color: '#ffea75',
+          });
+
+        const descTxt = this.add
+          .text(-pos.w / 2 + 88, -pos.h / 2 + 56, item.descStr, {
+            fontFamily: FONT,
+            fontSize: '10.5px',
+            color: '#cbd5e1',
+            wordWrap: { width: pos.w - 200 },
+          });
+
+        const statusTxt = this.add
+          .text(-pos.w / 2 + 88, -pos.h / 2 + 82, item.statusStr, {
+            fontFamily: FONT,
+            fontSize: '11px',
+            fontStyle: 'bold',
+            color: item.statusColor,
+          });
+
+        // Action Button
+        const btnW = 104;
+        const btnH = 36;
+        const btnX = pos.w / 2 - 62;
+        const btnY = 0;
+        const btnBox = this.add.graphics();
+        btnBox.fillStyle(canClick ? 0x15803d : 0x271911, 1);
+        btnBox.fillRoundedRect(btnX - btnW / 2, btnY - btnH / 2, btnW, btnH, 12);
+        btnBox.lineStyle(2, canClick ? 0x86efac : 0x5a340e, 1);
+        btnBox.strokeRoundedRect(btnX - btnW / 2, btnY - btnH / 2, btnW, btnH, 12);
+
+        const btnLabel = this.add
+          .text(
+            btnX,
+            btnY,
+            canClick ? 'DISPENSE' : !item.owned ? 'LOCKED' : 'LIMIT',
+            {
+              fontFamily: FONT,
+              fontSize: '12px',
+              fontStyle: 'bold',
+              color: canClick ? '#ffffff' : '#78716c',
+            }
+          )
+          .setOrigin(0.5);
+
+        cardC.add([cbg, iconBg, spr, titleTxt, targetTxt, descTxt, statusTxt, btnBox, btnLabel]);
+
+        if (canClick) {
+          cardC.setSize(pos.w, pos.h).setInteractive({ useHandCursor: true });
+          cardC.on('pointerover', () => {
+            btnBox.clear();
+            btnBox.fillStyle(0x16a34a, 1);
+            btnBox.fillRoundedRect(btnX - btnW / 2, btnY - btnH / 2, btnW, btnH, 12);
+            btnBox.lineStyle(2, 0xffffff, 1);
+            btnBox.strokeRoundedRect(btnX - btnW / 2, btnY - btnH / 2, btnW, btnH, 12);
+          });
+          cardC.on('pointerout', () => {
+            btnBox.clear();
+            btnBox.fillStyle(0x15803d, 1);
+            btnBox.fillRoundedRect(btnX - btnW / 2, btnY - btnH / 2, btnW, btnH, 12);
+            btnBox.lineStyle(2, 0x86efac, 1);
+            btnBox.strokeRoundedRect(btnX - btnW / 2, btnY - btnH / 2, btnW, btnH, 12);
+          });
+          cardC.on('pointerdown', () => {
+            item.action();
+          });
+        }
+
+        cardContainers.push(cardC);
+        this.modalItems.push(cardC);
+      });
+    };
+
+    renderCards();
+
+    // Bottom Purple Button: RETURN TO AVIARY
+    const returnBtn = this.add.container(W / 2, H / 2 + ph / 2 - 36).setDepth(83);
+    const retBg = this.add.graphics();
+    retBg.fillStyle(0x6a1b9a, 1);
+    retBg.fillRoundedRect(-120, -20, 240, 40, 20);
+    retBg.lineStyle(3, 0xffd54f, 1);
+    retBg.strokeRoundedRect(-120, -20, 240, 40, 20);
+    const retTxt = this.add
+      .text(0, 0, 'RETURN TO AVIARY', {
+        fontFamily: FONT,
+        fontSize: '18px',
+        fontStyle: 'bold',
+        color: '#ffea75',
+        stroke: '#240733',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
+    returnBtn.add([retBg, retTxt]);
+    returnBtn.setSize(240, 40).setInteractive({ useHandCursor: true });
+    returnBtn.on('pointerdown', () => this.closeModal());
+    this.modalItems.push(returnBtn);
+
+    // Close Button (top-right red '✕')
+    const closeBtn = this.add.container(W / 2 + pw / 2 - 28, H / 2 - ph / 2 + 28).setDepth(83);
     const cbg = this.add.graphics();
     cbg.fillStyle(0xb71c1c, 1);
     cbg.fillCircle(0, 0, 18);
-    const cx = this.add.text(0, 0, '✕', { fontFamily: FONT, fontSize: '20px', fontStyle: 'bold', color: '#ffffff' }).setOrigin(0.5);
+    cbg.lineStyle(2, 0xffcdd2, 1);
+    cbg.strokeCircle(0, 0, 18);
+    const cx = this.add
+      .text(0, 0, '✕', { fontFamily: FONT, fontSize: '18px', fontStyle: 'bold', color: '#ffffff' })
+      .setOrigin(0.5);
     closeBtn.add([cbg, cx]);
     closeBtn.setSize(36, 36).setInteractive({ useHandCursor: true });
     closeBtn.on('pointerdown', () => this.closeModal());
     this.modalItems.push(closeBtn);
+  }
+
+  openFeedModal() {
+    this.openFeedDispenserModal();
   }
 
   openThemesModal() {
@@ -6471,9 +6754,10 @@ export class AviaryScene extends Phaser.Scene {
       if (this.sandbox && !b.isFeeder && !(b.isMamaSpawn && b.stage === 0)) continue;
 
       if (hunter.species.behavior === 'apex') {
-        // Apex hunts carnivores or feeder birds
-        if (b.species.behavior === 'carnivore' || b.stage >= 1 || b.isFeeder) {
-          const d = Phaser.Math.Distance.Between(x, y, b.spr.x, b.spr.y);
+        // Apex hunts carnivores or feeder birds (prioritizes carnivore birds)
+        const isCarnivore = b.species.behavior === 'carnivore';
+        if (isCarnivore || b.isFeeder) {
+          const d = Phaser.Math.Distance.Between(x, y, b.spr.x, b.spr.y) + (isCarnivore ? 0 : 500);
           if (d < bd) {
             bd = d;
             best = b;
@@ -6558,9 +6842,15 @@ export class AviaryScene extends Phaser.Scene {
     this.burst(toucan.spr.x, toucan.spr.y, 0xfde047, 18);
     this.burst(toucan.spr.x, toucan.spr.y, 0x38bdf8, 14);
     playEggDropSound();
-    this.dropCoin(toucan.spr.x, toucan.spr.y + 15, 500, 'drop_pearl');
-    this.floatText(toucan.spr.x, toucan.spr.y - 35, '🦪 +Forest Pearl!', '#38bdf8', '#0f172a');
-    this.toast('Rainbow Toucan munched a Golden Tree Beetle and dropped a Forest Pearl (500c)!');
+    if (this.sandbox) {
+      this.dropGem(toucan.spr.x, toucan.spr.y + 15, 6, 'drop_pearl');
+      this.floatText(toucan.spr.x, toucan.spr.y - 35, '🦪 +6 Gems!', '#38bdf8', '#0f172a');
+      this.toast('Rainbow Toucan munched a Golden Tree Beetle and dropped a Forest Pearl (6 Gems)!');
+    } else {
+      this.dropCoin(toucan.spr.x, toucan.spr.y + 15, 500, 'drop_pearl');
+      this.floatText(toucan.spr.x, toucan.spr.y - 35, '🦪 +Forest Pearl!', '#38bdf8', '#0f172a');
+      this.toast('Rainbow Toucan munched a Golden Tree Beetle and dropped a Forest Pearl (500c)!');
+    }
   }
 
   nearestNectar(x: number, y: number): Coin | undefined {
@@ -6588,7 +6878,12 @@ export class AviaryScene extends Phaser.Scene {
     playEggDropSound();
     this.floatText(glider.spr.x, glider.spr.y - 28, '🐿️ YUM! Nectar! 🌰', '#fde047', '#7c2d12');
     glider.dropCinderAcorn();
-    this.toast('🐿️ Sugar Glider feasted on Amber Nectar and dropped a blazing Cinder Acorn!');
+    if (this.sandbox) {
+      this.dropGem(glider.spr.x, glider.spr.y + 10, 5, 'cinder_acorn');
+      this.toast('🐿️ Sugar Glider feasted on Amber Nectar and dropped a Cinder Acorn (5 Gems)!');
+    } else {
+      this.toast('🐿️ Sugar Glider feasted on Amber Nectar and dropped a blazing Cinder Acorn!');
+    }
   }
 
   openPetStoreModal() {
