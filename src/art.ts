@@ -192,10 +192,88 @@ function gfx(scene: Phaser.Scene) {
   return g;
 }
 
-/** Pure 2D Procedural Cartoon Art Engine (Simple & Charming Original Concept with Distinct Species Silhouettes) */
-function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: number) {
-  const g = gfx(scene);
+// ============================================================================
+// HIGH-DEFINITION 2.5D ILLUSTRATED CANVAS ART ENGINE (Gemini 4 Argon Edition)
+// Uses native HTML5 Canvas2D radial/linear gradients, anti-aliased Bezier
+// anatomy, layered feather plumage, studio catchlights, and volumetric shading.
+// ============================================================================
 
+function hexToRgb(hex: number): [number, number, number] {
+  return [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff];
+}
+
+function rgba(hex: number, a = 1): string {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function mixHex(c1: number, c2: number, t: number): number {
+  const [r1, g1, b1] = hexToRgb(c1);
+  const [r2, g2, b2] = hexToRgb(c2);
+  const r = Math.round(r1 + (r2 - r1) * t);
+  const g = Math.round(g1 + (g2 - g1) * t);
+  const b = Math.round(b1 + (b2 - b1) * t);
+  return (r << 16) | (g << 8) | b;
+}
+
+function lighten(hex: number, amt: number): number {
+  return mixHex(hex, 0xffffff, Math.min(1, Math.max(0, amt)));
+}
+
+function darken(hex: number, amt: number): number {
+  return mixHex(hex, 0x05050a, Math.min(1, Math.max(0, amt)));
+}
+
+function makeCanvas(
+  scene: Phaser.Scene,
+  key: string,
+  width: number,
+  height: number,
+  drawFn: (ctx: CanvasRenderingContext2D, w: number, h: number) => void
+) {
+  if (scene.textures.exists(key)) {
+    scene.textures.remove(key);
+  }
+  const pw = Math.round(width * HI_RES_SCALE);
+  const ph = Math.round(height * HI_RES_SCALE);
+  const cTex = scene.textures.createCanvas(key, pw, ph);
+  if (!cTex) return;
+  const ctx = cTex.getContext();
+  ctx.save();
+  ctx.clearRect(0, 0, pw, ph);
+  ctx.scale(HI_RES_SCALE, HI_RES_SCALE);
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  drawFn(ctx, width, height);
+  ctx.restore();
+  cTex.refresh();
+
+  const frame = cTex.get('__BASE') as any;
+  if (frame && frame.source) {
+    frame.source.resolution = HI_RES_SCALE;
+    frame.width = width;
+    frame.height = height;
+    frame.halfWidth = Math.floor(width * 0.5);
+    frame.halfHeight = Math.floor(height * 0.5);
+    frame.centerX = Math.floor(width / 2);
+    frame.centerY = Math.floor(height / 2);
+    if (frame.data && frame.data.sourceSize) {
+      frame.data.sourceSize.w = width;
+      frame.data.sourceSize.h = height;
+    }
+  }
+}
+
+function drawEllipse(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, rot = 0) {
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, Math.max(0.5, rx), Math.max(0.5, ry), rot, 0, Math.PI * 2);
+}
+
+/**
+ * Draws a richly shaded, anatomically sculpted avian model for every species and growth stage (0, 1, 2)
+ * plus its multi-feathered articulated wing texture.
+ */
+function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: number) {
   const sc = stage === 0 ? 0.72 : stage === 1 ? 0.86 : 1.0;
   const cw = stage === 0 ? 84 : stage === 1 ? 92 : 100;
   const ch = stage === 0 ? 76 : stage === 1 ? 82 : 86;
@@ -203,297 +281,1079 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
   const cy = stage === 0 ? 40 : stage === 1 ? 44 : 46;
 
   const isCat = key === 'infiltrator';
-  const isOwl = key === 'owl' || s.horns;
+  const isWyvern = key === 'wyvern';
+  const isOwl = (key === 'owl' || s.horns) && !isWyvern;
   const isToucan = key === 'toucan';
   const isTreeCreeper = key === 'tree_creeper';
   const isPhoenix = key === 'phoenix';
   const isFalcon = key === 'piranha_finch' || key === 'falcon';
   const isCanary = key === 'canary';
   const isMama = key === 'mama';
-  const isHawk = key === 'hawk' || (s.angry && !isFalcon);
+  const isCrow = key === 'crow';
+  const isHawk = key === 'hawk' || (s.angry && !isFalcon && !isCrow && !isWyvern);
 
-  // 1. Cute Little Feet
-  const footY = cy + Math.round(34 * sc);
-  g.lineStyle(stage === 0 ? 2 : 2.8, 0xf0902a, 1);
-  g.lineBetween(cx - Math.round(6 * sc), footY - Math.round(10 * sc), cx - Math.round(6 * sc), footY);
-  g.lineBetween(cx + Math.round(8 * sc), footY - Math.round(10 * sc), cx + Math.round(8 * sc), footY);
-  g.lineBetween(cx - Math.round(6 * sc), footY, cx - Math.round(10 * sc), footY + 1);
-  g.lineBetween(cx + Math.round(8 * sc), footY, cx + Math.round(4 * sc), footY + 1);
+  const renderBirdBody = (ctx: CanvasRenderingContext2D) => {
+    const footY = cy + Math.round(34 * sc);
+    const headTopY = cy - Math.round(24 * sc);
+    const bw = Math.round(34 * sc);
+    const bh = Math.round(30 * sc);
 
-  // 2. Distinct Tail Silhouettes
-  const tailW = Math.round(24 * sc);
-  if (isPhoenix && stage >= 1) {
-    // Flowing ribbon streamers with golden ember tips
-    g.lineStyle(3, 0xff6f00, 1);
-    g.lineBetween(cx - Math.round(24 * sc), cy + Math.round(6 * sc), cx - Math.round(48 * sc), cy + Math.round(18 * sc));
-    g.lineBetween(cx - Math.round(48 * sc), cy + Math.round(18 * sc), cx - Math.round(72 * sc), cy + Math.round(36 * sc));
-    g.lineStyle(2.2, 0xffd54f, 1);
-    g.lineBetween(cx - Math.round(22 * sc), cy + Math.round(10 * sc), cx - Math.round(60 * sc), cy + Math.round(42 * sc));
-    g.fillStyle(0xffd54f, 1);
-    g.fillCircle(cx - Math.round(72 * sc), cy + Math.round(36 * sc), 4);
-    g.fillStyle(0xff3d00, 1);
-    g.fillCircle(cx - Math.round(60 * sc), cy + Math.round(42 * sc), 3);
-  } else if (isMama) {
-    // Fan-shaped gentle dove tail
-    g.fillStyle(s.wing, 1);
-    g.fillTriangle(cx - 20, cy + 4, cx - 44, cy - 2, cx - 46, cy + 14);
-    g.fillTriangle(cx - 20, cy + 8, cx - 46, cy + 14, cx - 38, cy + 22);
-  } else if (isFalcon) {
-    // Long steering wedge raptor tail
-    g.fillStyle(s.wing, 1);
-    g.fillTriangle(cx - 22, cy + 2, cx - 48, cy - 4, cx - 44, cy + 16);
-    g.fillTriangle(cx - 22, cy + 6, cx - 44, cy + 16, cx - 36, cy + 22);
-  } else if (isCanary) {
-    // Slender split songster tail
-    g.fillStyle(s.wing, 1);
-    g.fillTriangle(cx - 18, cy + 6, cx - 44, cy + 2, cx - 40, cy + 12);
-    g.fillTriangle(cx - 18, cy + 8, cx - 40, cy + 14, cx - 38, cy + 20);
-  } else {
-    // Garden songbird notched tail
-    g.fillStyle(s.wing, 1);
-    g.fillTriangle(
-      cx - Math.round(22 * sc), cy + Math.round(4 * sc),
-      cx - Math.round(22 * sc) - tailW, cy - Math.round(12 * sc),
-      cx - Math.round(22 * sc) - tailW + 4, cy + Math.round(14 * sc)
+    // -------------------------------------------------------------------------
+    // 1. ARTICULATED AVIAN TALONS / FEET (or Cat Paws for Infiltrator)
+    // -------------------------------------------------------------------------
+    if (isCat) {
+      // Plush ginger & white kitty paws
+      for (const lx of [cx - 7 * sc, cx + 8 * sc]) {
+        ctx.fillStyle = rgba(darken(s.body, 0.2));
+        drawEllipse(ctx, lx, footY - 4 * sc, 4.5 * sc, 5.5 * sc);
+        ctx.fill();
+        ctx.fillStyle = rgba(0xfff5eb);
+        drawEllipse(ctx, lx + 1.2 * sc, footY - 0.5 * sc, 4.8 * sc, 3 * sc);
+        ctx.fill();
+        ctx.strokeStyle = rgba(darken(s.body, 0.45), 0.7);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    } else {
+      const legCol = isFalcon || isHawk || isOwl ? 0xf59e0b : isCrow || isWyvern ? 0x374151 : 0xf08c28;
+      const legDark = darken(legCol, 0.35);
+      for (const [idx, lx] of [cx - 6 * sc, cx + 8 * sc].entries()) {
+        // Feathered tibial cuff at top of leg
+        ctx.fillStyle = rgba(darken(s.body, idx === 0 ? 0.18 : 0.06));
+        drawEllipse(ctx, lx, footY - 10 * sc, 4.2 * sc, 4.5 * sc);
+        ctx.fill();
+
+        // Tarsus shank
+        ctx.strokeStyle = rgba(idx === 0 ? legDark : legCol);
+        ctx.lineWidth = (stage === 0 ? 2.2 : 2.9);
+        ctx.beginPath();
+        ctx.moveTo(lx, footY - 9 * sc);
+        ctx.lineTo(lx + 1 * sc, footY - 1 * sc);
+        ctx.stroke();
+
+        // Forward gripping toes + back hallux
+        ctx.lineWidth = (stage === 0 ? 1.8 : 2.3);
+        ctx.beginPath();
+        ctx.moveTo(lx - 4.5 * sc, footY + 0.5);
+        ctx.quadraticCurveTo(lx + 1 * sc, footY - 1.5, lx + 6.5 * sc, footY + 0.8);
+        ctx.moveTo(lx + 1 * sc, footY - 1);
+        ctx.lineTo(lx + 4.5 * sc, footY + 1.5);
+        ctx.stroke();
+
+        // Tiny curved keratin claws
+        ctx.strokeStyle = rgba(0x1e1b18, 0.85);
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.moveTo(lx + 6.5 * sc, footY + 0.8);
+        ctx.lineTo(lx + 8 * sc, footY + 2.2);
+        ctx.moveTo(lx - 4.5 * sc, footY + 0.5);
+        ctx.lineTo(lx - 5.8 * sc, footY + 1.8);
+        ctx.stroke();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. SCULPTED SPECIES TAILS (Multi-feather rectrices & flowing plumes)
+    // -------------------------------------------------------------------------
+    ctx.save();
+    if (isPhoenix) {
+      // Three sinuous S-curved celestial fire ribbon plumes with glowing ember eyespots
+      const plumes = [
+        { dy: -2, endX: -48 * sc, endY: 16 * sc, cp1x: -32 * sc, cp1y: -10 * sc, cp2x: -40 * sc, cp2y: 24 * sc, col: 0xff3d00, tip: 0xffeb3b, w: 4.2 * sc },
+        { dy: 4, endX: -52 * sc, endY: 28 * sc, cp1x: -30 * sc, cp1y: 4 * sc, cp2x: -42 * sc, cp2y: 34 * sc, col: 0xff9100, tip: 0xfff59d, w: 3.6 * sc },
+        { dy: 9, endX: -40 * sc, endY: 35 * sc, cp1x: -26 * sc, cp1y: 18 * sc, cp2x: -34 * sc, cp2y: 38 * sc, col: 0xd50000, tip: 0xffab00, w: 3.0 * sc },
+      ];
+      for (const p of plumes) {
+        const grad = ctx.createLinearGradient(cx - 18 * sc, cy, cx + p.endX, cy + p.endY);
+        grad.addColorStop(0, rgba(s.body));
+        grad.addColorStop(0.55, rgba(p.col));
+        grad.addColorStop(1, rgba(p.tip));
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = p.w;
+        ctx.beginPath();
+        ctx.moveTo(cx - 18 * sc, cy + p.dy * sc);
+        ctx.bezierCurveTo(cx + p.cp1x, cy + p.cp1y, cx + p.cp2x, cy + p.cp2y, cx + p.endX, cy + p.endY);
+        ctx.stroke();
+
+        // Glowing solar eyespot at tip of each streamer
+        const ex = cx + p.endX;
+        const ey = cy + p.endY;
+        const eGrad = ctx.createRadialGradient(ex, ey, 0.5, ex, ey, 5.5 * sc);
+        eGrad.addColorStop(0, '#ffffff');
+        eGrad.addColorStop(0.45, rgba(p.tip));
+        eGrad.addColorStop(1, rgba(p.col, 0));
+        ctx.fillStyle = eGrad;
+        drawEllipse(ctx, ex, ey, 5.5 * sc, 5.5 * sc);
+        ctx.fill();
+      }
+    } else if (isCat) {
+      // Plush curving ginger tabby cat tail with tiger stripes
+      ctx.lineWidth = 8.5 * sc;
+      ctx.strokeStyle = rgba(darken(s.body, 0.25));
+      ctx.beginPath();
+      ctx.moveTo(cx - 22 * sc, cy + 8 * sc);
+      ctx.bezierCurveTo(cx - 38 * sc, cy + 12 * sc, cx - 48 * sc, cy - 8 * sc, cx - 40 * sc, cy - 20 * sc);
+      ctx.stroke();
+
+      ctx.lineWidth = 6.8 * sc;
+      ctx.strokeStyle = rgba(s.body);
+      ctx.stroke();
+
+      // Tabby tail rings
+      ctx.lineWidth = 2.2 * sc;
+      ctx.strokeStyle = rgba(darken(s.body, 0.35));
+      for (const [rx, ry] of [[-33, 6], [-40, -1], [-42, -10]]) {
+        ctx.beginPath();
+        ctx.moveTo(cx + (rx - 2) * sc, cy + (ry - 2) * sc);
+        ctx.lineTo(cx + (rx + 3) * sc, cy + (ry + 2) * sc);
+        ctx.stroke();
+      }
+    } else if (isWyvern) {
+      // Barbed draconic tail with crimson spade tip
+      ctx.lineWidth = 6 * sc;
+      ctx.strokeStyle = rgba(s.body);
+      ctx.beginPath();
+      ctx.moveTo(cx - 20 * sc, cy + 6 * sc);
+      ctx.quadraticCurveTo(cx - 38 * sc, cy + 16 * sc, cx - 46 * sc, cy + 2 * sc);
+      ctx.stroke();
+      ctx.fillStyle = rgba(0xff3d00);
+      ctx.beginPath();
+      ctx.moveTo(cx - 46 * sc, cy + 2 * sc);
+      ctx.lineTo(cx - 50 * sc, cy - 6 * sc);
+      ctx.lineTo(cx - 40 * sc, cy - 2 * sc);
+      ctx.lineTo(cx - 42 * sc, cy + 8 * sc);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      // Layered fanned avian rectrices (3 overlapping tail feathers)
+      const tailLen = (isFalcon ? 27 : isMama ? 25 : isCanary ? 24 : 22) * sc;
+      const angles = isMama ? [-0.28, -0.05, 0.2, 0.42] : isCanary ? [-0.3, 0.22] : [-0.24, 0.02, 0.28];
+      angles.forEach((ang, idx) => {
+        ctx.save();
+        ctx.translate(cx - 18 * sc, cy + 5 * sc);
+        ctx.rotate(ang);
+        const fCol = idx % 2 === 0 ? darken(s.wing, 0.12) : lighten(s.wing, 0.08);
+        const tGrad = ctx.createLinearGradient(0, 0, -tailLen, 0);
+        tGrad.addColorStop(0, rgba(darken(fCol, 0.2)));
+        tGrad.addColorStop(0.75, rgba(fCol));
+        tGrad.addColorStop(1, rgba(isMama ? 0xfff0f5 : isFalcon ? 0xe2e8f0 : lighten(fCol, 0.25)));
+
+        ctx.fillStyle = tGrad;
+        ctx.strokeStyle = rgba(darken(s.wing, 0.45), 0.85);
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(0, -3.5 * sc);
+        ctx.quadraticCurveTo(-tailLen * 0.6, -6.5 * sc, -tailLen, -2 * sc);
+        ctx.quadraticCurveTo(-tailLen * 1.06, 0, -tailLen, 3 * sc);
+        ctx.quadraticCurveTo(-tailLen * 0.6, 6.5 * sc, 0, 3.5 * sc);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Raptor / Owl tail barring
+        if (isFalcon || isOwl || isHawk) {
+          ctx.strokeStyle = rgba(0x111827, 0.65);
+          ctx.lineWidth = 1.8 * sc;
+          for (const bx of [-tailLen * 0.38, -tailLen * 0.68]) {
+            ctx.beginPath();
+            ctx.moveTo(bx, -4 * sc);
+            ctx.lineTo(bx, 4 * sc);
+            ctx.stroke();
+          }
+        }
+
+        // Feather central shaft (rachis)
+        ctx.strokeStyle = rgba(lighten(s.wing, 0.35), 0.55);
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(-2 * sc, 0);
+        ctx.lineTo(-tailLen * 0.9, 0.3);
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // Toucan scarlet undertail covert patch
+      if (isToucan) {
+        ctx.fillStyle = rgba(0xe11d48);
+        drawEllipse(ctx, cx - 22 * sc, cy + 9 * sc, 7 * sc, 4.5 * sc, -0.2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+
+    // -------------------------------------------------------------------------
+    // 3. BACK CREST PLUMES / HORNS / EARS (Behind Head Silhouette)
+    // -------------------------------------------------------------------------
+    if (isPhoenix) {
+      // Back & middle sweeping flame crown plumes
+      const crownFlames = [
+        { dx: -9 * sc, tx: -18 * sc, ty: -20 * sc, col1: 0xd50000, col2: 0xff6d00 },
+        { dx: -2 * sc, tx: -8 * sc, ty: -24 * sc, col1: 0xff6d00, col2: 0xffea00 },
+        { dx: 5 * sc, tx: 3 * sc, ty: -20 * sc, col1: 0xffab00, col2: 0xfff9c4 },
+      ];
+      for (const cf of crownFlames) {
+        const cGrad = ctx.createLinearGradient(cx + cf.dx, headTopY + 6 * sc, cx + cf.tx, headTopY + cf.ty);
+        cGrad.addColorStop(0, rgba(cf.col1));
+        cGrad.addColorStop(1, rgba(cf.col2));
+        ctx.fillStyle = cGrad;
+        ctx.beginPath();
+        ctx.moveTo(cx + cf.dx - 4 * sc, headTopY + 8 * sc);
+        ctx.quadraticCurveTo(cx + cf.dx - 6 * sc, headTopY - 6 * sc, cx + cf.tx, headTopY + cf.ty);
+        ctx.quadraticCurveTo(cx + cf.dx + 4 * sc, headTopY - 4 * sc, cx + cf.dx + 5 * sc, headTopY + 8 * sc);
+        ctx.closePath();
+        ctx.fill();
+      }
+    } else if (isMama || (s.crest && !isCanary)) {
+      // Sweeping royal double-plume teardrop crest
+      const cH = (stage === 0 ? 11 : 17) * sc;
+      for (const [i, off] of [[0, -4 * sc], [1, 3 * sc]] as [number, number][]) {
+        const col = i === 0 ? darken(s.wing, 0.1) : lighten(s.wing, 0.12);
+        ctx.fillStyle = rgba(col);
+        ctx.strokeStyle = rgba(darken(s.wing, 0.4), 0.8);
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.moveTo(cx + off, headTopY + 7 * sc);
+        ctx.quadraticCurveTo(cx + off - 4 * sc, headTopY - cH * 0.5, cx + off - (8 - i * 3) * sc, headTopY - cH + i * 3 * sc);
+        ctx.quadraticCurveTo(cx + off + 6 * sc, headTopY - cH * 0.4, cx + off + 7 * sc, headTopY + 7 * sc);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+    } else if (isCanary) {
+      // Swept-back golden canary crown tuft
+      ctx.fillStyle = rgba(lighten(s.body, 0.15));
+      ctx.strokeStyle = rgba(darken(s.wing, 0.35), 0.8);
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(cx + 2 * sc, headTopY + 5 * sc);
+      ctx.quadraticCurveTo(cx - 2 * sc, headTopY - 11 * sc, cx - 10 * sc, headTopY - 7 * sc);
+      ctx.quadraticCurveTo(cx - 4 * sc, headTopY, cx - 8 * sc, headTopY + 3 * sc);
+      ctx.quadraticCurveTo(cx, headTopY + 5 * sc, cx + 10 * sc, headTopY + 6 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (isWyvern) {
+      // Curved obsidian dragon horns
+      ctx.fillStyle = rgba(0x1f0814);
+      ctx.strokeStyle = rgba(0xff5722, 0.8);
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(cx - 4 * sc, headTopY + 7 * sc);
+      ctx.quadraticCurveTo(cx - 12 * sc, headTopY - 8 * sc, cx - 22 * sc, headTopY - 12 * sc);
+      ctx.quadraticCurveTo(cx - 10 * sc, headTopY + 2 * sc, cx + 4 * sc, headTopY + 7 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. ANATOMICALLY SCULPTED HEAD & TORSO SILHOUETTE (3D Volumetric Gradients)
+    // -------------------------------------------------------------------------
+    ctx.save();
+    ctx.beginPath();
+    if (isOwl) {
+      // Broad, majestic barrel-chested owl silhouette
+      const ow = (bw + 3 * sc);
+      const oh = (bh + 2 * sc);
+      ctx.ellipse(cx + 1 * sc, cy, ow, oh, -0.06, 0, Math.PI * 2);
+    } else if (isCanary) {
+      // Upright, graceful songbird silhouette with distinct head & puffed chest
+      ctx.moveTo(cx - 24 * sc, cy + 12 * sc); // rump
+      ctx.bezierCurveTo(cx - 28 * sc, cy - 4 * sc, cx - 16 * sc, cy - 16 * sc, cx - 6 * sc, cy - 22 * sc); // back to nape
+      ctx.bezierCurveTo(cx + 2 * sc, cy - 30 * sc, cx + 22 * sc, cy - 28 * sc, cx + 27 * sc, cy - 12 * sc); // domed crown
+      ctx.bezierCurveTo(cx + 31 * sc, cy + 4 * sc, cx + 24 * sc, cy + 25 * sc, cx + 4 * sc, cy + 28 * sc); // puffed breast
+      ctx.bezierCurveTo(cx - 12 * sc, cy + 30 * sc, cx - 21 * sc, cy + 22 * sc, cx - 24 * sc, cy + 12 * sc); // underbelly
+      ctx.closePath();
+    } else if (isFalcon || isHawk) {
+      // Sleek, broad-shouldered aerodynamic raptor silhouette
+      ctx.moveTo(cx - 30 * sc, cy + 10 * sc); // tapered tail base
+      ctx.bezierCurveTo(cx - 32 * sc, cy - 8 * sc, cx - 16 * sc, cy - 22 * sc, cx + 2 * sc, cy - 26 * sc); // muscular mantle
+      ctx.bezierCurveTo(cx + 16 * sc, cy - 29 * sc, cx + 29 * sc, cy - 22 * sc, cx + 32 * sc, cy - 6 * sc); // flat raptor crown
+      ctx.bezierCurveTo(cx + 35 * sc, cy + 12 * sc, cx + 22 * sc, cy + 28 * sc, cx + 2 * sc, cy + 28 * sc); // deep keel breast
+      ctx.bezierCurveTo(cx - 14 * sc, cy + 28 * sc, cx - 26 * sc, cy + 20 * sc, cx - 30 * sc, cy + 10 * sc);
+      ctx.closePath();
+    } else {
+      // Sculpted organic songbird / toucan / dove silhouette (head + nape + puffed chest + tapered rump)
+      ctx.moveTo(cx - 31 * sc, cy + 8 * sc); // tapered rump
+      ctx.bezierCurveTo(cx - 34 * sc, cy - 10 * sc, cx - 18 * sc, cy - 22 * sc, cx - 4 * sc, cy - 25 * sc); // back & nape
+      ctx.bezierCurveTo(cx + 10 * sc, cy - 30 * sc, cx + 26 * sc, cy - 25 * sc, cx + 31 * sc, cy - 8 * sc); // forehead & crown
+      ctx.bezierCurveTo(cx + 35 * sc, cy + 10 * sc, cx + 24 * sc, cy + 28 * sc, cx + 3 * sc, cy + 29 * sc); // full round chest
+      ctx.bezierCurveTo(cx - 15 * sc, cy + 30 * sc, cx - 28 * sc, cy + 20 * sc, cx - 31 * sc, cy + 8 * sc); // belly to rump
+      ctx.closePath();
+    }
+
+    // 3-Stop 3D Radial Lighting Gradient on Body
+    const bodyLight = isToucan ? 0x334155 : lighten(s.body, 0.28);
+    const bodyMid = isToucan ? 0x0f172a : s.body;
+    const bodyDark = isToucan ? 0x020617 : darken(s.body, 0.32);
+    const bGrad = ctx.createRadialGradient(
+      cx + 8 * sc,
+      cy - 12 * sc,
+      3 * sc,
+      cx - 2 * sc,
+      cy + 2 * sc,
+      38 * sc
     );
-    if (stage >= 1) {
-      g.fillTriangle(
-        cx - Math.round(20 * sc), cy + Math.round(8 * sc),
-        cx - Math.round(20 * sc) - Math.round(tailW * 0.8), cy + Math.round(18 * sc),
-        cx - Math.round(20 * sc) - tailW + 8, cy + Math.round(8 * sc)
+    bGrad.addColorStop(0, rgba(bodyLight));
+    bGrad.addColorStop(0.55, rgba(bodyMid));
+    bGrad.addColorStop(1, rgba(bodyDark));
+
+    ctx.fillStyle = bGrad;
+    ctx.fill();
+
+    // Clip interior details to body silhouette
+    ctx.save();
+    ctx.clip();
+
+    // Top-left sunlit specular rim glow along crown & mantle
+    const rimGrad = ctx.createLinearGradient(cx, cy - 28 * sc, cx, cy);
+    rimGrad.addColorStop(0, rgba(0xffffff, isToucan ? 0.22 : 0.32));
+    rimGrad.addColorStop(1, rgba(0xffffff, 0));
+    ctx.fillStyle = rimGrad;
+    drawEllipse(ctx, cx + 4 * sc, cy - 18 * sc, 26 * sc, 12 * sc, -0.15);
+    ctx.fill();
+
+    // -------------------------------------------------------------------------
+    // 5. LUSH BREAST / BELLY PATCH & SPECIES PLUMAGE MARKINGS
+    // -------------------------------------------------------------------------
+    if (isToucan) {
+      // Iconic Toco/Keel-billed Toucan Golden-Yellow Throat & Chest Bib with Scarlet Band!
+      const bibGrad = ctx.createRadialGradient(cx + 22 * sc, cy - 4 * sc, 2 * sc, cx + 16 * sc, cy + 4 * sc, 24 * sc);
+      bibGrad.addColorStop(0, '#fffbeb');
+      bibGrad.addColorStop(0.35, '#fde047');
+      bibGrad.addColorStop(1, '#f59e0b');
+      ctx.fillStyle = bibGrad;
+      drawEllipse(ctx, cx + 18 * sc, cy + 3 * sc, 19 * sc, 18 * sc, 0.1);
+      ctx.fill();
+
+      // Crimson-red pectoral border band below the yellow bib
+      ctx.strokeStyle = rgba(0xe11d48, 0.95);
+      ctx.lineWidth = 3.2 * sc;
+      ctx.beginPath();
+      ctx.arc(cx + 18 * sc, cy + 2 * sc, 18.5 * sc, 0.35, Math.PI - 0.45);
+      ctx.stroke();
+    } else {
+      // Soft radial-gradient breast & underbelly
+      const belX = cx + (isCanary ? 8 : 7) * sc;
+      const belY = cy + 8 * sc;
+      const belW = (isCanary ? 19 : 24) * sc;
+      const belH = 20 * sc;
+      const belGrad = ctx.createRadialGradient(belX + 5 * sc, belY - 5 * sc, 2 * sc, belX, belY, belW);
+      belGrad.addColorStop(0, rgba(lighten(s.belly, 0.35)));
+      belGrad.addColorStop(0.65, rgba(s.belly));
+      belGrad.addColorStop(1, rgba(darken(s.belly, 0.15), 0.92));
+
+      ctx.fillStyle = belGrad;
+      drawEllipse(ctx, belX, belY, belW, belH, -0.08);
+      ctx.fill();
+
+      // Species-specific chest & back feather textures
+      if (isFalcon) {
+        // Authentic Peregrine Falcon dark slate malar helmet + horizontal barred chest chevrons
+        ctx.strokeStyle = rgba(0x334155, 0.72);
+        ctx.lineWidth = 1.5 * sc;
+        for (const ry of [0, 5, 10, 15, 20]) {
+          const yy = cy + ry * sc;
+          ctx.beginPath();
+          ctx.moveTo(cx - 2 * sc, yy);
+          ctx.quadraticCurveTo(cx + 12 * sc, yy + 2.5 * sc, cx + 26 * sc, yy - 0.5 * sc);
+          ctx.stroke();
+        }
+      } else if (isOwl) {
+        // Woodland owl bark-streaked chevron feathering on breast
+        ctx.strokeStyle = rgba(darken(s.body, 0.25), 0.65);
+        ctx.lineWidth = 1.5 * sc;
+        for (const [ox, oy] of [[0, 6], [9, 5], [18, 7], [-3, 14], [6, 13], [15, 15], [3, 21], [12, 21]]) {
+          ctx.beginPath();
+          ctx.moveTo(cx + (ox - 3) * sc, cy + (oy - 2) * sc);
+          ctx.lineTo(cx + ox * sc, cy + (oy + 1.5) * sc);
+          ctx.lineTo(cx + (ox + 3) * sc, cy + (oy - 2) * sc);
+          ctx.stroke();
+        }
+      } else if (isTreeCreeper) {
+        // Speckled woodland bark-forager spots on dorsal mantle + supercilium stripe
+        ctx.fillStyle = rgba(0xfff8e7, 0.75);
+        for (const [sx, sy] of [[-18, -6], [-11, -11], [-22, 1], [-14, -1], [-6, -15]]) {
+          drawEllipse(ctx, cx + sx * sc, cy + sy * sc, 2.6 * sc, 1.3 * sc, -0.3);
+          ctx.fill();
+        }
+      } else if (isCat) {
+        // Ginger tabby tiger stripes along the back & crown
+        ctx.strokeStyle = rgba(darken(s.body, 0.35), 0.78);
+        ctx.lineWidth = 2.6 * sc;
+        for (const sx of [-18, -10, -2]) {
+          ctx.beginPath();
+          ctx.moveTo(cx + sx * sc, cy - 24 * sc);
+          ctx.quadraticCurveTo(cx + (sx - 3) * sc, cy - 10 * sc, cx + (sx - 1) * sc, cy - 2 * sc);
+          ctx.stroke();
+        }
+      } else if (isPhoenix) {
+        // Shimmering golden solar scale-feathers on breast
+        ctx.strokeStyle = rgba(0xff6f00, 0.55);
+        ctx.lineWidth = 1.3 * sc;
+        for (const [px, py] of [[4, 4], [13, 3], [21, 5], [8, 11], [17, 11], [12, 18]]) {
+          ctx.beginPath();
+          ctx.arc(cx + px * sc, cy + py * sc, 4.5 * sc, 0.15, Math.PI - 0.15);
+          ctx.stroke();
+        }
+      } else {
+        // Soft downy breast feather scallops for Songbird, Canary, Mama, etc.
+        ctx.strokeStyle = rgba(darken(s.belly, 0.22), 0.45);
+        ctx.lineWidth = 1.2 * sc;
+        for (const [fx, fy] of [[5, 5], [14, 4], [9, 12], [18, 11], [12, 19]]) {
+          ctx.beginPath();
+          ctx.arc(cx + fx * sc, cy + fy * sc, 4.2 * sc, 0.2, Math.PI - 0.2);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. FACIAL DISCS, PEREGRINE HELMET MASK, & CHEEK BLUSH
+    // -------------------------------------------------------------------------
+    if (isFalcon) {
+      // Authentic Peregrine dark slate hood & iconic teardrop malar cheek bar
+      ctx.fillStyle = rgba(0x1e293b, 0.94);
+      ctx.beginPath();
+      ctx.moveTo(cx - 12 * sc, cy - 26 * sc);
+      ctx.lineTo(cx + 34 * sc, cy - 26 * sc);
+      ctx.lineTo(cx + 34 * sc, cy - 2 * sc);
+      // Malar teardrop lobe dropping below the eye
+      ctx.quadraticCurveTo(cx + 18 * sc, cy + 2 * sc, cx + 16 * sc, cy + 11 * sc);
+      ctx.quadraticCurveTo(cx + 9 * sc, cy + 11 * sc, cx + 9 * sc, cy - 2 * sc);
+      // Bright white cheek indent behind the malar bar
+      ctx.quadraticCurveTo(cx + 2 * sc, cy - 10 * sc, cx - 12 * sc, cy - 8 * sc);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.restore(); // end body clip
+
+    // Crisp, painterly outer contour stroke around body
+    ctx.strokeStyle = rgba(darken(isToucan ? 0x1e293b : s.body, 0.48), 0.9);
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    ctx.restore();
+
+    // Stage 0 Baby Chick fluffy head-down wisps!
+    if (stage === 0 && !isCat && !isOwl && !isPhoenix) {
+      ctx.strokeStyle = rgba(lighten(s.body, 0.25));
+      ctx.lineWidth = 1.8;
+      for (const [dx, dy, tx, ty] of [[2, -20, 0, -26], [6, -20, 7, -27], [10, -19, 13, -24]]) {
+        ctx.beginPath();
+        ctx.moveTo(cx + dx, cy + dy);
+        ctx.quadraticCurveTo(cx + tx, cy + ty, cx + tx + 2, cy + ty - 1);
+        ctx.stroke();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 7. OWL FACIAL DISC & EAR TUFTS / CAT EARS (Foreground Head Features)
+    // -------------------------------------------------------------------------
+    if (isOwl) {
+      // Twin overlapping warm buff-cream facial discs with dark rimming
+      for (const ox of [cx + 7 * sc, cx + 20 * sc]) {
+        const dGrad = ctx.createRadialGradient(ox, cy - 7 * sc, 2 * sc, ox, cy - 7 * sc, 13 * sc);
+        dGrad.addColorStop(0, rgba(lighten(s.belly, 0.25)));
+        dGrad.addColorStop(0.75, rgba(s.belly));
+        dGrad.addColorStop(1, rgba(darken(s.body, 0.15)));
+        ctx.fillStyle = dGrad;
+        ctx.strokeStyle = rgba(darken(s.body, 0.45), 0.85);
+        ctx.lineWidth = 1.4;
+        drawEllipse(ctx, ox, cy - 7 * sc, 12.5 * sc, 13.5 * sc);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Prominent feathered Great Horned Owl ear-tufts (plumicorns)
+      for (const [ex, tx, ang] of [
+        [cx - 4 * sc, cx - 13 * sc, -1],
+        [cx + 18 * sc, cx + 27 * sc, 1],
+      ]) {
+        ctx.fillStyle = rgba(darken(s.wing, 0.05));
+        ctx.strokeStyle = rgba(darken(s.wing, 0.45));
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.moveTo(ex - 6 * sc, headTopY + 8 * sc);
+        ctx.quadraticCurveTo(ex + ang * 3 * sc, headTopY - 6 * sc, tx, headTopY - 14 * sc);
+        ctx.quadraticCurveTo(ex + ang * 7 * sc, headTopY - 2 * sc, ex + 6 * sc, headTopY + 9 * sc);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Buff inner ear feather highlight
+        ctx.fillStyle = rgba(s.belly, 0.75);
+        ctx.beginPath();
+        ctx.moveTo(ex - 2 * sc, headTopY + 7 * sc);
+        ctx.lineTo(tx - ang * 2 * sc, headTopY - 9 * sc);
+        ctx.lineTo(ex + 3 * sc, headTopY + 7 * sc);
+        ctx.closePath();
+        ctx.fill();
+      }
+    } else if (isCat) {
+      // Expressive pointed ginger tabby ears with pink inner conchae & ear fluff
+      for (const [ex, tx] of [
+        [cx - 3 * sc, cx - 7 * sc],
+        [cx + 13 * sc, cx + 17 * sc],
+      ]) {
+        ctx.fillStyle = rgba(s.body);
+        ctx.strokeStyle = rgba(darken(s.body, 0.45));
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(ex - 7 * sc, headTopY + 8 * sc);
+        ctx.quadraticCurveTo(ex - 5 * sc, headTopY - 6 * sc, tx, headTopY - 13 * sc);
+        ctx.quadraticCurveTo(ex + 6 * sc, headTopY - 5 * sc, ex + 7 * sc, headTopY + 8 * sc);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Soft pink inner ear
+        ctx.fillStyle = rgba(0xfda4af);
+        ctx.beginPath();
+        ctx.moveTo(ex - 4 * sc, headTopY + 7 * sc);
+        ctx.lineTo(tx, headTopY - 9 * sc);
+        ctx.lineTo(ex + 4 * sc, headTopY + 7 * sc);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    // Soft rosy cheek blush on cute species
+    if (!isOwl && !isFalcon && !isHawk && !isCrow && !isWyvern) {
+      const blushX = cx + 13 * sc;
+      const blushY = cy + 4 * sc;
+      const blushGrad = ctx.createRadialGradient(blushX, blushY, 0.5, blushX, blushY, 6.5 * sc);
+      blushGrad.addColorStop(0, rgba(0xff758f, 0.65));
+      blushGrad.addColorStop(1, rgba(0xff758f, 0));
+      ctx.fillStyle = blushGrad;
+      drawEllipse(ctx, blushX, blushY, 6.5 * sc, 5 * sc);
+      ctx.fill();
+    }
+
+    // Tree Creeper pale supercilium eyebrow stripe
+    if (isTreeCreeper) {
+      ctx.strokeStyle = rgba(0xfff8e7, 0.9);
+      ctx.lineWidth = 2.4 * sc;
+      ctx.beginPath();
+      ctx.moveTo(cx + 5 * sc, cy - 15 * sc);
+      ctx.quadraticCurveTo(cx + 16 * sc, cy - 19 * sc, cx + 25 * sc, cy - 13 * sc);
+      ctx.stroke();
+    }
+
+    // -------------------------------------------------------------------------
+    // 8. MULTI-LAYERED EXPRESSIVE STUDIO EYES
+    // -------------------------------------------------------------------------
+    const drawStudioEye = (ex: number, ey: number, er: number, irisTop: number, irisBot: number, slit = false) => {
+      // Toucan turquoise bare orbital skin ring
+      if (isToucan) {
+        const ringGrad = ctx.createRadialGradient(ex, ey, er * 0.6, ex, ey, er * 1.48);
+        ringGrad.addColorStop(0, '#38bdf8');
+        ringGrad.addColorStop(0.75, '#0284c7');
+        ringGrad.addColorStop(1, '#0369a1');
+        ctx.fillStyle = ringGrad;
+        drawEllipse(ctx, ex, ey, er * 1.45, er * 1.4);
+        ctx.fill();
+      }
+
+      // Subtle orbital shadow
+      ctx.fillStyle = rgba(0x000000, 0.28);
+      drawEllipse(ctx, ex, ey + 0.8 * sc, er + 1.2 * sc, er + 1.2 * sc);
+      ctx.fill();
+
+      // Sclera / outer eye ring
+      ctx.fillStyle = isOwl || isFalcon || isHawk ? rgba(0xfef08a) : '#ffffff';
+      drawEllipse(ctx, ex, ey, er, er);
+      ctx.fill();
+
+      // Rich radial/linear gradient Iris
+      const ir = er * (isOwl ? 0.88 : 0.82);
+      const ix = ex + (isOwl ? 0.5 : 1.2) * sc;
+      const iy = ey + 0.3 * sc;
+      const iGrad = ctx.createLinearGradient(ix, iy - ir, ix, iy + ir);
+      iGrad.addColorStop(0, rgba(irisTop));
+      iGrad.addColorStop(1, rgba(irisBot));
+      ctx.fillStyle = iGrad;
+      drawEllipse(ctx, ix, iy, ir, ir);
+      ctx.fill();
+
+      // Pupil (vertical feline/dragon slit or deep round avian pupil)
+      ctx.fillStyle = '#090a0f';
+      if (slit) {
+        drawEllipse(ctx, ix + 0.5 * sc, iy, ir * 0.34, ir * 0.82);
+      } else {
+        drawEllipse(ctx, ix + 0.5 * sc, iy, ir * 0.66, ir * 0.66);
+      }
+      ctx.fill();
+
+      // Primary upper-left studio catchlight
+      ctx.fillStyle = '#ffffff';
+      drawEllipse(ctx, ix - ir * 0.25, iy - ir * 0.3, Math.max(1.3, er * 0.28), Math.max(1.1, er * 0.24), -0.3);
+      ctx.fill();
+
+      // Secondary lower-right warm reflection dot
+      ctx.fillStyle = rgba(0xffffff, 0.78);
+      drawEllipse(ctx, ix + ir * 0.35, iy + ir * 0.32, Math.max(0.8, er * 0.13), Math.max(0.8, er * 0.13));
+      ctx.fill();
+
+      // Crisp upper lash/eyelid rim line
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.arc(ex, ey, er, Math.PI * 1.08, Math.PI * 1.95);
+      ctx.stroke();
+
+      // Gentle eyelashes for Mama Dove
+      if (isMama) {
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(ex - er * 0.6, ey - er * 0.75);
+        ctx.lineTo(ex - er * 0.95, ey - er * 1.15);
+        ctx.moveTo(ex - er * 0.15, ey - er * 0.95);
+        ctx.lineTo(ex - er * 0.35, ey - er * 1.35);
+        ctx.stroke();
+      }
+    };
+
+    const eyeX = cx + Math.round(16 * sc);
+    const eyeY = cy - Math.round(8 * sc);
+    const eyeR = (stage === 0 ? 8.8 : 8.2) * sc;
+
+    if (isOwl) {
+      // Binocular twin forward-facing golden nocturnal owl eyes!
+      drawStudioEye(cx + 8 * sc, cy - 7 * sc, 7.2 * sc, 0xf59e0b, 0xfef08a);
+      drawStudioEye(cx + 21 * sc, cy - 7 * sc, 7.6 * sc, 0xf59e0b, 0xfef08a);
+    } else if (isCat) {
+      drawStudioEye(eyeX, eyeY, eyeR, 0x16a34a, 0xa3e635, true);
+    } else if (isFalcon || isHawk) {
+      drawStudioEye(eyeX, eyeY, eyeR * 0.92, 0xd97706, 0xfde047);
+      // Fierce supraorbital raptor brow ridge
+      ctx.fillStyle = rgba(isFalcon ? 0x0f172a : darken(s.body, 0.35));
+      ctx.beginPath();
+      ctx.moveTo(eyeX - eyeR * 1.15, eyeY - eyeR * 0.95);
+      ctx.lineTo(eyeX + eyeR * 1.15, eyeY - eyeR * 0.35);
+      ctx.lineTo(eyeX + eyeR * 1.0, eyeY - eyeR * 0.95);
+      ctx.lineTo(eyeX - eyeR * 0.9, eyeY - eyeR * 1.25);
+      ctx.closePath();
+      ctx.fill();
+    } else if (isPhoenix || isWyvern) {
+      drawStudioEye(eyeX, eyeY, eyeR, 0xef4444, 0xfef08a, isWyvern);
+    } else if (isToucan) {
+      drawStudioEye(eyeX, eyeY, eyeR * 0.88, 0x1e3a8a, 0x38bdf8);
+    } else {
+      drawStudioEye(eyeX, eyeY, eyeR, 0x291d12, 0x78350f);
+    }
+
+    if (s.angry && !isFalcon && !isHawk) {
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.moveTo(eyeX - eyeR, eyeY - eyeR);
+      ctx.lineTo(eyeX + eyeR + 2, eyeY - eyeR * 0.3);
+      ctx.lineTo(eyeX - eyeR, eyeY - eyeR * 0.45);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // -------------------------------------------------------------------------
+    // 9. SCULPTED 3D TWO-MANDIBLE BEAKS (with Nares, Commissure & Highlights)
+    // -------------------------------------------------------------------------
+    const beakX = cx + Math.round(28 * sc);
+    const beakY = cy - Math.round(4 * sc);
+
+    if (isToucan) {
+      // ICONIC CURVED TROPICAL RAINBOW TOUCAN BILL!
+      const tbLen = stage === 0 ? 28 : stage === 1 ? 37 : 46;
+      const tbTop = beakY - 9 * sc;
+      const tbBot = beakY + 11 * sc;
+
+      // Black basal band at bill root
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.moveTo(beakX - 2 * sc, tbTop);
+      ctx.lineTo(beakX + 3.5 * sc, tbTop + 0.5);
+      ctx.lineTo(beakX + 2.5 * sc, tbBot);
+      ctx.lineTo(beakX - 2 * sc, tbBot);
+      ctx.closePath();
+      ctx.fill();
+
+      // Upper Maxilla with lush tropical gradient (Sunny Gold -> Tangy Orange -> Crimson Tip)
+      const uGrad = ctx.createLinearGradient(beakX, beakY, beakX + tbLen, beakY + 4 * sc);
+      uGrad.addColorStop(0, '#facc15');
+      uGrad.addColorStop(0.55, '#fb923c');
+      uGrad.addColorStop(0.8, '#f97316');
+      uGrad.addColorStop(0.83, '#e11d48');
+      uGrad.addColorStop(1, '#9f1239');
+
+      ctx.fillStyle = uGrad;
+      ctx.beginPath();
+      ctx.moveTo(beakX + 2 * sc, tbTop);
+      ctx.bezierCurveTo(
+        beakX + tbLen * 0.55,
+        tbTop - 3 * sc,
+        beakX + tbLen * 0.92,
+        beakY - 3 * sc,
+        beakX + tbLen,
+        beakY + 5 * sc
       );
+      ctx.quadraticCurveTo(beakX + tbLen * 0.5, beakY + 3 * sc, beakX + 2 * sc, beakY + 3 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#1e1b18';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // Glossy lime-white dorsal culmen highlight
+      ctx.fillStyle = rgba(0xfef9c3, 0.55);
+      ctx.beginPath();
+      ctx.moveTo(beakX + 4 * sc, tbTop + 1.5 * sc);
+      ctx.quadraticCurveTo(beakX + tbLen * 0.5, tbTop - 0.5 * sc, beakX + tbLen * 0.82, beakY + 0.5 * sc);
+      ctx.quadraticCurveTo(beakX + tbLen * 0.45, tbTop + 3 * sc, beakX + 4 * sc, tbTop + 4 * sc);
+      ctx.closePath();
+      ctx.fill();
+
+      // Lower Mandible
+      const lGrad = ctx.createLinearGradient(beakX, beakY + 3 * sc, beakX + tbLen * 0.92, beakY + 8 * sc);
+      lGrad.addColorStop(0, '#eab308');
+      lGrad.addColorStop(0.65, '#ea580c');
+      lGrad.addColorStop(0.82, '#be123c');
+      lGrad.addColorStop(1, '#881337');
+      ctx.fillStyle = lGrad;
+      ctx.beginPath();
+      ctx.moveTo(beakX + 1.5 * sc, beakY + 3 * sc);
+      ctx.quadraticCurveTo(beakX + tbLen * 0.5, beakY + 3 * sc, beakX + tbLen * 0.93, beakY + 5.5 * sc);
+      ctx.bezierCurveTo(
+        beakX + tbLen * 0.72,
+        tbBot + 1 * sc,
+        beakX + tbLen * 0.35,
+        tbBot + 1 * sc,
+        beakX + 1.5 * sc,
+        tbBot
+      );
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (isFalcon || isHawk) {
+      // SHARP HOOKED RAPTOR BEAK WITH GOLDEN CERE & DARK TEARING TIP
+      const fbLen = (stage === 0 ? 14 : stage === 1 ? 18 : 21) * sc;
+      // Waxy yellow cere at beak base
+      ctx.fillStyle = '#facc15';
+      drawEllipse(ctx, beakX + 1 * sc, beakY - 1 * sc, 3.8 * sc, 5 * sc, -0.15);
+      ctx.fill();
+
+      // Hooked Upper Maxilla (Gold base -> Slate-Black hooked tip)
+      const rGrad = ctx.createLinearGradient(beakX + 2 * sc, beakY, beakX + fbLen, beakY + 6 * sc);
+      rGrad.addColorStop(0, '#fde047');
+      rGrad.addColorStop(0.45, '#94a3b8');
+      rGrad.addColorStop(0.75, '#1e293b');
+      rGrad.addColorStop(1, '#090a0f');
+
+      ctx.fillStyle = rGrad;
+      ctx.strokeStyle = '#090a0f';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(beakX + 1 * sc, beakY - 5.5 * sc);
+      ctx.bezierCurveTo(
+        beakX + fbLen * 0.65,
+        beakY - 6 * sc,
+        beakX + fbLen * 1.05,
+        beakY - 1 * sc,
+        beakX + fbLen * 0.88,
+        beakY + 8.5 * sc // sharp downward tearing hook!
+      );
+      ctx.lineTo(beakX + fbLen * 0.58, beakY + 2.5 * sc); // tomial tooth notch
+      ctx.lineTo(beakX + 1 * sc, beakY + 2 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Lower raptor mandible
+      ctx.fillStyle = '#475569';
+      ctx.beginPath();
+      ctx.moveTo(beakX + 1 * sc, beakY + 2 * sc);
+      ctx.lineTo(beakX + fbLen * 0.62, beakY + 2.5 * sc);
+      ctx.quadraticCurveTo(beakX + fbLen * 0.35, beakY + 6.5 * sc, beakX + 1 * sc, beakY + 5.5 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Nostril on cere
+      ctx.fillStyle = '#451a03';
+      drawEllipse(ctx, beakX + 2 * sc, beakY - 2 * sc, 1.1 * sc, 0.9 * sc);
+      ctx.fill();
+    } else if (isTreeCreeper) {
+      // SLENDER DECURVED BARK-PROBING BILL
+      const tcbLen = (stage === 0 ? 16 : stage === 1 ? 22 : 28) * sc;
+      ctx.fillStyle = '#8d6e63';
+      ctx.strokeStyle = '#3e2723';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(beakX, beakY - 3.8 * sc);
+      ctx.quadraticCurveTo(beakX + tcbLen * 0.6, beakY - 3 * sc, beakX + tcbLen, beakY + 6.5 * sc);
+      ctx.quadraticCurveTo(beakX + tcbLen * 0.55, beakY + 1.5 * sc, beakX, beakY + 2.5 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Pale lower mandible base
+      ctx.fillStyle = '#efebe9';
+      ctx.beginPath();
+      ctx.moveTo(beakX, beakY + 0.5 * sc);
+      ctx.quadraticCurveTo(beakX + tcbLen * 0.5, beakY + 1 * sc, beakX + tcbLen * 0.85, beakY + 5.2 * sc);
+      ctx.quadraticCurveTo(beakX + tcbLen * 0.45, beakY + 3.5 * sc, beakX, beakY + 3.2 * sc);
+      ctx.closePath();
+      ctx.fill();
+    } else if (isOwl) {
+      // CURVED NOCTURNAL OWL HOOKED BEAK TUCKED BETWEEN DISCS
+      const ox = cx + 14.5 * sc;
+      const oy = cy - 2 * sc;
+      const oGrad = ctx.createLinearGradient(ox, oy - 4 * sc, ox, oy + 7 * sc);
+      oGrad.addColorStop(0, '#fde68a');
+      oGrad.addColorStop(0.6, '#d97706');
+      oGrad.addColorStop(1, '#451a03');
+      ctx.fillStyle = oGrad;
+      ctx.strokeStyle = '#271408';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(ox - 3.5 * sc, oy - 3 * sc);
+      ctx.quadraticCurveTo(ox, oy - 5 * sc, ox + 4 * sc, oy - 3 * sc);
+      ctx.quadraticCurveTo(ox + 3 * sc, oy + 3 * sc, ox + 0.5 * sc, oy + 7 * sc);
+      ctx.quadraticCurveTo(ox - 2.5 * sc, oy + 3 * sc, ox - 3.5 * sc, oy - 3 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (isCat) {
+      // INFILTRATOR: Cute pink cat nose & whiskers + fake tie-on cardboard bird beak!
+      // Elastic disguise string around head
+      ctx.strokeStyle = rgba(0x1f2937, 0.85);
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(beakX + 1 * sc, beakY - 2 * sc);
+      ctx.lineTo(cx - 8 * sc, cy - 12 * sc);
+      ctx.stroke();
+
+      // Fake cardboard cone beak with woodgrain lines
+      ctx.fillStyle = '#f59e0b';
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(beakX + 1 * sc, beakY - 5.5 * sc);
+      ctx.lineTo(beakX + 15 * sc, beakY - 0.5 * sc);
+      ctx.lineTo(beakX + 1 * sc, beakY + 4.5 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Cute kitty pink nose, ":3" mouth, and white whiskers right below!
+      ctx.fillStyle = '#fb7185';
+      ctx.beginPath();
+      ctx.moveTo(cx + 24 * sc, cy - 3 * sc);
+      ctx.lineTo(cx + 28 * sc, cy - 3 * sc);
+      ctx.lineTo(cx + 26 * sc, cy);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = rgba(0xffffff, 0.92);
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(cx + 20 * sc, cy + 2 * sc);
+      ctx.lineTo(cx + 35 * sc, cy);
+      ctx.moveTo(cx + 19 * sc, cy + 5 * sc);
+      ctx.lineTo(cx + 34 * sc, cy + 6 * sc);
+      ctx.moveTo(cx + 18 * sc, cy + 8 * sc);
+      ctx.lineTo(cx + 32 * sc, cy + 11 * sc);
+      ctx.stroke();
+    } else if (isCanary) {
+      // OPEN MELODIOUS SINGING BEAK WITH CUTE PINK TONGUE!
+      const bLen = (stage === 0 ? 12 : stage === 1 ? 15 : 17) * sc;
+      const bCol = s.beak ?? 0xffa62b;
+      // Inside mouth cavity & pink tongue
+      ctx.fillStyle = '#881337';
+      ctx.beginPath();
+      ctx.moveTo(beakX, beakY - 2 * sc);
+      ctx.lineTo(beakX + bLen * 0.7, beakY);
+      ctx.lineTo(beakX, beakY + 4 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#fb7185';
+      drawEllipse(ctx, beakX + 4 * sc, beakY + 2 * sc, 3.5 * sc, 1.5 * sc);
+      ctx.fill();
+
+      // Upper singing mandible
+      ctx.fillStyle = rgba(lighten(bCol, 0.15));
+      ctx.strokeStyle = rgba(darken(bCol, 0.45));
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(beakX - 1 * sc, beakY - 6 * sc);
+      ctx.quadraticCurveTo(beakX + bLen * 0.55, beakY - 6.5 * sc, beakX + bLen, beakY - 2 * sc);
+      ctx.lineTo(beakX, beakY - 0.5 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Lower singing mandible
+      ctx.fillStyle = rgba(darken(bCol, 0.08));
+      ctx.beginPath();
+      ctx.moveTo(beakX - 1 * sc, beakY + 1.5 * sc);
+      ctx.lineTo(beakX + bLen * 0.88, beakY + 3.5 * sc);
+      ctx.quadraticCurveTo(beakX + bLen * 0.45, beakY + 6.5 * sc, beakX - 1 * sc, beakY + 5.5 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      // SCULPTED CONICAL SONGBIRD / DOVE / PHOENIX BEAK (Upper + Lower Mandibles)
+      const bLen = (stage === 0 ? 12 : stage === 1 ? 15 : 18) * sc;
+      const bCol = s.beak ?? 0xffa62b;
+
+      // Upper Maxilla
+      const uGrad = ctx.createLinearGradient(beakX, beakY - 6 * sc, beakX + bLen, beakY);
+      uGrad.addColorStop(0, rgba(lighten(bCol, 0.28)));
+      uGrad.addColorStop(1, rgba(bCol));
+      ctx.fillStyle = uGrad;
+      ctx.strokeStyle = rgba(darken(bCol, 0.45));
+      ctx.lineWidth = 1.15;
+      ctx.beginPath();
+      ctx.moveTo(beakX - 1 * sc, beakY - 6 * sc);
+      ctx.quadraticCurveTo(beakX + bLen * 0.55, beakY - 5.5 * sc, beakX + bLen, beakY + 0.5 * sc);
+      ctx.quadraticCurveTo(beakX + bLen * 0.45, beakY + 1.5 * sc, beakX - 1 * sc, beakY + 0.5 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Lower Mandible
+      ctx.fillStyle = rgba(darken(bCol, 0.14));
+      ctx.beginPath();
+      ctx.moveTo(beakX - 1 * sc, beakY + 0.5 * sc);
+      ctx.quadraticCurveTo(beakX + bLen * 0.45, beakY + 1.5 * sc, beakX + bLen * 0.9, beakY + 1 * sc);
+      ctx.quadraticCurveTo(beakX + bLen * 0.45, beakY + 6 * sc, beakX - 1 * sc, beakY + 5 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Tiny nostril & culmen highlight
+      ctx.fillStyle = rgba(darken(bCol, 0.55));
+      drawEllipse(ctx, beakX + 3 * sc, beakY - 2.2 * sc, 1 * sc, 0.7 * sc, -0.2);
+      ctx.fill();
     }
-  }
+  };
 
-  // 3. Head Crest, Ears, or Horns
-  const headTopY = cy - Math.round(24 * sc);
-  if (isCat) {
-    // Pointed cat ears
-    g.fillStyle(s.body, 1);
-    g.fillTriangle(cx - 14, headTopY + 8, cx - 10, headTopY - 14, cx - 2, headTopY + 6);
-    g.fillTriangle(cx + 2, headTopY + 6, cx + 10, headTopY - 14, cx + 14, headTopY + 8);
-    g.fillStyle(0xffb6c1, 1);
-    g.fillTriangle(cx - 12, headTopY + 7, cx - 10, headTopY - 10, cx - 4, headTopY + 5);
-    g.fillTriangle(cx + 4, headTopY + 5, cx + 10, headTopY - 10, cx + 12, headTopY + 7);
-  } else if (isOwl) {
-    // Prominent owl ear horns
-    g.fillStyle(s.wing, 1);
-    g.fillTriangle(cx - 18, headTopY + 8, cx - 14, headTopY - 16, cx - 4, headTopY + 6);
-    g.fillTriangle(cx + 4, headTopY + 6, cx + 14, headTopY - 16, cx + 18, headTopY + 8);
-  } else if (isPhoenix) {
-    // Majestic triple flame crest plumes
-    g.fillStyle(0xff6f00, 1);
-    g.fillTriangle(cx - 6, headTopY + 6, cx, headTopY - 24, cx + 6, headTopY + 6);
-    g.fillStyle(0xffeb3b, 1);
-    g.fillTriangle(cx + 2, headTopY + 6, cx + 10, headTopY - 18, cx + 14, headTopY + 8);
-    g.fillStyle(0xff3d00, 1);
-    g.fillTriangle(cx - 14, headTopY + 8, cx - 10, headTopY - 18, cx - 2, headTopY + 6);
-  } else if (isCanary) {
-    // Petite delicate crown crest tuft
-    g.fillStyle(s.wing, 1);
-    g.fillTriangle(cx + 2, headTopY + 6, cx + 8, headTopY - 10, cx + 14, headTopY + 6);
-  } else if (isMama || s.crest) {
-    // Graceful songbird double plume
-    g.fillStyle(s.wing, 1);
-    g.fillTriangle(cx - 6, headTopY + 6, cx, headTopY - (stage === 0 ? 10 : 16), cx + 6, headTopY + 6);
-    g.fillTriangle(cx + 2, headTopY + 6, cx + (stage === 0 ? 6 : 10), headTopY - (stage === 0 ? 8 : 12), cx + 12, headTopY + 8);
-  }
-
-  // 4. Distinct Body Silhouettes
-  const bw = Math.round(35 * sc);
-  const bh = Math.round(31 * sc);
-  if (isOwl) {
-    // Heavy barrel shape
-    g.fillStyle(s.body, 1);
-    g.fillEllipse(cx, cy, (bw + 4) * 2, (bh + 3) * 2);
-    // Facial disc
-    g.fillStyle(s.belly, 1);
-    g.fillEllipse(cx + 4, cy - 6, 42 * sc, 30 * sc);
-  } else if (isCanary) {
-    // Slender upright silhouette
-    g.fillStyle(s.body, 1);
-    g.fillEllipse(cx, cy, (bw - 5) * 2, (bh + 2) * 2);
-  } else if (isToucan) {
-    // Stocky tropical body
-    g.fillStyle(s.body, 1);
-    g.fillEllipse(cx - 2, cy, bw * 2, bh * 2);
-  } else {
-    // Smooth rounded silhouette
-    g.fillStyle(s.body, 1);
-    g.fillEllipse(cx, cy, bw * 2, bh * 2);
-  }
-
-  // 5. Belly
-  const bellyW = Math.round((isCanary ? 18 : 24) * sc);
-  const bellyH = Math.round(19 * sc);
-  g.fillStyle(s.belly, 1);
-  g.fillEllipse(cx + Math.round(4 * sc), cy + Math.round(6 * sc), bellyW * 2, bellyH * 2);
-
-  // Falcon Chest Barring
-  if (isFalcon) {
-    g.lineStyle(1.4, 0x505f78, 0.75);
-    for (const offY of [1, 6, 11, 16]) {
-      const byy = cy + Math.round(offY * sc);
-      g.lineBetween(cx - Math.round(2 * sc), byy, cx + Math.round(18 * sc), byy);
-    }
-  }
-
-  // 6. Facial Features & Cheeks
-  if (!isOwl) {
-    const blushR = Math.round(6 * sc);
-    g.fillStyle(0xff8fa3, 0.65);
-    g.fillCircle(cx + Math.round(14 * sc), cy + Math.round(8 * sc), blushR);
-  }
-
-  // Toucan Cyan Eye Patch
-  if (isToucan) {
-    g.fillStyle(0x38bdf8, 1);
-    g.fillCircle(cx + Math.round(16 * sc), cy - Math.round(8 * sc), Math.round(12 * sc));
-  }
-
-  // Falcon Helmet / Dark Mask
-  if (isFalcon) {
-    g.fillStyle(0x1e2837, 1);
-    g.fillTriangle(
-      cx + Math.round(4 * sc), headTopY + 10,
-      cx + Math.round(24 * sc), cy - Math.round(16 * sc),
-      cx + Math.round(20 * sc), cy + Math.round(4 * sc)
-    );
-  }
-
-  // 7. Eyes
-  const eyeX = cx + Math.round(16 * sc);
-  const eyeY = cy - Math.round(8 * sc);
-  const eyeR = Math.round(9 * sc);
-  if (isOwl) {
-    // Giant forward golden eyes
-    g.fillStyle(0xffd54f, 1);
-    g.fillCircle(eyeX + 2, eyeY, eyeR + 2);
-    g.fillStyle(0x1a1a1a, 1);
-    g.fillCircle(eyeX + 2, eyeY, Math.round(6.5 * sc));
-    g.fillStyle(0xffffff, 1);
-    g.fillCircle(eyeX + 4, eyeY - 2, Math.max(1, Math.round(2.5 * sc)));
-  } else if (isFalcon) {
-    // Fierce raptor golden eye with dark brow
-    g.fillStyle(0xffd700, 1);
-    g.fillCircle(eyeX, eyeY, eyeR);
-    g.fillStyle(0x111116, 1);
-    g.fillCircle(eyeX + 1, eyeY, Math.round(5.5 * sc));
-    g.fillStyle(0xffffff, 1);
-    g.fillCircle(eyeX + 2.5, eyeY - 2, Math.max(1, Math.round(2 * sc)));
-    g.fillStyle(0x111116, 1);
-    g.fillTriangle(eyeX - eyeR, eyeY - eyeR - 1, eyeX + eyeR + 2, eyeY - eyeR + 4, eyeX - eyeR, eyeY - eyeR + 3);
-  } else {
-    g.fillStyle(0xffffff, 1);
-    g.fillCircle(eyeX, eyeY, eyeR);
-    g.fillStyle(0x1a1a1a, 1);
-    g.fillCircle(eyeX + 2, eyeY + 1, Math.round(6 * sc));
-    g.fillStyle(0xffffff, 1);
-    g.fillCircle(eyeX + 3.5, eyeY - 2, Math.max(1, Math.round(2.4 * sc)));
-  }
-
-  if (s.angry || isHawk) {
-    g.fillStyle(0x1a1a1a, 1);
-    g.fillTriangle(eyeX - eyeR, eyeY - eyeR - 1, eyeX + eyeR + 3, eyeY - eyeR + 5, eyeX - eyeR, eyeY - eyeR + 4);
-  }
-
-  // Whiskers & Nose if Cat (Infiltrator)
-  if (isCat) {
-    g.fillStyle(0xffb6c1, 1);
-    g.fillTriangle(cx + 25, cy - 5, cx + 29, cy - 2, cx + 25, cy + 1);
-    g.lineStyle(1.4, 0xffffff, 0.9);
-    g.lineBetween(cx + Math.round(18 * sc), cy + Math.round(3 * sc), cx + Math.round(36 * sc), cy + Math.round(1 * sc));
-    g.lineBetween(cx + Math.round(18 * sc), cy + Math.round(8 * sc), cx + Math.round(35 * sc), cy + Math.round(12 * sc));
-  }
-
-  // 8. Distinct Beaks
-  const beakX = cx + Math.round(30 * sc);
-  const beakY = cy - Math.round(4 * sc);
-  if (isToucan) {
-    // MASSIVE Curved Toucan Bill!
-    const tbLen = stage === 0 ? 28 : stage === 1 ? 38 : 48;
-    g.fillStyle(0xffb703, 1);
-    g.fillTriangle(beakX, beakY - 7, beakX + tbLen, beakY + 3, beakX, beakY + 12);
-    // Scarlet red tip
-    g.fillStyle(0xd90429, 1);
-    g.fillTriangle(beakX + tbLen - 16, beakY, beakX + tbLen, beakY + 3, beakX + tbLen - 12, beakY + 10);
-    // Dark ridge
-    g.lineStyle(1.8, 0x241408, 0.85);
-    g.lineBetween(beakX, beakY + 3, beakX + tbLen - 4, beakY + 5);
-  } else if (isTreeCreeper) {
-    // Slender decurved bark-foraging beak for extracting tree beetles
-    const tcbLen = stage === 0 ? 15 : stage === 1 ? 21 : 27;
-    g.fillStyle(0xd7ccc8, 1);
-    g.fillTriangle(beakX, beakY - 3, beakX + tcbLen, beakY + 4, beakX, beakY + 3);
-    g.lineStyle(1.6, 0x8d6e63, 1);
-    g.lineBetween(beakX, beakY, beakX + tcbLen, beakY + 4);
-  } else if (isFalcon) {
-    // Sharp Hooked Raptor Tearing Beak with Tomial Tooth Notch!
-    const fbLen = stage === 0 ? 14 : stage === 1 ? 18 : 22;
-    g.fillStyle(0xffd700, 1);
-    g.fillTriangle(beakX, beakY - 5, beakX + fbLen, beakY + 2, beakX, beakY + 6);
-    // Sharp curved tearing hook
-    g.fillStyle(0x1a1a1a, 1);
-    g.fillTriangle(beakX + fbLen - 6, beakY + 1, beakX + fbLen, beakY + 2, beakX + fbLen - 2, beakY + 10);
-  } else if (isCanary) {
-    // Slender open singing beak
-    g.fillStyle(s.beak ?? 0xffa62b, 1);
-    g.fillTriangle(beakX, beakY - 6, beakX + 16, beakY - 2, beakX, beakY);
-    g.fillTriangle(beakX, beakY + 1, beakX + 14, beakY + 3, beakX, beakY + 6);
-  } else if (isOwl) {
-    // Short curved owl beak
-    g.fillStyle(s.beak ?? 0xf0b030, 1);
-    g.fillTriangle(beakX - 2, beakY - 4, beakX + 10, beakY, beakX - 2, beakY + 5);
-    g.fillTriangle(beakX + 4, beakY - 1, beakX + 10, beakY, beakX + 6, beakY + 7);
-  } else if (isHawk) {
-    // Hooked hawk beak
-    g.fillStyle(s.beak ?? 0xffd23f, 1);
-    g.fillTriangle(beakX, beakY - 6, beakX + 18, beakY + 3, beakX, beakY + 6);
-    g.fillTriangle(beakX + 12, beakY + 2, beakX + 16, beakY + 9, beakX + 6, beakY + 5);
-  } else {
-    // Cute conical beak
-    const bLen = stage === 0 ? 12 : stage === 1 ? 16 : 20;
-    g.fillStyle(s.beak ?? 0xffa62b, 1);
-    g.fillTriangle(beakX, beakY - Math.round(7 * sc), beakX + bLen, beakY, beakX, beakY + Math.round(7 * sc));
-  }
-
-  g.generateTexture(`bird_${key}_${stage}`, cw, ch);
+  makeCanvas(scene, `bird_${key}_${stage}`, cw, ch, renderBirdBody);
   if (stage === 2) {
-    g.generateTexture(`bird_${key}`, cw, ch);
+    makeCanvas(scene, `bird_${key}`, cw, ch, renderBirdBody);
   }
-  g.destroy();
 
-  // 9. Distinct Wing Shapes (Shoulder on RIGHT, tapering to flight feathers on LEFT)
-  const wwG = gfx(scene);
-  const wWidth = stage === 0 ? 36 : stage === 1 ? 42 : (isFalcon ? 52 : isPhoenix ? 50 : 48);
+  // ---------------------------------------------------------------------------
+  // 10. ARTICULATED MULTI-FEATHER WING (`wing_${key}_${stage}`)
+  //     Shoulder pivot on RIGHT (0.78, 0.5), 5 fanned flight feathers on LEFT!
+  // ---------------------------------------------------------------------------
+  const wWidth = stage === 0 ? 36 : stage === 1 ? 42 : isFalcon ? 52 : isPhoenix ? 50 : 48;
   const wHeight = stage === 0 ? 22 : stage === 1 ? 24 : 26;
   const shoulderX = Math.round(wWidth * 0.78);
   const shoulderY = Math.round(wHeight * 0.5);
 
-  wwG.fillStyle(s.wing, 1);
-  // Rounded shoulder joint
-  wwG.fillEllipse(shoulderX, shoulderY, Math.round(wWidth * 0.44), wHeight - 2);
-  // Flight feather blade extending backwards to the left
-  wwG.fillTriangle(
-    shoulderX, 2,
-    shoulderX, wHeight - 2,
-    2, Math.round(wHeight * 0.6)
-  );
-  // Primary notch
-  wwG.fillTriangle(
-    Math.round(wWidth * 0.45), wHeight - 1,
-    shoulderX, wHeight - 3,
-    6, Math.round(wHeight * 0.85)
-  );
-  // Sheen highlight
-  wwG.fillStyle(0xffffff, 0.3);
-  wwG.fillEllipse(shoulderX - 4, shoulderY - 3, Math.round(wWidth * 0.38), Math.round(wHeight * 0.38));
+  const renderWing = (ctx: CanvasRenderingContext2D) => {
+    if (isCat) {
+      // Cute ginger tabby front paw/shoulder tucked like a "wing"
+      const cGrad = ctx.createLinearGradient(0, 0, wWidth, wHeight);
+      cGrad.addColorStop(0, rgba(darken(s.wing, 0.15)));
+      cGrad.addColorStop(0.7, rgba(s.wing));
+      cGrad.addColorStop(1, rgba(0xfff5eb));
+      ctx.fillStyle = cGrad;
+      ctx.strokeStyle = rgba(darken(s.wing, 0.45));
+      ctx.lineWidth = 1.3;
+      drawEllipse(ctx, wWidth * 0.52, shoulderY, wWidth * 0.4, wHeight * 0.36, -0.1);
+      ctx.fill();
+      ctx.stroke();
+      return;
+    }
 
-  wwG.generateTexture(`wing_${key}_${stage}`, wWidth, wHeight);
+    if (isWyvern) {
+      // Leathery dragon bat-wing with bone spars and thumb claw
+      ctx.fillStyle = rgba(s.wing);
+      ctx.strokeStyle = rgba(0xff5722, 0.85);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(shoulderX + 4, shoulderY - 4);
+      ctx.lineTo(3, 3);
+      ctx.quadraticCurveTo(12, shoulderY, 6, wHeight - 2);
+      ctx.quadraticCurveTo(shoulderX * 0.6, shoulderY + 3, shoulderX + 4, shoulderY + 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      return;
+    }
+
+    // 5 fanned primary & secondary flight feathers radiating from shoulderX
+    const numPrimaries = stage === 0 ? 4 : 5;
+    for (let i = numPrimaries - 1; i >= 0; i--) {
+      const t = i / Math.max(1, numPrimaries - 1); // 0 = top longest primary, 1 = lower secondary
+      const tipX = 2 + t * (wWidth * 0.28);
+      const tipY = 3 + t * (wHeight - 5);
+      const fBaseCol = isPhoenix
+        ? mixHex(0xd50000, 0xffab00, 1 - t * 0.6)
+        : mixHex(lighten(s.wing, 0.12), darken(s.wing, 0.18), t);
+      const fTipCol = isPhoenix
+        ? 0xfff176
+        : isFalcon
+          ? 0x0f172a
+          : isMama
+            ? 0xfff0f5
+            : lighten(s.wing, 0.26);
+
+      const fGrad = ctx.createLinearGradient(shoulderX, shoulderY, tipX, tipY);
+      fGrad.addColorStop(0, rgba(darken(fBaseCol, 0.15)));
+      fGrad.addColorStop(0.7, rgba(fBaseCol));
+      fGrad.addColorStop(1, rgba(fTipCol));
+
+      ctx.fillStyle = fGrad;
+      ctx.strokeStyle = rgba(darken(s.wing, 0.48), 0.85);
+      ctx.lineWidth = 1.1;
+
+      ctx.beginPath();
+      ctx.moveTo(shoulderX, shoulderY - 3 + t * 5);
+      ctx.quadraticCurveTo((shoulderX + tipX) * 0.5, tipY - 3.5, tipX, tipY);
+      ctx.quadraticCurveTo((shoulderX + tipX) * 0.55, tipY + 3.8, shoulderX, shoulderY + 3 + t * 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Central feather shaft (rachis)
+      ctx.strokeStyle = rgba(lighten(fTipCol, 0.35), 0.55);
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(shoulderX - 4, shoulderY + (t - 0.3) * 4);
+      ctx.lineTo(tipX + 3, tipY);
+      ctx.stroke();
+    }
+
+    // Rounded scapular / shoulder covert cap on the right
+    const covGrad = ctx.createRadialGradient(
+      shoulderX + 2,
+      shoulderY - 3,
+      2,
+      shoulderX - 2,
+      shoulderY,
+      wWidth * 0.32
+    );
+    covGrad.addColorStop(0, rgba(lighten(s.wing, 0.32)));
+    covGrad.addColorStop(0.65, rgba(s.wing));
+    covGrad.addColorStop(1, rgba(darken(s.wing, 0.25)));
+
+    ctx.fillStyle = covGrad;
+    ctx.strokeStyle = rgba(darken(s.wing, 0.45), 0.85);
+    ctx.lineWidth = 1.2;
+    drawEllipse(ctx, shoulderX - 1, shoulderY, wWidth * 0.22, wHeight * 0.4, -0.12);
+    ctx.fill();
+    ctx.stroke();
+
+    // Specular covert highlight arc
+    ctx.fillStyle = rgba(0xffffff, 0.32);
+    drawEllipse(ctx, shoulderX, shoulderY - 3, wWidth * 0.14, wHeight * 0.18, -0.2);
+    ctx.fill();
+  };
+
+  makeCanvas(scene, `wing_${key}_${stage}`, wWidth, wHeight, renderWing);
   if (stage === 2) {
-    wwG.generateTexture(`wing_${key}`, wWidth, wHeight);
+    makeCanvas(scene, `wing_${key}`, wWidth, wHeight, renderWing);
   }
-  wwG.destroy();
 }
 
 function birdTex(scene: Phaser.Scene, key: string, s: BirdLook) {
@@ -510,46 +1370,61 @@ function featherTex(
   stemColor: number,
   accentColor?: number
 ) {
-  const g = gfx(scene);
   const w = 32;
   const h = 36;
-  const cx = 16;
-  const cy = 18;
+  makeCanvas(scene, key, w, h, (ctx) => {
+    const cx = 16;
+    const cy = 18;
 
-  // Outer soft plume silhouette
-  g.fillStyle(baseColor, 1);
-  g.fillEllipse(cx + 1, cy - 2, 20, 28);
+    // Soft outer plume with radial/linear sheen
+    const pGrad = ctx.createLinearGradient(cx - 8, cy - 14, cx + 8, cy + 14);
+    pGrad.addColorStop(0, rgba(lighten(highlightColor, 0.25)));
+    pGrad.addColorStop(0.5, rgba(baseColor));
+    pGrad.addColorStop(1, rgba(darken(baseColor, 0.3)));
 
-  // Vane barbs / inner fluffy plume
-  g.fillStyle(highlightColor, 1);
-  g.fillEllipse(cx - 2, cy - 4, 14, 22);
+    ctx.fillStyle = pGrad;
+    ctx.strokeStyle = rgba(darken(baseColor, 0.48), 0.85);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx - 3, cy + 13);
+    ctx.bezierCurveTo(cx - 13, cy + 4, cx - 10, cy - 12, cx + 3, cy - 15);
+    ctx.bezierCurveTo(cx + 12, cy - 10, cx + 11, cy + 6, cx - 3, cy + 13);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
 
-  // Optional eye-spot or iridescent core
-  if (accentColor !== undefined) {
-    g.fillStyle(accentColor, 1);
-    g.fillCircle(cx, cy - 6, 4.5);
-    g.fillStyle(0xffffff, 0.9);
-    g.fillCircle(cx - 1, cy - 7, 1.8);
-  } else {
-    // Soft inner down sheen
-    g.fillStyle(0xffffff, 0.5);
-    g.fillEllipse(cx - 2, cy - 6, 6, 12);
-  }
+    // Inner velvety barb glow
+    ctx.fillStyle = rgba(highlightColor, 0.85);
+    drawEllipse(ctx, cx, cy - 3, 6.5, 10, 0.18);
+    ctx.fill();
 
-  // Central curving rachis / quill stem
-  g.lineStyle(2, stemColor, 1);
-  g.beginPath();
-  g.moveTo(cx - 3, cy + 15);
-  g.lineTo(cx, cy);
-  g.lineTo(cx + 3, cy - 14);
-  g.strokePath();
+    // Optional iridescent peacock/phoenix eyespot
+    if (accentColor !== undefined) {
+      const eGrad = ctx.createRadialGradient(cx + 1, cy - 5, 0.5, cx + 1, cy - 5, 5.5);
+      eGrad.addColorStop(0, '#ffffff');
+      eGrad.addColorStop(0.4, rgba(accentColor));
+      eGrad.addColorStop(1, rgba(darken(accentColor, 0.4), 0.9));
+      ctx.fillStyle = eGrad;
+      drawEllipse(ctx, cx + 1, cy - 5, 5, 5.5, 0.15);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = rgba(0xffffff, 0.45);
+      drawEllipse(ctx, cx - 1, cy - 5, 3, 6.5, 0.18);
+      ctx.fill();
+    }
 
-  // Calamus / quill base
-  g.fillStyle(0xf5ebe0, 1);
-  g.fillCircle(cx - 3, cy + 15, 1.8);
+    // Curved central rachis shaft & calamus quill
+    ctx.strokeStyle = rgba(stemColor);
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(cx - 4, cy + 15);
+    ctx.quadraticCurveTo(cx - 1, cy, cx + 3, cy - 14);
+    ctx.stroke();
 
-  g.generateTexture(key, w, h);
-  g.destroy();
+    ctx.fillStyle = '#fff8f0';
+    drawEllipse(ctx, cx - 4, cy + 15, 1.8, 1.8);
+    ctx.fill();
+  });
 }
 
 function coinTex(scene: Phaser.Scene, key: string, outer: number, inner: number, ring: number) {
@@ -1247,828 +2122,1497 @@ export function makeTextures(scene: Phaser.Scene) {
   g.generateTexture('drop_nectar', 32, 32);
   g.destroy();
 
-  // ---- pets ----
-  g = gfx(scene);
-  g.fillStyle(0x5a4030, 1);
-  for (let a = Math.PI; a <= Math.PI * 2 + 0.2; a += 0.28) {
-    const x = 36 + Math.cos(a) * 30;
-    const y = 30 + Math.sin(a) * 22;
-    g.fillTriangle(x - 4, y + 3, x + 4, y + 3, x + Math.cos(a) * 9, y + Math.sin(a) * 9 - 2);
-  }
-  g.fillEllipse(36, 32, 60, 38);
-  g.fillStyle(0xc9a078, 1);
-  g.fillEllipse(30, 46, 14, 8);
-  g.fillEllipse(52, 46, 14, 8);
-  g.fillStyle(0xf0d2a8, 1);
-  g.fillEllipse(62, 36, 32, 24);
-  g.fillStyle(0x222222, 1);
-  g.fillCircle(76, 37, 3.5);
-  g.fillCircle(68, 30, 3);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(69, 29, 1);
-  g.fillStyle(0xff8fa3, 0.6);
-  g.fillCircle(64, 40, 4);
-  g.generateTexture('pet_hedgehog', 82, 52);
-  g.destroy();
+  // Soft ground shadow for Sugar Glider / Cinder Gecko
+  makeCanvas(scene, 'shadow_bird_adult', 64, 24, (ctx) => {
+    const grad = ctx.createRadialGradient(32, 12, 2, 32, 12, 28);
+    grad.addColorStop(0, 'rgba(5, 14, 28, 0.55)');
+    grad.addColorStop(1, 'rgba(5, 14, 28, 0)');
+    ctx.fillStyle = grad;
+    drawEllipse(ctx, 32, 12, 28, 10);
+    ctx.fill();
+  });
 
-  g = gfx(scene);
-  g.fillStyle(0xd9772b, 1);
-  g.fillEllipse(18, 48, 32, 60);
-  g.fillStyle(0xf2a85a, 1);
-  g.fillEllipse(18, 44, 18, 44);
-  g.fillStyle(0xe38b3c, 1);
-  g.fillEllipse(40, 56, 34, 44);
-  g.fillStyle(0xfff0d8, 1);
-  g.fillEllipse(44, 60, 20, 28);
-  g.fillStyle(0xe38b3c, 1);
-  g.fillCircle(44, 28, 16);
-  g.fillTriangle(32, 20, 34, 4, 42, 16);
-  g.fillTriangle(48, 16, 54, 4, 58, 20);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(50, 26, 5);
-  g.fillStyle(0x222222, 1);
-  g.fillCircle(51, 27, 3);
-  g.fillCircle(58, 32, 2.5);
-  g.fillStyle(0xff8fa3, 0.6);
-  g.fillCircle(52, 35, 4);
-  g.fillStyle(0xc8934f, 1);
-  g.fillEllipse(48, 62, 10, 12);
-  g.generateTexture('pet_squirrel', 66, 84);
-  g.destroy();
+  // =========================================================================
+  // UPGRADED 2.5D ILLUSTRATED SANCTUARY COMPANION PETS
+  // =========================================================================
 
-  g = gfx(scene);
-  g.fillStyle(0xff7ac8, 1);
-  g.fillEllipse(16, 16, 26, 24);
-  g.fillEllipse(44, 16, 26, 24);
-  g.fillStyle(0xb48cff, 1);
-  g.fillEllipse(19, 35, 18, 18);
-  g.fillEllipse(41, 35, 18, 18);
-  g.fillStyle(0xffffff, 0.8);
-  g.fillCircle(14, 14, 4);
-  g.fillCircle(46, 14, 4);
-  g.fillStyle(0x4a2c12, 1);
-  g.fillRoundedRect(27, 10, 6, 32, 3);
-  g.lineStyle(2, 0x4a2c12, 1);
-  g.lineBetween(30, 10, 24, 2);
-  g.lineBetween(30, 10, 36, 2);
-  g.generateTexture('pet_butterfly', 60, 46);
-  g.destroy();
+  // pet_hedgehog (Spike - Ground Coin Collector)
+  makeCanvas(scene, 'pet_hedgehog', 82, 52, (ctx) => {
+    // Layered cream-tipped quills fan
+    for (let a = Math.PI * 0.92; a <= Math.PI * 2.08; a += 0.16) {
+      const qx = 34 + Math.cos(a) * 26;
+      const qy = 31 + Math.sin(a) * 19;
+      const tx = 34 + Math.cos(a - 0.08) * 37;
+      const ty = 31 + Math.sin(a - 0.08) * 28;
+      const qGrad = ctx.createLinearGradient(qx, qy, tx, ty);
+      qGrad.addColorStop(0, '#3e2723');
+      qGrad.addColorStop(0.7, '#6d4c41');
+      qGrad.addColorStop(1, '#fef3c7');
+      ctx.fillStyle = qGrad;
+      ctx.beginPath();
+      ctx.moveTo(qx - 3.5, qy + 3);
+      ctx.lineTo(tx, ty);
+      ctx.lineTo(qx + 3.5, qy + 3);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // Rounded quill mantle with 3D radial shading
+    const mGrad = ctx.createRadialGradient(32, 22, 4, 34, 30, 30);
+    mGrad.addColorStop(0, '#795548');
+    mGrad.addColorStop(0.65, '#4e342e');
+    mGrad.addColorStop(1, '#271815');
+    ctx.fillStyle = mGrad;
+    drawEllipse(ctx, 35, 31, 28, 19);
+    ctx.fill();
 
-  g = gfx(scene);
-  g.fillStyle(0xffffff, 1);
-  g.fillTriangle(14, 40, 0, 20, 8, 52);
-  g.fillEllipse(40, 46, 64, 46);
-  g.fillStyle(0xe8e0d0, 1);
-  g.fillEllipse(34, 48, 32, 22);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(64, 28, 15);
-  g.fillStyle(0xe0243a, 1);
-  g.fillCircle(60, 12, 5);
-  g.fillCircle(67, 10, 5);
-  g.fillCircle(73, 14, 4);
-  g.fillCircle(72, 42, 4);
-  g.fillStyle(0xffa62b, 1);
-  g.fillTriangle(76, 24, 90, 30, 76, 35);
-  g.fillStyle(0x222222, 1);
-  g.fillCircle(68, 25, 3);
-  g.lineStyle(3, 0xf0902a, 1);
-  g.lineBetween(34, 66, 34, 74);
-  g.lineBetween(48, 66, 48, 74);
-  g.generateTexture('pet_hen', 92, 76);
+    // Cute warm paws
+    ctx.fillStyle = '#d7b38c';
+    drawEllipse(ctx, 26, 46, 7, 3.8);
+    ctx.fill();
+    drawEllipse(ctx, 50, 46, 7, 3.8);
+    ctx.fill();
 
-  // pet_nightingale
-  g.clear();
-  g.fillStyle(0x9e7bd1, 1);
-  g.fillEllipse(36, 42, 50, 36);
-  g.fillStyle(0xffe0f0, 1);
-  g.fillEllipse(44, 46, 32, 24);
-  g.fillStyle(0x9e7bd1, 1);
-  g.fillCircle(54, 25, 18);
-  g.fillStyle(0xba68c8, 1);
-  g.fillCircle(48, 12, 6);
-  g.fillCircle(56, 10, 6);
-  g.fillCircle(64, 13, 5);
-  g.fillStyle(0x222222, 1);
-  g.fillCircle(58, 23, 3);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(59, 22, 1);
-  g.fillStyle(0xffb300, 1);
-  g.fillTriangle(68, 23, 80, 27, 68, 31);
-  g.fillStyle(0x6b4aa0, 1);
-  g.fillEllipse(28, 42, 34, 18);
-  g.lineStyle(2, 0xffb300, 1);
-  g.lineBetween(32, 58, 32, 66);
-  g.lineBetween(42, 58, 42, 66);
-  g.generateTexture('pet_nightingale', 88, 72);
+    // Sculpted cream face & pointed snout
+    const fGrad = ctx.createRadialGradient(60, 31, 2, 60, 34, 18);
+    fGrad.addColorStop(0, '#fff8eb');
+    fGrad.addColorStop(0.7, '#f3d5ad');
+    fGrad.addColorStop(1, '#c89d6c');
+    ctx.fillStyle = fGrad;
+    ctx.beginPath();
+    ctx.moveTo(46, 20);
+    ctx.quadraticCurveTo(64, 20, 77, 35);
+    ctx.quadraticCurveTo(64, 46, 44, 43);
+    ctx.closePath();
+    ctx.fill();
 
-  // ---------- New Companions (1-1 to 4-4) ----------
+    // Rounded ear
+    ctx.fillStyle = '#c89d6c';
+    drawEllipse(ctx, 51, 23, 4.5, 5.5, -0.2);
+    ctx.fill();
+    ctx.fillStyle = '#fda4af';
+    drawEllipse(ctx, 51.5, 23.5, 2.5, 3.2, -0.2);
+    ctx.fill();
+
+    // Glossy button nose & studio eye
+    ctx.fillStyle = '#18181b';
+    drawEllipse(ctx, 77, 35, 3.2, 2.8);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 76.2, 34, 1.1, 0.8);
+    ctx.fill();
+
+    ctx.fillStyle = '#18181b';
+    drawEllipse(ctx, 63, 29, 3.4, 3.6);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 62.2, 27.8, 1.3, 1.1);
+    ctx.fill();
+
+    // Rosy cheek
+    ctx.fillStyle = 'rgba(251, 113, 133, 0.55)';
+    drawEllipse(ctx, 61, 36, 4.2, 2.8);
+    ctx.fill();
+  });
+
+  // pet_squirrel (Nutty - Acorn Sniper)
+  makeCanvas(scene, 'pet_squirrel', 66, 84, (ctx) => {
+    // Magnificent S-curved plush bushy squirrel tail
+    const tGrad = ctx.createRadialGradient(18, 36, 4, 18, 46, 30);
+    tGrad.addColorStop(0, '#fb923c');
+    tGrad.addColorStop(0.6, '#ea580c');
+    tGrad.addColorStop(1, '#9a3412');
+    ctx.fillStyle = tGrad;
+    ctx.strokeStyle = '#7c2d12';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(32, 68);
+    ctx.bezierCurveTo(6, 70, 0, 36, 12, 18);
+    ctx.bezierCurveTo(20, 8, 32, 16, 28, 30);
+    ctx.bezierCurveTo(25, 42, 34, 54, 32, 68);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Warm cream tail highlight swirl
+    ctx.fillStyle = 'rgba(254, 215, 170, 0.5)';
+    drawEllipse(ctx, 16, 38, 7, 16, -0.15);
+    ctx.fill();
+
+    // Body & cream belly
+    const bGrad = ctx.createRadialGradient(42, 48, 3, 40, 54, 22);
+    bGrad.addColorStop(0, '#fb923c');
+    bGrad.addColorStop(0.7, '#d97706');
+    bGrad.addColorStop(1, '#92400e');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 40, 55, 16, 21);
+    ctx.fill();
+
+    ctx.fillStyle = '#fff7ed';
+    drawEllipse(ctx, 45, 57, 9.5, 14);
+    ctx.fill();
+
+    // Tufted ears & sculpted head
+    ctx.fillStyle = '#c2410c';
+    ctx.beginPath();
+    ctx.moveTo(35, 19); ctx.lineTo(36, 5); ctx.lineTo(43, 16); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(46, 16); ctx.lineTo(52, 5); ctx.lineTo(55, 19); ctx.closePath(); ctx.fill();
+
+    const hGrad = ctx.createRadialGradient(46, 24, 2, 45, 28, 16);
+    hGrad.addColorStop(0, '#fdba74');
+    hGrad.addColorStop(0.65, '#ea580c');
+    hGrad.addColorStop(1, '#9a3412');
+    ctx.fillStyle = hGrad;
+    drawEllipse(ctx, 45, 28, 15, 13.5);
+    ctx.fill();
+
+    // Expressive eye, nose & acorn in paws
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 50, 26, 4.6, 4.8);
+    ctx.fill();
+    ctx.fillStyle = '#1c1917';
+    drawEllipse(ctx, 51, 26.5, 3, 3.2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 50, 25.2, 1.2, 1);
+    ctx.fill();
+
+    ctx.fillStyle = '#292524';
+    drawEllipse(ctx, 59, 30, 2.2, 1.8);
+    ctx.fill();
+
+    // Holding a little golden acorn
+    ctx.fillStyle = '#d97706';
+    drawEllipse(ctx, 52, 54, 5.5, 6.5, 0.2);
+    ctx.fill();
+    ctx.fillStyle = '#451a03';
+    drawEllipse(ctx, 53, 49, 6.5, 3, 0.2);
+    ctx.fill();
+  });
+
+  // pet_butterfly (Flutter - Sky Sweeper)
+  makeCanvas(scene, 'pet_butterfly', 60, 46, (ctx) => {
+    // Iridescent Monarch / Morpho Stained-Glass Wings
+    for (const side of [-1, 1]) {
+      ctx.save();
+      ctx.translate(30, 23);
+      ctx.scale(side, 1);
+
+      // Forewing
+      const fwGrad = ctx.createRadialGradient(10, -6, 2, 14, -6, 18);
+      fwGrad.addColorStop(0, '#fdf4ff');
+      fwGrad.addColorStop(0.35, '#f472b6');
+      fwGrad.addColorStop(0.75, '#9333ea');
+      fwGrad.addColorStop(1, '#3b0764');
+      ctx.fillStyle = fwGrad;
+      ctx.strokeStyle = '#1e1b4b';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(2, -2);
+      ctx.bezierCurveTo(10, -20, 28, -20, 27, -4);
+      ctx.bezierCurveTo(26, 6, 12, 6, 2, 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Hindwing
+      const hwGrad = ctx.createRadialGradient(8, 8, 1, 11, 10, 14);
+      hwGrad.addColorStop(0, '#e0f2fe');
+      hwGrad.addColorStop(0.45, '#38bdf8');
+      hwGrad.addColorStop(0.85, '#6366f1');
+      hwGrad.addColorStop(1, '#1e1b4b');
+      ctx.fillStyle = hwGrad;
+      ctx.beginPath();
+      ctx.moveTo(2, 2);
+      ctx.bezierCurveTo(14, 2, 22, 12, 16, 19);
+      ctx.bezierCurveTo(10, 23, 3, 15, 2, 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Luminous wing eyespots
+      ctx.fillStyle = 'rgba(255,255,255,0.88)';
+      drawEllipse(ctx, 18, -8, 3.2, 2.6, -0.3);
+      ctx.fill();
+      drawEllipse(ctx, 22, -3, 1.8, 1.8);
+      ctx.fill();
+      ctx.fillStyle = '#fde047';
+      drawEllipse(ctx, 12, 12, 2.5, 2.5);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // Velvet thorax, abdomen, & curled antennae
+    ctx.fillStyle = '#271815';
+    drawEllipse(ctx, 30, 24, 3.2, 13);
+    ctx.fill();
+    ctx.strokeStyle = '#271815';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(29, 12); ctx.quadraticCurveTo(25, 4, 21, 3);
+    ctx.moveTo(31, 12); ctx.quadraticCurveTo(35, 4, 39, 3);
+    ctx.stroke();
+  });
+
+  // pet_hen (Goldie - Golden Egg Layer)
+  makeCanvas(scene, 'pet_hen', 92, 76, (ctx) => {
+    // Legs
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(36, 62); ctx.lineTo(36, 73);
+    ctx.moveTo(50, 62); ctx.lineTo(50, 73);
+    ctx.stroke();
+
+    // Fanned tail feathers
+    ctx.fillStyle = '#fef3c7';
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 1.3;
+    for (const [tx, ty] of [[4, 22], [2, 32], [5, 42]]) {
+      ctx.beginPath();
+      ctx.moveTo(22, 42);
+      ctx.quadraticCurveTo(10, ty - 4, tx, ty);
+      ctx.quadraticCurveTo(10, ty + 6, 22, 48);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Plump pearl-white & warm cream nesting hen body
+    const bGrad = ctx.createRadialGradient(46, 36, 5, 42, 45, 32);
+    bGrad.addColorStop(0, '#ffffff');
+    bGrad.addColorStop(0.65, '#fef9c3');
+    bGrad.addColorStop(1, '#eab308');
+    ctx.fillStyle = bGrad;
+    ctx.strokeStyle = '#a16207';
+    ctx.lineWidth = 1.5;
+    drawEllipse(ctx, 42, 46, 29, 21);
+    ctx.fill();
+    ctx.stroke();
+
+    // Sculpted wing with golden feather scallops
+    const wGrad = ctx.createLinearGradient(22, 36, 54, 56);
+    wGrad.addColorStop(0, '#fef08a');
+    wGrad.addColorStop(1, '#ca8a04');
+    ctx.fillStyle = wGrad;
+    drawEllipse(ctx, 37, 48, 17, 11, 0.12);
+    ctx.fill();
+    ctx.stroke();
+
+    // Head
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 64, 28, 14, 14);
+    ctx.fill();
+    ctx.stroke();
+
+    // Scalloped crimson comb & wattle
+    ctx.fillStyle = '#e11d48';
+    for (const [cx, cy, r] of [[58, 13, 4.8], [65, 11, 5.2], [72, 14, 4.2], [71, 39, 4.5]]) {
+      drawEllipse(ctx, cx, cy, r, r);
+      ctx.fill();
+    }
+
+    // Beak & Eye
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.moveTo(75, 23); ctx.lineTo(89, 28); ctx.lineTo(75, 33); ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#18181b';
+    drawEllipse(ctx, 68, 25, 3.2, 3.2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 69, 24, 1.2, 1.2);
+    ctx.fill();
+  });
+
+  // pet_nightingale (Melody - Grand Siren)
+  makeCanvas(scene, 'pet_nightingale', 88, 72, (ctx) => {
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(34, 56); ctx.lineTo(34, 66);
+    ctx.moveTo(44, 56); ctx.lineTo(44, 66);
+    ctx.stroke();
+
+    const bGrad = ctx.createRadialGradient(44, 34, 4, 38, 42, 28);
+    bGrad.addColorStop(0, '#d8b4fe');
+    bGrad.addColorStop(0.6, '#9333ea');
+    bGrad.addColorStop(1, '#4c1d95');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 38, 42, 24, 17);
+    ctx.fill();
+
+    ctx.fillStyle = '#fce7f3';
+    drawEllipse(ctx, 45, 45, 15, 11);
+    ctx.fill();
+
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 54, 25, 15, 14);
+    ctx.fill();
+
+    // Royal crest plumes
+    ctx.fillStyle = '#f472b6';
+    for (const [px, py, r] of [[47, 11, 5], [55, 9, 5.5], [62, 12, 4.5]]) {
+      drawEllipse(ctx, px, py, r, r);
+      ctx.fill();
+    }
+
+    // Wing
+    ctx.fillStyle = '#581c87';
+    drawEllipse(ctx, 29, 42, 16, 8.5, -0.1);
+    ctx.fill();
+
+    // Eye & singing golden bill
+    ctx.fillStyle = '#18181b';
+    drawEllipse(ctx, 58, 23, 3.2, 3.2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 59, 21.8, 1.2, 1.2);
+    ctx.fill();
+
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.moveTo(67, 22); ctx.lineTo(80, 26); ctx.lineTo(67, 30); ctx.closePath();
+    ctx.fill();
+  });
+
   // pet_badger (Barnaby)
-  g.clear();
-  g.fillStyle(0x374151, 1);
-  g.fillEllipse(38, 32, 60, 32);
-  g.fillStyle(0x1f2937, 1);
-  g.fillEllipse(56, 26, 28, 22);
-  g.fillStyle(0xffffff, 1);
-  g.fillTriangle(52, 16, 74, 25, 52, 22);
-  g.fillTriangle(52, 34, 74, 27, 52, 30);
-  g.fillStyle(0x111827, 1);
-  g.fillCircle(66, 24, 2.5);
-  g.fillStyle(0x000000, 1);
-  g.fillCircle(73, 26, 3);
-  g.lineStyle(3, 0x111827, 1);
-  g.lineBetween(26, 44, 26, 50);
-  g.lineBetween(48, 44, 48, 50);
-  g.generateTexture('pet_badger', 80, 52);
+  makeCanvas(scene, 'pet_badger', 80, 52, (ctx) => {
+    ctx.strokeStyle = '#111827';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(26, 42); ctx.lineTo(26, 50);
+    ctx.moveTo(48, 42); ctx.lineTo(48, 50);
+    ctx.stroke();
+
+    const bGrad = ctx.createRadialGradient(36, 24, 4, 36, 32, 28);
+    bGrad.addColorStop(0, '#6b7280');
+    bGrad.addColorStop(0.65, '#374151');
+    bGrad.addColorStop(1, '#111827');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 36, 32, 28, 16);
+    ctx.fill();
+
+    // Striped badger head
+    ctx.fillStyle = '#111827';
+    drawEllipse(ctx, 57, 27, 15, 11, 0.1);
+    ctx.fill();
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.moveTo(46, 18); ctx.lineTo(73, 25); ctx.lineTo(48, 23); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(46, 34); ctx.lineTo(73, 28); ctx.lineTo(48, 30); ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 63, 25, 2.8, 2.8);
+    ctx.fill();
+    ctx.fillStyle = '#090a0f';
+    drawEllipse(ctx, 63.5, 25, 1.8, 1.8);
+    ctx.fill();
+    drawEllipse(ctx, 73, 26.5, 2.8, 2.4);
+    ctx.fill();
+  });
 
   // pet_porcupine (Bristle)
-  g.clear();
-  g.fillStyle(0x4b382a, 1);
-  g.fillEllipse(36, 30, 52, 32);
-  g.fillStyle(0x6b4a2e, 1);
-  g.fillCircle(56, 30, 14);
-  g.fillStyle(0x111111, 1);
-  g.fillCircle(61, 28, 2.5);
-  g.fillCircle(67, 31, 2);
-  g.lineStyle(2, 0xe5e7eb, 1);
-  for (let i = 0; i < 9; i++) {
-    const a = -Math.PI * 0.2 - i * 0.22;
-    g.lineBetween(32 + Math.cos(a) * 16, 28 + Math.sin(a) * 12, 32 + Math.cos(a) * 32, 28 + Math.sin(a) * 24);
-  }
-  g.generateTexture('pet_porcupine', 78, 50);
+  makeCanvas(scene, 'pet_porcupine', 78, 50, (ctx) => {
+    // Sharp banded black-and-ivory quills
+    for (let i = 0; i < 11; i++) {
+      const a = -Math.PI * 0.15 - i * 0.19;
+      const x1 = 32 + Math.cos(a) * 14;
+      const y1 = 29 + Math.sin(a) * 10;
+      const x2 = 32 + Math.cos(a) * 33;
+      const y2 = 29 + Math.sin(a) * 24;
+      ctx.strokeStyle = i % 2 === 0 ? '#fef3c7' : '#d6d3d1';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+    const bGrad = ctx.createRadialGradient(36, 26, 3, 36, 31, 24);
+    bGrad.addColorStop(0, '#78350f');
+    bGrad.addColorStop(1, '#3e2723');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 36, 31, 24, 15);
+    ctx.fill();
+
+    ctx.fillStyle = '#92400e';
+    drawEllipse(ctx, 56, 30, 13, 12);
+    ctx.fill();
+    ctx.fillStyle = '#18181b';
+    drawEllipse(ctx, 61, 28, 2.8, 2.8);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 60.3, 27, 1, 1);
+    ctx.fill();
+    ctx.fillStyle = '#18181b';
+    drawEllipse(ctx, 68, 31, 2.4, 2.2);
+    ctx.fill();
+  });
 
   // pet_quail (Flora)
-  g.clear();
-  g.fillStyle(0x8d6e63, 1);
-  g.fillEllipse(32, 36, 46, 34);
-  g.fillStyle(0xd7ccc8, 1);
-  g.fillEllipse(38, 40, 28, 20);
-  g.fillStyle(0x6d4c41, 1);
-  g.fillCircle(46, 22, 14);
-  g.fillStyle(0x222222, 1);
-  g.fillCircle(49, 20, 2.5);
-  g.fillStyle(0xffb300, 1);
-  g.fillTriangle(56, 20, 65, 23, 56, 26);
-  g.lineStyle(2.5, 0x3e2723, 1);
-  g.lineBetween(46, 12, 42, 3);
-  g.fillStyle(0x3e2723, 1);
-  g.fillCircle(42, 3, 3.5);
-  g.generateTexture('pet_quail', 68, 58);
+  makeCanvas(scene, 'pet_quail', 68, 58, (ctx) => {
+    const bGrad = ctx.createRadialGradient(32, 32, 3, 32, 36, 22);
+    bGrad.addColorStop(0, '#a1887f');
+    bGrad.addColorStop(1, '#4e342e');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 32, 36, 22, 16);
+    ctx.fill();
+    ctx.fillStyle = '#efebe9';
+    drawEllipse(ctx, 38, 40, 13, 9.5);
+    ctx.fill();
+    ctx.fillStyle = '#6d4c41';
+    drawEllipse(ctx, 46, 22, 12, 12);
+    ctx.fill();
+    // Forward teardrop topknot plume!
+    ctx.strokeStyle = '#271815';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(46, 12);
+    ctx.quadraticCurveTo(44, 4, 51, 4);
+    ctx.stroke();
+    ctx.fillStyle = '#271815';
+    drawEllipse(ctx, 52, 4.5, 3.2, 2.4, 0.3);
+    ctx.fill();
+
+    ctx.fillStyle = '#18181b';
+    drawEllipse(ctx, 49, 20, 2.6, 2.6);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 49.8, 19.2, 1, 1);
+    ctx.fill();
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.moveTo(56, 20); ctx.lineTo(65, 23); ctx.lineTo(56, 26); ctx.closePath();
+    ctx.fill();
+  });
 
   // pet_mama (Mama Dove - Nest Mother Companion)
-  g.clear();
-  g.fillStyle(0x5c3818, 1);
-  g.fillEllipse(36, 46, 56, 26);
-  g.fillStyle(0x78350f, 1);
-  g.fillEllipse(36, 42, 48, 18);
-  g.fillStyle(0x3e2723, 1);
-  g.fillEllipse(36, 40, 40, 14);
-  g.fillStyle(0xfffbeb, 1);
-  g.fillEllipse(28, 38, 14, 10);
-  g.fillEllipse(44, 38, 14, 10);
-  g.fillStyle(0xa16207, 1);
-  g.fillCircle(27, 37, 1);
-  g.fillCircle(30, 39, 1.2);
-  g.fillCircle(43, 37, 1);
-  g.fillCircle(46, 39, 1.2);
-  g.fillStyle(0xd6d3d1, 1);
-  g.fillEllipse(36, 28, 38, 26);
-  g.fillStyle(0xa8a29e, 1);
-  g.fillEllipse(26, 28, 24, 14);
-  g.fillStyle(0xe7e5e4, 1);
-  g.fillCircle(46, 18, 12);
-  g.fillStyle(0x1c1917, 1);
-  g.fillCircle(49, 16, 2.5);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(50, 15, 1);
-  g.fillStyle(0xfca5a5, 1);
-  g.fillTriangle(54, 16, 62, 19, 54, 21);
-  g.generateTexture('pet_mama', 74, 62);
+  makeCanvas(scene, 'pet_mama', 74, 62, (ctx) => {
+    // Woven twig nest base
+    const nGrad = ctx.createLinearGradient(8, 36, 64, 56);
+    nGrad.addColorStop(0, '#92400e');
+    nGrad.addColorStop(0.5, '#78350f');
+    nGrad.addColorStop(1, '#451a03');
+    ctx.fillStyle = nGrad;
+    drawEllipse(ctx, 36, 46, 27, 12);
+    ctx.fill();
+    ctx.fillStyle = '#3e2723';
+    drawEllipse(ctx, 36, 41, 21, 7.5);
+    ctx.fill();
+
+    // Warm speckled eggs in nest
+    ctx.fillStyle = '#fffbeb';
+    drawEllipse(ctx, 28, 38, 6.5, 5);
+    ctx.fill();
+    drawEllipse(ctx, 44, 38, 6.5, 5);
+    ctx.fill();
+
+    // Graceful pearl-white & rose Mama Dove
+    const dGrad = ctx.createRadialGradient(38, 22, 2, 36, 28, 20);
+    dGrad.addColorStop(0, '#ffffff');
+    dGrad.addColorStop(0.7, '#f5f5f4');
+    dGrad.addColorStop(1, '#d6d3d1');
+    ctx.fillStyle = dGrad;
+    drawEllipse(ctx, 36, 28, 18, 12);
+    ctx.fill();
+    drawEllipse(ctx, 46, 18, 11, 11);
+    ctx.fill();
+
+    ctx.fillStyle = '#e7e5e4';
+    drawEllipse(ctx, 28, 28, 11, 6.5, -0.1);
+    ctx.fill();
+
+    ctx.fillStyle = '#1c1917';
+    drawEllipse(ctx, 49, 16, 2.6, 2.6);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 49.8, 15, 1, 1);
+    ctx.fill();
+    ctx.fillStyle = '#fb7185';
+    ctx.beginPath();
+    ctx.moveTo(55, 16); ctx.lineTo(63, 18.5); ctx.lineTo(55, 21); ctx.closePath();
+    ctx.fill();
+  });
 
   // pet_woodpecker (Pip)
-  g.clear();
-  g.fillStyle(0x1e293b, 1);
-  g.fillEllipse(30, 42, 36, 46);
-  g.fillStyle(0xffffff, 1);
-  g.fillEllipse(34, 44, 20, 32);
-  g.fillStyle(0x1e293b, 1);
-  g.fillCircle(38, 22, 16);
-  g.fillStyle(0xef4444, 1);
-  g.fillTriangle(30, 8, 48, 8, 38, 18);
-  g.fillStyle(0x222222, 1);
-  g.fillCircle(42, 20, 3);
-  g.fillStyle(0x94a3b8, 1);
-  g.fillTriangle(50, 20, 64, 23, 50, 26);
-  g.generateTexture('pet_woodpecker', 66, 72);
+  makeCanvas(scene, 'pet_woodpecker', 66, 72, (ctx) => {
+    ctx.fillStyle = '#0f172a';
+    drawEllipse(ctx, 30, 42, 17, 22);
+    ctx.fill();
+    ctx.fillStyle = '#f8fafc';
+    drawEllipse(ctx, 35, 44, 9.5, 15);
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    drawEllipse(ctx, 38, 22, 13, 13);
+    ctx.fill();
+    // Blazing crimson woodpecker crest!
+    const cGrad = ctx.createLinearGradient(24, 6, 46, 18);
+    cGrad.addColorStop(0, '#f43f5e');
+    cGrad.addColorStop(1, '#be123c');
+    ctx.fillStyle = cGrad;
+    ctx.beginPath();
+    ctx.moveTo(24, 10);
+    ctx.quadraticCurveTo(36, 2, 47, 13);
+    ctx.lineTo(35, 19);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 42, 20, 3.4, 3.4);
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    drawEllipse(ctx, 42.6, 20, 2, 2);
+    ctx.fill();
+
+    // Chisel beak
+    ctx.fillStyle = '#94a3b8';
+    ctx.beginPath();
+    ctx.moveTo(49, 19); ctx.lineTo(64, 22.5); ctx.lineTo(49, 25.5); ctx.closePath();
+    ctx.fill();
+  });
 
   // pet_magpie (Grimm)
-  g.clear();
-  g.fillStyle(0x0f172a, 1);
-  g.fillEllipse(34, 38, 48, 30);
-  g.fillTriangle(14, 40, -4, 52, 16, 48);
-  g.fillStyle(0xffffff, 1);
-  g.fillEllipse(38, 42, 26, 18);
-  g.fillStyle(0x0f172a, 1);
-  g.fillCircle(50, 24, 15);
-  g.fillStyle(0x38bdf8, 1);
-  g.fillEllipse(28, 36, 26, 14);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(54, 22, 3);
-  g.fillStyle(0x000000, 1);
-  g.fillCircle(55, 22, 1.5);
-  g.fillStyle(0x1e293b, 1);
-  g.fillTriangle(60, 22, 73, 26, 60, 28);
-  g.generateTexture('pet_magpie', 76, 64);
+  makeCanvas(scene, 'pet_magpie', 76, 64, (ctx) => {
+    // Iridescent long tail
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.moveTo(20, 38); ctx.lineTo(0, 52); ctx.lineTo(6, 56); ctx.lineTo(24, 44); ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#0f172a';
+    drawEllipse(ctx, 35, 38, 22, 14);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 39, 42, 13, 9);
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    drawEllipse(ctx, 50, 24, 13, 13);
+    ctx.fill();
+
+    // Iridescent teal-sapphire wing sheen
+    const wGrad = ctx.createLinearGradient(16, 30, 42, 42);
+    wGrad.addColorStop(0, '#0284c7');
+    wGrad.addColorStop(0.5, '#38bdf8');
+    wGrad.addColorStop(1, '#1e3a8a');
+    ctx.fillStyle = wGrad;
+    drawEllipse(ctx, 29, 36, 13, 6.8, -0.12);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 54, 22, 3, 3);
+    ctx.fill();
+    ctx.fillStyle = '#090a0f';
+    drawEllipse(ctx, 54.6, 22, 1.8, 1.8);
+    ctx.fill();
+    ctx.fillStyle = '#334155';
+    ctx.beginPath();
+    ctx.moveTo(60, 21); ctx.lineTo(74, 25); ctx.lineTo(60, 28); ctx.closePath();
+    ctx.fill();
+  });
 
   // pet_snail (Mossy)
-  g.clear();
-  g.fillStyle(0x34d399, 0.9);
-  g.fillEllipse(32, 34, 48, 16);
-  g.fillStyle(0x22c55e, 1);
-  g.fillCircle(48, 28, 8);
-  g.lineStyle(2, 0x22c55e, 1);
-  g.lineBetween(48, 26, 54, 14);
-  g.lineBetween(52, 27, 60, 16);
-  g.fillStyle(0x000000, 1);
-  g.fillCircle(54, 14, 2);
-  g.fillCircle(60, 16, 2);
-  g.fillStyle(0x15803d, 1);
-  g.fillCircle(24, 22, 16);
-  g.lineStyle(2.5, 0x86efac, 0.8);
-  g.strokeCircle(24, 22, 11);
-  g.strokeCircle(24, 22, 6);
-  g.generateTexture('pet_snail', 64, 46);
+  makeCanvas(scene, 'pet_snail', 64, 46, (ctx) => {
+    // Soft mint-emerald foot & eyestalks
+    const fGrad = ctx.createLinearGradient(8, 26, 58, 42);
+    fGrad.addColorStop(0, '#6ee7b7');
+    fGrad.addColorStop(1, '#10b981');
+    ctx.fillStyle = fGrad;
+    drawEllipse(ctx, 33, 35, 24, 7.5);
+    ctx.fill();
+    drawEllipse(ctx, 49, 28, 7.5, 7.5);
+    ctx.fill();
+
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(48, 24); ctx.lineTo(53, 13);
+    ctx.moveTo(52, 25); ctx.lineTo(59, 15);
+    ctx.stroke();
+    ctx.fillStyle = '#0f172a';
+    drawEllipse(ctx, 53, 13, 2.2, 2.2); ctx.fill();
+    drawEllipse(ctx, 59, 15, 2.2, 2.2); ctx.fill();
+
+    // Glossy spiral shell
+    const sGrad = ctx.createRadialGradient(21, 18, 2, 24, 22, 16);
+    sGrad.addColorStop(0, '#86efac');
+    sGrad.addColorStop(0.55, '#16a34a');
+    sGrad.addColorStop(1, '#14532d');
+    ctx.fillStyle = sGrad;
+    drawEllipse(ctx, 24, 22, 15.5, 15.5);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(220, 252, 231, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(24, 22, 10, 0, Math.PI * 1.8);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(24, 22, 5, 0, Math.PI * 1.8);
+    ctx.stroke();
+  });
 
   // pet_mole (Rocky)
-  g.clear();
-  g.fillStyle(0x27272a, 1);
-  g.fillEllipse(32, 28, 48, 32);
-  g.fillStyle(0x3f3f46, 1);
-  g.fillCircle(50, 26, 14);
-  g.fillStyle(0xfb7185, 1);
-  g.fillCircle(61, 26, 4.5);
-  g.fillStyle(0x18181b, 1);
-  g.fillCircle(53, 23, 2);
-  g.fillStyle(0xfbcfe8, 1);
-  g.fillEllipse(30, 40, 14, 8);
-  g.fillEllipse(48, 38, 14, 8);
-  g.generateTexture('pet_mole', 68, 48);
+  makeCanvas(scene, 'pet_mole', 68, 48, (ctx) => {
+    const bGrad = ctx.createRadialGradient(32, 22, 3, 32, 28, 24);
+    bGrad.addColorStop(0, '#52525b');
+    bGrad.addColorStop(1, '#18181b');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 32, 28, 23, 15);
+    ctx.fill();
+    drawEllipse(ctx, 49, 26, 13, 12);
+    ctx.fill();
+    // Star-nosed pink snout & digging claws
+    ctx.fillStyle = '#fb7185';
+    drawEllipse(ctx, 61, 26, 4.2, 3.8);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 53, 22, 2, 2);
+    ctx.fill();
+    ctx.fillStyle = '#fbcfe8';
+    drawEllipse(ctx, 28, 40, 6.5, 3.8);
+    ctx.fill();
+    drawEllipse(ctx, 47, 39, 6.5, 3.8);
+    ctx.fill();
+  });
 
   // pet_hound (Bramble)
-  g.clear();
-  g.fillStyle(0xb45309, 1);
-  g.fillEllipse(40, 36, 56, 34);
-  g.fillCircle(62, 26, 16);
-  g.fillStyle(0x78350f, 1);
-  g.fillEllipse(56, 28, 10, 18);
-  g.fillStyle(0x1f2937, 1);
-  g.fillCircle(66, 22, 3);
-  g.fillCircle(73, 27, 4);
-  g.fillStyle(0xef4444, 1);
-  g.fillRect(52, 35, 10, 4);
-  g.lineStyle(3, 0x92400e, 1);
-  g.lineBetween(16, 34, 6, 20);
-  g.generateTexture('pet_hound', 84, 60);
+  makeCanvas(scene, 'pet_hound', 84, 60, (ctx) => {
+    ctx.strokeStyle = '#92400e';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(16, 34); ctx.quadraticCurveTo(8, 26, 6, 19);
+    ctx.stroke();
+
+    const bGrad = ctx.createRadialGradient(40, 30, 4, 40, 36, 28);
+    bGrad.addColorStop(0, '#d97706');
+    bGrad.addColorStop(1, '#78350f');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 40, 36, 26, 16);
+    ctx.fill();
+    drawEllipse(ctx, 61, 25, 15, 14);
+    ctx.fill();
+    // Floppy hound ear
+    ctx.fillStyle = '#451a03';
+    drawEllipse(ctx, 55, 29, 5.5, 10, 0.15);
+    ctx.fill();
+    // Red collar
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(51, 33); ctx.lineTo(63, 37);
+    ctx.stroke();
+    // Eye & nose
+    ctx.fillStyle = '#18181b';
+    drawEllipse(ctx, 66, 21, 2.8, 2.8); ctx.fill();
+    drawEllipse(ctx, 74, 26, 3.6, 3.2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 66.8, 20, 1, 1); ctx.fill();
+  });
 
   // pet_owl (Hoot)
-  g.clear();
-  g.fillStyle(0x78350f, 1);
-  g.fillEllipse(30, 36, 42, 46);
-  g.fillStyle(0xfde68a, 1);
-  g.fillEllipse(30, 40, 26, 30);
-  g.fillStyle(0x78350f, 1);
-  g.fillTriangle(14, 20, 22, 6, 26, 20);
-  g.fillTriangle(34, 20, 38, 6, 46, 20);
-  g.fillStyle(0xf59e0b, 1);
-  g.fillCircle(22, 24, 9);
-  g.fillCircle(38, 24, 9);
-  g.fillStyle(0x000000, 1);
-  g.fillCircle(22, 24, 5);
-  g.fillCircle(38, 24, 5);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(24, 22, 2);
-  g.fillCircle(40, 22, 2);
-  g.fillStyle(0xf59e0b, 1);
-  g.fillTriangle(27, 28, 33, 28, 30, 36);
-  g.generateTexture('pet_owl', 60, 64);
+  makeCanvas(scene, 'pet_owl', 60, 64, (ctx) => {
+    const bGrad = ctx.createRadialGradient(30, 30, 4, 30, 36, 24);
+    bGrad.addColorStop(0, '#a16207');
+    bGrad.addColorStop(1, '#451a03');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 30, 36, 20, 22);
+    ctx.fill();
+    ctx.fillStyle = '#fef3c7';
+    drawEllipse(ctx, 30, 41, 13, 14);
+    ctx.fill();
+    // Ear tufts
+    ctx.fillStyle = '#451a03';
+    ctx.beginPath();
+    ctx.moveTo(14, 19); ctx.lineTo(19, 5); ctx.lineTo(26, 18); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(34, 18); ctx.lineTo(41, 5); ctx.lineTo(46, 19); ctx.closePath(); ctx.fill();
+    // Giant golden radar eyes
+    for (const ex of [22, 38]) {
+      ctx.fillStyle = '#fbbf24';
+      drawEllipse(ctx, ex, 24, 8.2, 8.2); ctx.fill();
+      ctx.fillStyle = '#090a0f';
+      drawEllipse(ctx, ex, 24, 4.8, 4.8); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      drawEllipse(ctx, ex + 1.8, 22, 1.8, 1.8); ctx.fill();
+    }
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.moveTo(27, 28); ctx.lineTo(33, 28); ctx.lineTo(30, 35); ctx.closePath();
+    ctx.fill();
+  });
 
   // pet_frog (Bouncer)
-  g.clear();
-  g.fillStyle(0x16a34a, 1);
-  g.fillEllipse(30, 30, 42, 28);
-  g.fillStyle(0xbbf7d0, 1);
-  g.fillEllipse(30, 34, 26, 16);
-  g.fillStyle(0x15803d, 1);
-  g.fillCircle(20, 16, 9);
-  g.fillCircle(40, 16, 9);
-  g.fillStyle(0xfacc15, 1);
-  g.fillCircle(20, 16, 6);
-  g.fillCircle(40, 16, 6);
-  g.fillStyle(0x000000, 1);
-  g.fillCircle(20, 16, 3);
-  g.fillCircle(40, 16, 3);
-  g.generateTexture('pet_frog', 60, 48);
+  makeCanvas(scene, 'pet_frog', 60, 48, (ctx) => {
+    const fGrad = ctx.createRadialGradient(30, 24, 3, 30, 30, 22);
+    fGrad.addColorStop(0, '#4ade80');
+    fGrad.addColorStop(1, '#15803d');
+    ctx.fillStyle = fGrad;
+    drawEllipse(ctx, 30, 30, 21, 13.5);
+    ctx.fill();
+    ctx.fillStyle = '#dcfce7';
+    drawEllipse(ctx, 30, 34, 13, 7.5);
+    ctx.fill();
+    for (const ex of [20, 40]) {
+      ctx.fillStyle = '#16a34a';
+      drawEllipse(ctx, ex, 16, 8, 8); ctx.fill();
+      ctx.fillStyle = '#facc15';
+      drawEllipse(ctx, ex, 16, 5.5, 5.5); ctx.fill();
+      ctx.fillStyle = '#090a0f';
+      drawEllipse(ctx, ex, 16, 2.8, 3.8); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      drawEllipse(ctx, ex - 1.2, 14.2, 1.4, 1.4); ctx.fill();
+    }
+  });
 
   // pet_hummingbird (Zephyr)
-  g.clear();
-  g.fillStyle(0x059669, 1);
-  g.fillEllipse(28, 30, 32, 20);
-  g.fillStyle(0xe11d48, 1);
-  g.fillCircle(36, 28, 6);
-  g.fillStyle(0x059669, 1);
-  g.fillCircle(36, 22, 10);
-  g.fillStyle(0x000000, 1);
-  g.fillCircle(39, 20, 2.5);
-  g.lineStyle(2, 0x1f2937, 1);
-  g.lineBetween(44, 22, 60, 25);
-  g.fillStyle(0xa7f3d0, 0.6);
-  g.fillEllipse(22, 16, 20, 8);
-  g.generateTexture('pet_hummingbird', 64, 50);
+  makeCanvas(scene, 'pet_hummingbird', 64, 50, (ctx) => {
+    // Translucent blurred hovering wings
+    ctx.fillStyle = 'rgba(167, 243, 208, 0.65)';
+    drawEllipse(ctx, 21, 15, 11, 4.5, -0.35);
+    ctx.fill();
+    drawEllipse(ctx, 24, 19, 9, 3.8, -0.15);
+    ctx.fill();
+
+    const bGrad = ctx.createLinearGradient(14, 20, 44, 36);
+    bGrad.addColorStop(0, '#34d399');
+    bGrad.addColorStop(0.6, '#059669');
+    bGrad.addColorStop(1, '#064e3b');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 28, 30, 15, 9, -0.15);
+    ctx.fill();
+    drawEllipse(ctx, 36, 21, 9.5, 9.5);
+    ctx.fill();
+
+    // Ruby throat gorget
+    ctx.fillStyle = '#f43f5e';
+    drawEllipse(ctx, 38, 27, 5.5, 4.5);
+    ctx.fill();
+
+    // Needle nectar bill
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(44, 21); ctx.lineTo(61, 24);
+    ctx.stroke();
+
+    ctx.fillStyle = '#090a0f';
+    drawEllipse(ctx, 39, 19.5, 2.2, 2.2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 39.6, 18.8, 0.9, 0.9); ctx.fill();
+  });
 
   // pet_firefly (Sparky)
-  g.clear();
-  g.fillStyle(0x1f2937, 1);
-  g.fillEllipse(26, 22, 20, 22);
-  g.fillStyle(0xfef08a, 0.4);
-  g.fillCircle(18, 34, 16);
-  g.fillStyle(0xfde047, 1);
-  g.fillEllipse(18, 34, 16, 14);
-  g.fillStyle(0x111827, 1);
-  g.fillCircle(36, 16, 8);
-  g.fillStyle(0xffffff, 0.7);
-  g.fillEllipse(28, 14, 18, 8);
-  g.generateTexture('pet_firefly', 56, 50);
+  makeCanvas(scene, 'pet_firefly', 56, 50, (ctx) => {
+    // Radiant bioluminescent lantern glow
+    const lGrad = ctx.createRadialGradient(18, 34, 1, 18, 34, 16);
+    lGrad.addColorStop(0, '#ffffff');
+    lGrad.addColorStop(0.4, '#fde047');
+    lGrad.addColorStop(1, 'rgba(250, 204, 21, 0)');
+    ctx.fillStyle = lGrad;
+    drawEllipse(ctx, 18, 34, 16, 16);
+    ctx.fill();
+
+    ctx.fillStyle = '#1e293b';
+    drawEllipse(ctx, 27, 23, 9.5, 10.5, 0.3);
+    ctx.fill();
+    drawEllipse(ctx, 36, 16, 7.5, 7.5);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    drawEllipse(ctx, 27, 13, 9.5, 4.2, -0.25);
+    ctx.fill();
+  });
 
   // pet_ferret (Fang)
-  g.clear();
-  g.fillStyle(0xd97706, 1);
-  g.fillEllipse(38, 28, 54, 24);
-  g.fillStyle(0xfef3c7, 1);
-  g.fillEllipse(44, 32, 28, 14);
-  g.fillStyle(0xb45309, 1);
-  g.fillCircle(58, 20, 12);
-  g.fillStyle(0x1f2937, 1);
-  g.fillRect(52, 18, 12, 5);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(59, 19, 2);
-  g.fillStyle(0x000000, 1);
-  g.fillCircle(60, 19, 1);
-  g.fillStyle(0xf43f5e, 1);
-  g.fillCircle(66, 22, 2);
-  g.generateTexture('pet_ferret', 82, 46);
+  makeCanvas(scene, 'pet_ferret', 82, 46, (ctx) => {
+    const bGrad = ctx.createLinearGradient(10, 18, 66, 38);
+    bGrad.addColorStop(0, '#f59e0b');
+    bGrad.addColorStop(1, '#92400e');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 38, 28, 26, 11);
+    ctx.fill();
+    ctx.fillStyle = '#fef3c7';
+    drawEllipse(ctx, 44, 31, 14, 6.5);
+    ctx.fill();
+    ctx.fillStyle = '#b45309';
+    drawEllipse(ctx, 58, 20, 11.5, 10.5);
+    ctx.fill();
+    // Bandit mask
+    ctx.fillStyle = '#1e293b';
+    drawEllipse(ctx, 59, 19.5, 6.5, 3);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 60, 19, 1.8, 1.8); ctx.fill();
+    ctx.fillStyle = '#f43f5e';
+    drawEllipse(ctx, 67, 21.5, 2, 1.8); ctx.fill();
+  });
 
   // pet_phoenix_chick (Asher)
-  g.clear();
-  g.fillStyle(0xf97316, 1);
-  g.fillEllipse(32, 36, 40, 34);
-  g.fillStyle(0xfef08a, 1);
-  g.fillEllipse(34, 40, 24, 20);
-  g.fillStyle(0xe11d48, 1);
-  g.fillCircle(44, 22, 14);
-  g.fillStyle(0xfacc15, 1);
-  g.fillTriangle(38, 10, 44, 0, 48, 12);
-  g.fillTriangle(44, 12, 52, 2, 54, 14);
-  g.fillStyle(0x222222, 1);
-  g.fillCircle(47, 20, 2.5);
-  g.fillStyle(0xfbbf24, 1);
-  g.fillTriangle(52, 20, 62, 23, 52, 26);
-  g.generateTexture('pet_phoenix_chick', 66, 64);
+  makeCanvas(scene, 'pet_phoenix_chick', 66, 64, (ctx) => {
+    const pGrad = ctx.createRadialGradient(34, 30, 3, 32, 36, 22);
+    pGrad.addColorStop(0, '#fde047');
+    pGrad.addColorStop(0.55, '#f97316');
+    pGrad.addColorStop(1, '#dc2626');
+    ctx.fillStyle = pGrad;
+    drawEllipse(ctx, 32, 36, 19, 16);
+    ctx.fill();
+    drawEllipse(ctx, 44, 22, 13, 13);
+    ctx.fill();
+    ctx.fillStyle = '#fef08a';
+    drawEllipse(ctx, 35, 39, 11, 9.5);
+    ctx.fill();
+    // Flame crest
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.moveTo(38, 11); ctx.lineTo(44, 0); ctx.lineTo(48, 12);
+    ctx.lineTo(53, 2); ctx.lineTo(54, 14); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#18181b';
+    drawEllipse(ctx, 47, 20, 2.6, 2.6); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 47.7, 19.2, 1, 1); ctx.fill();
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.moveTo(54, 20); ctx.lineTo(63, 23); ctx.lineTo(54, 26); ctx.closePath();
+    ctx.fill();
+  });
 
   // pet_chameleon (Echo)
-  g.clear();
-  g.fillStyle(0x06b6d4, 1);
-  g.fillEllipse(36, 28, 40, 24);
-  g.fillCircle(50, 22, 12);
-  g.fillStyle(0xa5f3fc, 1);
-  g.fillCircle(52, 20, 5);
-  g.fillStyle(0x000000, 1);
-  g.fillCircle(53, 20, 2.5);
-  g.lineStyle(3, 0x0891b2, 1);
-  g.lineBetween(18, 30, 8, 38);
-  g.lineBetween(8, 38, 14, 44);
-  g.generateTexture('pet_chameleon', 68, 50);
+  makeCanvas(scene, 'pet_chameleon', 68, 50, (ctx) => {
+    ctx.strokeStyle = '#0891b2';
+    ctx.lineWidth = 3.2;
+    ctx.beginPath();
+    ctx.arc(16, 35, 7, 0, Math.PI * 1.6);
+    ctx.stroke();
+
+    const cGrad = ctx.createLinearGradient(16, 16, 56, 38);
+    cGrad.addColorStop(0, '#22d3ee');
+    cGrad.addColorStop(0.5, '#06b6d4');
+    cGrad.addColorStop(1, '#0e7490');
+    ctx.fillStyle = cGrad;
+    drawEllipse(ctx, 36, 28, 19, 11.5);
+    ctx.fill();
+    drawEllipse(ctx, 50, 22, 11.5, 11.5);
+    ctx.fill();
+    ctx.fillStyle = '#cffafe';
+    drawEllipse(ctx, 52, 20, 4.8, 4.8);
+    ctx.fill();
+    ctx.fillStyle = '#090a0f';
+    drawEllipse(ctx, 53, 20, 2.2, 2.2);
+    ctx.fill();
+  });
 
   // pet_robin (Rusty)
-  g.clear();
-  g.fillStyle(0x854d0e, 1); // brown back
-  g.fillEllipse(32, 28, 36, 26);
-  g.fillStyle(0xe11d48, 1); // red-orange breast
-  g.fillEllipse(36, 32, 26, 20);
-  g.fillStyle(0x78350f, 1); // head
-  g.fillCircle(46, 18, 11);
-  g.fillStyle(0xfde047, 1); // beak
-  g.fillTriangle(52, 18, 62, 20, 52, 23);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(48, 16, 3);
-  g.fillStyle(0x000000, 1);
-  g.fillCircle(49, 16, 1.5);
-  g.generateTexture('pet_robin', 66, 52);
+  makeCanvas(scene, 'pet_robin', 66, 52, (ctx) => {
+    ctx.fillStyle = '#78350f';
+    drawEllipse(ctx, 32, 28, 17, 12.5);
+    ctx.fill();
+    const rGrad = ctx.createRadialGradient(38, 30, 2, 36, 32, 13);
+    rGrad.addColorStop(0, '#fb7185');
+    rGrad.addColorStop(1, '#e11d48');
+    ctx.fillStyle = rGrad;
+    drawEllipse(ctx, 36, 32, 12.5, 9.5);
+    ctx.fill();
+    ctx.fillStyle = '#78350f';
+    drawEllipse(ctx, 46, 18, 10.5, 10.5);
+    ctx.fill();
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.moveTo(54, 17); ctx.lineTo(63, 20); ctx.lineTo(54, 23); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 48, 16, 2.8, 2.8); ctx.fill();
+    ctx.fillStyle = '#090a0f';
+    drawEllipse(ctx, 48.6, 16, 1.6, 1.6); ctx.fill();
+  });
 
   // pet_otter (River)
-  g.clear();
-  g.fillStyle(0x78350f, 1); // rich chestnut body
-  g.fillEllipse(38, 28, 48, 24);
-  g.fillStyle(0xfef3c7, 1); // cream muzzle and belly
-  g.fillEllipse(44, 30, 24, 14);
-  g.fillStyle(0x92400e, 1); // head
-  g.fillCircle(54, 20, 12);
-  g.fillStyle(0x451a03, 1); // round ears
-  g.fillCircle(48, 12, 4);
-  g.fillCircle(58, 12, 4);
-  g.fillStyle(0x000000, 1); // nose and eyes
-  g.fillCircle(62, 20, 2.5);
-  g.fillCircle(55, 17, 2);
-  g.generateTexture('pet_otter', 74, 50);
+  makeCanvas(scene, 'pet_otter', 74, 50, (ctx) => {
+    const oGrad = ctx.createLinearGradient(14, 16, 60, 38);
+    oGrad.addColorStop(0, '#92400e');
+    oGrad.addColorStop(1, '#451a03');
+    ctx.fillStyle = oGrad;
+    drawEllipse(ctx, 38, 28, 23, 11.5);
+    ctx.fill();
+    ctx.fillStyle = '#fef3c7';
+    drawEllipse(ctx, 44, 30, 12, 6.8);
+    ctx.fill();
+    ctx.fillStyle = '#78350f';
+    drawEllipse(ctx, 54, 20, 11.5, 11);
+    ctx.fill();
+    ctx.fillStyle = '#451a03';
+    drawEllipse(ctx, 48, 11, 3.8, 3.8); ctx.fill();
+    drawEllipse(ctx, 58, 11, 3.8, 3.8); ctx.fill();
+    ctx.fillStyle = '#090a0f';
+    drawEllipse(ctx, 63, 20, 2.4, 2.2); ctx.fill();
+    drawEllipse(ctx, 55, 17, 2.2, 2.2); ctx.fill();
+  });
 
   // pet_cricket (Chirpy)
-  g.clear();
-  g.fillStyle(0x16a34a, 1); // vibrant green abdomen
-  g.fillEllipse(32, 28, 38, 18);
-  g.fillStyle(0x22c55e, 1); // thorax
-  g.fillCircle(48, 22, 11);
-  g.fillStyle(0x15803d, 1); // jumping legs
-  g.lineStyle(3, 0x15803d, 1);
-  g.lineBetween(26, 26, 14, 14);
-  g.lineBetween(14, 14, 16, 38);
-  g.lineStyle(1.5, 0x86efac, 1); // antennae
-  g.lineBetween(52, 16, 64, 4);
-  g.lineBetween(50, 16, 58, 2);
-  g.fillStyle(0x000000, 1); // eye
-  g.fillCircle(52, 19, 2);
-  g.generateTexture('pet_cricket', 68, 48);
+  makeCanvas(scene, 'pet_cricket', 68, 48, (ctx) => {
+    ctx.strokeStyle = '#15803d';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(26, 26); ctx.lineTo(14, 13); ctx.lineTo(16, 38);
+    ctx.stroke();
+
+    const cGrad = ctx.createLinearGradient(12, 18, 56, 34);
+    cGrad.addColorStop(0, '#4ade80');
+    cGrad.addColorStop(1, '#15803d');
+    ctx.fillStyle = cGrad;
+    drawEllipse(ctx, 32, 28, 18, 8.5);
+    ctx.fill();
+    drawEllipse(ctx, 48, 22, 10.5, 10.5);
+    ctx.fill();
+
+    ctx.strokeStyle = '#86efac';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(52, 15); ctx.lineTo(65, 4);
+    ctx.moveTo(50, 15); ctx.lineTo(58, 2);
+    ctx.stroke();
+
+    ctx.fillStyle = '#090a0f';
+    drawEllipse(ctx, 52, 19, 2.2, 2.2);
+    ctx.fill();
+  });
 
   // pet_dragonfly (Dart)
-  g.clear();
-  g.fillStyle(0x0284c7, 1); // slender electric-blue body
-  g.fillRoundedRect(14, 22, 38, 8, 4);
-  g.fillStyle(0x0369a1, 1); // head
-  g.fillCircle(52, 26, 7);
-  g.fillStyle(0x38bdf8, 0.7); // gossamer wings
-  g.fillEllipse(36, 14, 28, 10);
-  g.fillEllipse(44, 12, 26, 9);
-  g.fillEllipse(36, 38, 26, 9);
-  g.fillEllipse(44, 39, 24, 8);
-  g.fillStyle(0x38bdf8, 1); // compound eyes
-  g.fillCircle(55, 23, 3);
-  g.fillCircle(55, 29, 3);
-  g.generateTexture('pet_dragonfly', 68, 52);
+  makeCanvas(scene, 'pet_dragonfly', 68, 52, (ctx) => {
+    // Gossamer iridescent wings
+    ctx.fillStyle = 'rgba(125, 211, 252, 0.65)';
+    ctx.strokeStyle = 'rgba(2, 132, 199, 0.7)';
+    ctx.lineWidth = 1;
+    for (const [wx, wy, rx, ry, rot] of [
+      [35, 14, 14, 4.5, -0.2],
+      [43, 12, 13, 4, -0.1],
+      [35, 38, 13, 4, 0.2],
+      [43, 39, 12, 3.8, 0.1],
+    ]) {
+      drawEllipse(ctx, wx, wy, rx, ry, rot);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    const dGrad = ctx.createLinearGradient(14, 26, 56, 26);
+    dGrad.addColorStop(0, '#38bdf8');
+    dGrad.addColorStop(1, '#0369a1');
+    ctx.fillStyle = dGrad;
+    drawEllipse(ctx, 33, 26, 19, 3.8);
+    ctx.fill();
+    drawEllipse(ctx, 52, 26, 6.8, 6.8);
+    ctx.fill();
+    ctx.fillStyle = '#bae6fd';
+    drawEllipse(ctx, 55, 23, 2.8, 2.8); ctx.fill();
+    drawEllipse(ctx, 55, 29, 2.8, 2.8); ctx.fill();
+  });
 
   // ---------- Sugar Glider (World 4 Non-Bird Glider) ----------
-  // sugar_glider_perch (Sitting / resting on branch or trunk)
-  g.clear();
-  // Fluffy bushy tail
-  g.fillStyle(0x64748b, 1);
-  g.fillEllipse(14, 28, 20, 12);
-  g.fillStyle(0x475569, 1);
-  g.fillEllipse(10, 24, 16, 8);
-  // Body (slate grey)
-  g.fillStyle(0x94a3b8, 1);
-  g.fillEllipse(32, 28, 26, 22);
-  // Creamy white belly
-  g.fillStyle(0xf8fafc, 1);
-  g.fillEllipse(36, 31, 16, 14);
-  // Head
-  g.fillStyle(0x94a3b8, 1);
-  g.fillCircle(45, 20, 13);
-  // Dark dorsal stripe
-  g.fillStyle(0x1e293b, 1);
-  g.fillRect(35, 10, 5, 24);
-  // Ears
-  g.fillStyle(0x64748b, 1);
-  g.fillTriangle(38, 12, 42, 2, 46, 12);
-  g.fillTriangle(46, 12, 50, 3, 54, 13);
-  g.fillStyle(0xf472b6, 1); // pink inner ear
-  g.fillTriangle(40, 11, 42, 5, 45, 11);
-  g.fillTriangle(48, 11, 50, 6, 52, 12);
-  // Cute giant dark eye with catchlight
-  g.fillStyle(0x0f172a, 1);
-  g.fillCircle(47, 18, 5.5);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(45.5, 16.5, 2);
-  g.fillCircle(48.5, 19.5, 1);
-  // Pink nose
-  g.fillStyle(0xf43f5e, 1);
-  g.fillCircle(56, 21, 2);
-  // Little paws
-  g.fillStyle(0xfbcfe8, 1);
-  g.fillCircle(28, 38, 3);
-  g.fillCircle(40, 38, 3);
-  g.generateTexture('sugar_glider_perch', 62, 44);
+  makeCanvas(scene, 'sugar_glider_perch', 62, 44, (ctx) => {
+    // Plush bushy tail
+    const tGrad = ctx.createLinearGradient(2, 22, 26, 32);
+    tGrad.addColorStop(0, '#334155');
+    tGrad.addColorStop(1, '#64748b');
+    ctx.fillStyle = tGrad;
+    drawEllipse(ctx, 13, 27, 11, 5.5, -0.18);
+    ctx.fill();
 
-  // sugar_glider_glide (Wings/patagium spread wide gliding through air)
-  g.clear();
-  // Patagium gliding skin flaps (wings between paws)
-  g.fillStyle(0x64748b, 1);
-  g.fillTriangle(14, 18, 48, 6, 50, 42);
-  g.fillTriangle(14, 30, 48, 6, 50, 42);
-  g.fillStyle(0x94a3b8, 1);
-  g.fillEllipse(34, 24, 38, 28);
-  // Creamy belly center
-  g.fillStyle(0xf8fafc, 1);
-  g.fillEllipse(34, 24, 16, 20);
-  // Dark central back/head stripe
-  g.fillStyle(0x1e293b, 1);
-  g.fillRect(32, 6, 4, 36);
-  // Head
-  g.fillStyle(0x94a3b8, 1);
-  g.fillCircle(34, 10, 10);
-  // Ears
-  g.fillStyle(0xf472b6, 1);
-  g.fillCircle(27, 6, 3);
-  g.fillCircle(41, 6, 3);
-  // Big black eyes on sides
-  g.fillStyle(0x0f172a, 1);
-  g.fillCircle(29, 9, 3.5);
-  g.fillCircle(39, 9, 3.5);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(28, 8, 1.2);
-  g.fillCircle(38, 8, 1.2);
-  // Pink nose tip
-  g.fillStyle(0xf43f5e, 1);
-  g.fillCircle(34, 4, 2);
-  // Tail streaming straight behind
-  g.fillStyle(0x475569, 1);
-  g.fillEllipse(34, 46, 8, 18);
-  g.generateTexture('sugar_glider_glide', 68, 58);
+    // Soft silver-grey body & cream belly
+    const bGrad = ctx.createRadialGradient(34, 22, 2, 32, 28, 16);
+    bGrad.addColorStop(0, '#cbd5e1');
+    bGrad.addColorStop(1, '#64748b');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 32, 28, 13, 11);
+    ctx.fill();
+    ctx.fillStyle = '#f8fafc';
+    drawEllipse(ctx, 36, 31, 8, 7);
+    ctx.fill();
 
-  // sugar_glider_icon (Shop button thumbnail)
-  g.clear();
-  g.fillStyle(0x94a3b8, 1);
-  g.fillCircle(22, 22, 17);
-  g.fillStyle(0xf8fafc, 1);
-  g.fillEllipse(22, 26, 18, 14);
-  g.fillStyle(0x1e293b, 1);
-  g.fillRect(20, 5, 4, 18);
-  g.fillStyle(0x64748b, 1);
-  g.fillTriangle(10, 14, 14, 4, 19, 13);
-  g.fillTriangle(25, 13, 30, 4, 34, 14);
-  g.fillStyle(0xf472b6, 1);
-  g.fillTriangle(12, 13, 14, 7, 17, 13);
-  g.fillTriangle(27, 13, 30, 7, 32, 13);
-  g.fillStyle(0x0f172a, 1);
-  g.fillCircle(15, 20, 4.5);
-  g.fillCircle(29, 20, 4.5);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(13.8, 18.5, 1.8);
-  g.fillCircle(27.8, 18.5, 1.8);
-  g.fillStyle(0xf43f5e, 1);
-  g.fillCircle(22, 24, 2);
-  g.generateTexture('sugar_glider_icon', 44, 44);
+    // Head & dorsal stripe
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 45, 20, 12.5, 12);
+    ctx.fill();
+    ctx.fillStyle = '#1e293b';
+    drawEllipse(ctx, 39, 17, 2.5, 9, -0.3);
+    ctx.fill();
 
-  // ---------- Cinder Gecko / Flame Chameleon (World 4 Non-Bird Intermediate) ----------
-  // cinder_gecko_perch (Resting on trunk / branch with prehensile tail and alert turret eye)
-  g.clear();
-  // Curled prehensile tail
-  g.lineStyle(4.5, 0x9a3412, 1);
-  g.beginPath();
-  g.arc(14, 28, 9, 0, Math.PI * 1.6, false);
-  g.strokePath();
-  g.fillStyle(0xd97706, 1);
-  g.fillCircle(14, 37, 2.5); // tail curled tip
-  // Reptilian Torso (burnt sienna / magma amber)
-  g.fillStyle(0x7c2d12, 1);
-  g.fillEllipse(36, 26, 26, 18);
-  // Fiery glowing belly
-  g.fillStyle(0xf97316, 1);
-  g.fillEllipse(38, 28, 20, 12);
-  // Spines along back
-  g.fillStyle(0xfde047, 1);
-  g.fillTriangle(26, 18, 28, 12, 30, 18);
-  g.fillTriangle(33, 17, 35, 11, 37, 17);
-  g.fillTriangle(40, 18, 42, 13, 44, 18);
-  // Clawed Gecko Limbs gripping bark
-  g.lineStyle(3.2, 0x9a3412, 1);
-  g.lineBetween(28, 30, 24, 40);
-  g.lineBetween(44, 30, 48, 40);
-  // Suction toe pads
-  g.fillStyle(0xf97316, 1);
-  g.fillCircle(22, 41, 2.8);
-  g.fillCircle(25, 42, 2.8);
-  g.fillCircle(47, 41, 2.8);
-  g.fillCircle(50, 42, 2.8);
-  // Chameleon Casque Head
-  g.fillStyle(0x7c2d12, 1);
-  g.fillEllipse(50, 21, 16, 14);
-  g.fillTriangle(44, 14, 52, 9, 54, 18); // raised helmet crest
-  g.fillStyle(0xea580c, 1);
-  g.fillTriangle(45, 14, 51, 11, 52, 17);
-  // Bulging Turret Eye
-  g.fillStyle(0xc2410c, 1);
-  g.fillCircle(51, 19, 5.5);
-  g.fillStyle(0xfde047, 1);
-  g.fillCircle(51.5, 19, 4.2);
-  g.fillStyle(0x000000, 1);
-  g.fillRect(51, 16, 1.8, 6); // vertical reptile slit pupil
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(50.5, 17.5, 1.2);
-  // Throat pouch
-  g.fillStyle(0xf97316, 0.9);
-  g.fillEllipse(52, 26, 7, 5);
-  g.generateTexture('cinder_gecko_perch', 68, 48);
+    // Rounded ears with pink insides
+    for (const [ex, ey] of [[41, 9], [50, 10]]) {
+      ctx.fillStyle = '#475569';
+      drawEllipse(ctx, ex, ey, 4.2, 5.2, 0.15);
+      ctx.fill();
+      ctx.fillStyle = '#fda4af';
+      drawEllipse(ctx, ex, ey + 0.5, 2.5, 3.2, 0.15);
+      ctx.fill();
+    }
 
-  // cinder_gecko_crawl (Active crawling gait with flexed limbs)
-  g.clear();
-  // Extended tail waving with momentum
-  g.lineStyle(4, 0x9a3412, 1);
-  g.lineBetween(10, 32, 24, 24);
-  g.fillStyle(0xd97706, 1);
-  g.fillCircle(9, 33, 2.5);
-  // Stretched crawling body
-  g.fillStyle(0x7c2d12, 1);
-  g.fillEllipse(38, 24, 30, 16);
-  g.fillStyle(0xf97316, 1);
-  g.fillEllipse(40, 25, 24, 10);
-  // Spines
-  g.fillStyle(0xfde047, 1);
-  g.fillTriangle(28, 16, 30, 10, 32, 16);
-  g.fillTriangle(36, 15, 38, 9, 40, 15);
-  g.fillTriangle(44, 16, 46, 11, 48, 16);
-  // Stepping splayed legs
-  g.lineStyle(3.2, 0x9a3412, 1);
-  g.lineBetween(30, 26, 22, 36);
-  g.lineBetween(48, 26, 56, 36);
-  g.fillStyle(0xf97316, 1);
-  g.fillCircle(20, 37, 2.8);
-  g.fillCircle(58, 37, 2.8);
-  // Head
-  g.fillStyle(0x7c2d12, 1);
-  g.fillEllipse(54, 20, 16, 13);
-  g.fillTriangle(48, 13, 56, 8, 58, 17);
-  // Turret Eye
-  g.fillStyle(0xc2410c, 1);
-  g.fillCircle(55, 18, 5.2);
-  g.fillStyle(0xfde047, 1);
-  g.fillCircle(55.5, 18, 4);
-  g.fillStyle(0x000000, 1);
-  g.fillRect(55, 15, 1.8, 6);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(54.5, 16.5, 1.2);
-  g.generateTexture('cinder_gecko_crawl', 74, 46);
+    // Giant nocturnal sugar-glider eye with studio catchlights
+    ctx.fillStyle = '#090a0f';
+    drawEllipse(ctx, 47, 18.5, 5.2, 5.4);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 45.4, 16.8, 1.9, 1.7);
+    ctx.fill();
+    drawEllipse(ctx, 48.6, 20, 0.9, 0.9);
+    ctx.fill();
 
-  // cinder_gecko_icon (Shop button thumbnail)
-  g.clear();
-  g.fillStyle(0x7c2d12, 1);
-  g.fillCircle(22, 24, 18);
-  // Head crest
-  g.fillStyle(0x9a3412, 1);
-  g.fillTriangle(14, 14, 24, 4, 30, 14);
-  g.fillStyle(0xf97316, 1);
-  g.fillTriangle(16, 14, 23, 7, 28, 14);
-  // Muzzle & Snout
-  g.fillStyle(0xc2410c, 1);
-  g.fillEllipse(28, 28, 14, 10);
-  // Big Turret Eye
-  g.fillStyle(0x9a3412, 1);
-  g.fillCircle(18, 20, 7.5);
-  g.fillStyle(0xfde047, 1);
-  g.fillCircle(18.5, 20, 6);
-  g.fillStyle(0x000000, 1);
-  g.fillRect(18, 15, 2.2, 10);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(17, 17, 1.8);
-  // Glowing tongue tip curled out of snout
-  g.lineStyle(2.5, 0xf43f5e, 1);
-  g.lineBetween(32, 30, 38, 28);
-  g.fillStyle(0xfb7185, 1);
-  g.fillCircle(38, 28, 2.5);
-  g.generateTexture('cinder_gecko_icon', 44, 44);
+    // Pink nose & dainty paws
+    ctx.fillStyle = '#f43f5e';
+    drawEllipse(ctx, 56, 21, 2, 1.8);
+    ctx.fill();
+    ctx.fillStyle = '#fbcfe8';
+    drawEllipse(ctx, 28, 38, 2.8, 2.2); ctx.fill();
+    drawEllipse(ctx, 40, 38, 2.8, 2.2); ctx.fill();
+  });
 
-  // ---------- Non-Bird Predators & Props ----------
-  // enemy_cat
-  g.clear();
-  g.fillStyle(0x1f2937, 1);
-  g.fillEllipse(44, 42, 56, 32);
-  g.fillStyle(0x111827, 1);
-  g.fillCircle(68, 30, 18);
-  g.fillTriangle(60, 20, 66, 6, 72, 20);
-  g.fillTriangle(70, 20, 76, 6, 82, 20);
-  g.fillStyle(0x22c55e, 1);
-  g.fillEllipse(66, 28, 5, 7);
-  g.fillEllipse(75, 28, 5, 7);
-  g.fillStyle(0x000000, 1);
-  g.fillRect(65, 25, 2, 6);
-  g.fillRect(74, 25, 2, 6);
-  g.lineStyle(3, 0x111827, 1);
-  g.lineBetween(18, 44, 6, 24);
-  g.lineStyle(2, 0xffffff, 1);
-  g.lineBetween(58, 54, 64, 58);
-  g.generateTexture('enemy_cat', 90, 65);
+  makeCanvas(scene, 'sugar_glider_glide', 68, 58, (ctx) => {
+    // Outstretched patagium gliding membrane
+    const pGrad = ctx.createRadialGradient(34, 24, 4, 34, 24, 24);
+    pGrad.addColorStop(0, '#cbd5e1');
+    pGrad.addColorStop(0.7, '#64748b');
+    pGrad.addColorStop(1, '#334155');
+    ctx.fillStyle = pGrad;
+    ctx.strokeStyle = '#f8fafc';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(12, 14);
+    ctx.quadraticCurveTo(34, 8, 56, 14);
+    ctx.quadraticCurveTo(48, 26, 54, 40);
+    ctx.quadraticCurveTo(34, 36, 14, 40);
+    ctx.quadraticCurveTo(20, 26, 12, 14);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
 
-  // enemy_snake
-  g.clear();
-  g.lineStyle(12, 0x15803d, 1);
-  g.lineBetween(14, 24, 40, 14);
-  g.lineBetween(40, 14, 64, 28);
-  g.lineBetween(64, 28, 86, 18);
-  g.fillStyle(0x166534, 1);
-  g.fillTriangle(78, 10, 96, 18, 78, 26);
-  g.fillStyle(0xfacc15, 1);
-  g.fillCircle(85, 15, 3);
-  g.fillStyle(0x000000, 1);
-  g.fillRect(84, 13, 2, 4);
-  g.lineStyle(1.5, 0xef4444, 1);
-  g.lineBetween(96, 18, 104, 18);
-  g.lineBetween(104, 18, 108, 15);
-  g.lineBetween(104, 18, 108, 21);
-  g.generateTexture('enemy_snake', 110, 45);
+    ctx.fillStyle = '#f8fafc';
+    drawEllipse(ctx, 34, 25, 8.5, 11);
+    ctx.fill();
+    ctx.fillStyle = '#1e293b';
+    drawEllipse(ctx, 34, 23, 2, 15);
+    ctx.fill();
 
-  // enemy_raccoon
-  g.clear();
-  g.fillStyle(0x4b5563, 1);
-  g.fillEllipse(42, 44, 52, 42);
-  g.fillStyle(0x374151, 1);
-  g.fillCircle(62, 30, 18);
-  g.fillStyle(0x111827, 1);
-  g.fillRect(52, 26, 22, 8);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(58, 29, 3);
-  g.fillCircle(68, 29, 3);
-  g.fillStyle(0x000000, 1);
-  g.fillCircle(58, 29, 1.5);
-  g.fillCircle(68, 29, 1.5);
-  g.fillStyle(0xb45309, 1);
-  g.fillCircle(24, 48, 16);
-  g.fillStyle(0xfef08a, 1);
-  g.fillCircle(24, 44, 4);
-  g.generateTexture('enemy_raccoon', 85, 75);
+    // Streaming rudder tail
+    ctx.fillStyle = '#475569';
+    drawEllipse(ctx, 34, 47, 4.2, 9.5);
+    ctx.fill();
 
-  // enemy_spider
-  g.clear();
-  g.lineStyle(1.5, 0xffffff, 0.85);
-  g.lineBetween(48, 0, 48, 30);
-  g.lineStyle(3, 0x18181b, 1);
-  g.beginPath();
-  g.moveTo(40, 26); g.lineTo(22, 10); g.lineTo(8, 22);
-  g.strokePath();
-  g.beginPath();
-  g.moveTo(38, 30); g.lineTo(16, 26); g.lineTo(4, 46);
-  g.strokePath();
-  g.beginPath();
-  g.moveTo(38, 36); g.lineTo(18, 50); g.lineTo(12, 70);
-  g.strokePath();
-  g.beginPath();
-  g.moveTo(40, 42); g.lineTo(24, 66); g.lineTo(20, 80);
-  g.strokePath();
+    // Head & big eyes
+    ctx.fillStyle = '#94a3b8';
+    drawEllipse(ctx, 34, 11, 9.5, 9);
+    ctx.fill();
+    ctx.fillStyle = '#090a0f';
+    drawEllipse(ctx, 29, 9.5, 3.3, 3.3); ctx.fill();
+    drawEllipse(ctx, 39, 9.5, 3.3, 3.3); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 28, 8.5, 1.2, 1.2); ctx.fill();
+    drawEllipse(ctx, 38, 8.5, 1.2, 1.2); ctx.fill();
+    ctx.fillStyle = '#f43f5e';
+    drawEllipse(ctx, 34, 4.5, 1.8, 1.6); ctx.fill();
+  });
 
-  g.beginPath();
-  g.moveTo(56, 26); g.lineTo(74, 10); g.lineTo(88, 22);
-  g.strokePath();
-  g.beginPath();
-  g.moveTo(58, 30); g.lineTo(80, 26); g.lineTo(92, 46);
-  g.strokePath();
-  g.beginPath();
-  g.moveTo(58, 36); g.lineTo(78, 50); g.lineTo(84, 70);
-  g.strokePath();
-  g.beginPath();
-  g.moveTo(56, 42); g.lineTo(72, 66); g.lineTo(76, 80);
-  g.strokePath();
+  makeCanvas(scene, 'sugar_glider_icon', 44, 44, (ctx) => {
+    const grad = ctx.createRadialGradient(22, 20, 2, 22, 22, 18);
+    grad.addColorStop(0, '#cbd5e1');
+    grad.addColorStop(1, '#475569');
+    ctx.fillStyle = grad;
+    drawEllipse(ctx, 22, 23, 16, 15);
+    ctx.fill();
+    ctx.fillStyle = '#f8fafc';
+    drawEllipse(ctx, 22, 27, 9, 7);
+    ctx.fill();
+    ctx.fillStyle = '#1e293b';
+    drawEllipse(ctx, 22, 14, 2, 8);
+    ctx.fill();
+    for (const ex of [15, 29]) {
+      ctx.fillStyle = '#090a0f';
+      drawEllipse(ctx, ex, 20, 4.4, 4.4); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      drawEllipse(ctx, ex - 1.2, 18.5, 1.6, 1.6); ctx.fill();
+    }
+    ctx.fillStyle = '#f43f5e';
+    drawEllipse(ctx, 22, 24.5, 2, 1.8); ctx.fill();
+  });
 
-  g.fillStyle(0x7c3aed, 1);
-  g.fillCircle(22, 10, 2.5); g.fillCircle(74, 10, 2.5);
-  g.fillCircle(16, 26, 2.5); g.fillCircle(80, 26, 2.5);
-  g.fillCircle(18, 50, 2.5); g.fillCircle(78, 50, 2.5);
-  g.fillCircle(24, 66, 2.5); g.fillCircle(72, 66, 2.5);
+  // ---------- Cinder Gecko / Flame Chameleon ----------
+  const drawGecko = (ctx: CanvasRenderingContext2D, crawling: boolean) => {
+    ctx.strokeStyle = '#9a3412';
+    ctx.lineWidth = 4.2;
+    ctx.beginPath();
+    if (crawling) {
+      ctx.moveTo(9, 32); ctx.quadraticCurveTo(18, 25, 26, 24);
+    } else {
+      ctx.arc(14, 28, 8.5, 0, Math.PI * 1.65);
+    }
+    ctx.stroke();
 
-  g.fillStyle(0x2e1065, 1);
-  g.fillEllipse(48, 50, 36, 32);
-  g.fillStyle(0xef4444, 1);
-  g.fillTriangle(48, 42, 43, 52, 53, 52);
-  g.fillTriangle(48, 58, 43, 48, 53, 48);
+    // Dorsal golden flame spines
+    ctx.fillStyle = '#fde047';
+    for (const sx of [27, 34, 41]) {
+      ctx.beginPath();
+      ctx.moveTo(sx - 2.5, 18); ctx.lineTo(sx, 10); ctx.lineTo(sx + 2.5, 18);
+      ctx.closePath();
+      ctx.fill();
+    }
 
-  g.fillStyle(0x18181b, 1);
-  g.fillCircle(48, 32, 14);
+    // Volcanic magma-scaled body
+    const bGrad = ctx.createLinearGradient(22, 16, 52, 34);
+    bGrad.addColorStop(0, '#c2410c');
+    bGrad.addColorStop(0.6, '#7c2d12');
+    bGrad.addColorStop(1, '#431407');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 37, 25, crawling ? 15 : 13, 8.8);
+    ctx.fill();
+    ctx.fillStyle = '#fb923c';
+    drawEllipse(ctx, 39, 28, 10, 5.2);
+    ctx.fill();
 
-  g.fillStyle(0x3f3f46, 1);
-  g.fillTriangle(44, 38, 47, 47, 43, 48);
-  g.fillTriangle(52, 38, 49, 47, 53, 48);
-  g.fillStyle(0x22c55e, 0.9);
-  g.fillCircle(44, 50, 2);
+    // Gripping gecko limbs & glowing toe pads
+    ctx.strokeStyle = '#9a3412';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(29, 28); ctx.lineTo(crawling ? 21 : 24, 39);
+    ctx.moveTo(45, 28); ctx.lineTo(crawling ? 55 : 48, 39);
+    ctx.stroke();
+    ctx.fillStyle = '#fb923c';
+    drawEllipse(ctx, crawling ? 20 : 23, 40, 2.8, 2); ctx.fill();
+    drawEllipse(ctx, crawling ? 56 : 49, 40, 2.8, 2); ctx.fill();
 
-  g.fillStyle(0xef4444, 1);
-  g.fillCircle(45, 27, 2.8);
-  g.fillCircle(51, 27, 2.8);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(46, 26, 1);
-  g.fillCircle(52, 26, 1);
-  g.fillStyle(0xdc2626, 1);
-  g.fillCircle(41, 25, 1.8);
-  g.fillCircle(55, 25, 1.8);
-  g.fillCircle(42, 31, 1.5);
-  g.fillCircle(54, 31, 1.5);
-  g.generateTexture('enemy_spider', 96, 84);
+    // Casque helmet head & turret eye
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 52, 20, 8.5, 7);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(45, 15); ctx.lineTo(53, 8); ctx.lineTo(56, 18); ctx.closePath();
+    ctx.fill();
 
-  // enemy_weasel
-  g.clear();
-  g.fillStyle(0x9a3412, 1);
-  g.fillEllipse(44, 30, 60, 22);
-  g.fillStyle(0xffedd5, 1);
-  g.fillEllipse(48, 34, 34, 12);
-  g.fillStyle(0x7c2d12, 1);
-  g.fillCircle(70, 22, 13);
-  g.fillStyle(0x000000, 1);
-  g.fillCircle(74, 20, 2.5);
-  g.fillStyle(0xffffff, 1);
-  g.fillTriangle(75, 26, 80, 28, 77, 31);
-  g.generateTexture('enemy_weasel', 88, 50);
+    ctx.fillStyle = '#fde047';
+    drawEllipse(ctx, 52.5, 18.5, 4.4, 4.4);
+    ctx.fill();
+    ctx.fillStyle = '#090a0f';
+    drawEllipse(ctx, 53, 18.5, 1.1, 3.2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 51.8, 17, 1.2, 1.2);
+    ctx.fill();
+  };
+
+  makeCanvas(scene, 'cinder_gecko_perch', 68, 48, (ctx) => drawGecko(ctx, false));
+  makeCanvas(scene, 'cinder_gecko_crawl', 74, 46, (ctx) => drawGecko(ctx, true));
+
+  makeCanvas(scene, 'cinder_gecko_icon', 44, 44, (ctx) => {
+    const grad = ctx.createRadialGradient(20, 20, 2, 22, 24, 18);
+    grad.addColorStop(0, '#ea580c');
+    grad.addColorStop(1, '#7c2d12');
+    ctx.fillStyle = grad;
+    drawEllipse(ctx, 22, 24, 16, 15);
+    ctx.fill();
+    ctx.fillStyle = '#fde047';
+    drawEllipse(ctx, 19, 20, 5.8, 5.8);
+    ctx.fill();
+    ctx.fillStyle = '#090a0f';
+    drawEllipse(ctx, 19.5, 20, 1.3, 4.2);
+    ctx.fill();
+  });
+
+  // =========================================================================
+  // UPGRADED 2.5D ILLUSTRATED PREDATORS &CLARA THE SANCTUARY WARDEN
+  // =========================================================================
+
+  // enemy_cat (Prowling Shadow Cat)
+  makeCanvas(scene, 'enemy_cat', 90, 65, (ctx) => {
+    // Sinuous tail
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(18, 44); ctx.bezierCurveTo(4, 38, 4, 20, 12, 16);
+    ctx.stroke();
+
+    const cGrad = ctx.createRadialGradient(46, 34, 4, 44, 42, 30);
+    cGrad.addColorStop(0, '#334155');
+    cGrad.addColorStop(1, '#090d16');
+    ctx.fillStyle = cGrad;
+    drawEllipse(ctx, 44, 42, 27, 15);
+    ctx.fill();
+    drawEllipse(ctx, 68, 30, 16, 15);
+    ctx.fill();
+
+    // Pointed feline ears
+    ctx.fillStyle = '#090d16';
+    ctx.beginPath();
+    ctx.moveTo(57, 20); ctx.lineTo(63, 5); ctx.lineTo(70, 18); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(69, 18); ctx.lineTo(77, 5); ctx.lineTo(82, 21); ctx.closePath(); ctx.fill();
+
+    // Glowing emerald slit eyes
+    for (const ex of [65, 75]) {
+      ctx.fillStyle = '#4ade80';
+      drawEllipse(ctx, ex, 28, 3.2, 4.2); ctx.fill();
+      ctx.fillStyle = '#052e16';
+      drawEllipse(ctx, ex, 28, 1, 3.5); ctx.fill();
+    }
+  });
+
+  // enemy_snake (Canopy Tree Viper)
+  makeCanvas(scene, 'enemy_snake', 110, 45, (ctx) => {
+    // Flickering forked crimson tongue
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(95, 19); ctx.lineTo(104, 19);
+    ctx.lineTo(108, 16); ctx.moveTo(104, 19); ctx.lineTo(108, 22);
+    ctx.stroke();
+
+    // Smooth S-curved scaled viper body
+    const sGrad = ctx.createLinearGradient(10, 10, 90, 32);
+    sGrad.addColorStop(0, '#14532d');
+    sGrad.addColorStop(0.5, '#16a34a');
+    sGrad.addColorStop(1, '#4ade80');
+    ctx.strokeStyle = sGrad;
+    ctx.lineWidth = 10.5;
+    ctx.beginPath();
+    ctx.moveTo(10, 26);
+    ctx.bezierCurveTo(28, 6, 52, 38, 78, 18);
+    ctx.stroke();
+
+    // Diamond-shaped viper head
+    ctx.fillStyle = '#15803d';
+    ctx.strokeStyle = '#052e16';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(74, 10);
+    ctx.quadraticCurveTo(86, 9, 96, 19);
+    ctx.quadraticCurveTo(86, 29, 74, 26);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Slit golden reptile eye
+    ctx.fillStyle = '#facc15';
+    drawEllipse(ctx, 85, 16, 3.2, 3.2); ctx.fill();
+    ctx.fillStyle = '#090a0f';
+    drawEllipse(ctx, 85.5, 16, 1, 2.8); ctx.fill();
+  });
+
+  // enemy_raccoon (Bandit Raccoon)
+  makeCanvas(scene, 'enemy_raccoon', 85, 75, (ctx) => {
+    // Ringed bushy tail
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = i % 2 === 0 ? '#1f2937' : '#9ca3af';
+      drawEllipse(ctx, 14 + i * 5, 46 - i * 2, 7, 10, -0.3);
+      ctx.fill();
+    }
+    // Loot sack on back
+    const lGrad = ctx.createRadialGradient(26, 44, 2, 26, 48, 15);
+    lGrad.addColorStop(0, '#d97706');
+    lGrad.addColorStop(1, '#78350f');
+    ctx.fillStyle = lGrad;
+    drawEllipse(ctx, 26, 48, 15, 15);
+    ctx.fill();
+
+    // Body & Head
+    ctx.fillStyle = '#4b5563';
+    drawEllipse(ctx, 44, 44, 24, 19);
+    ctx.fill();
+    ctx.fillStyle = '#6b7280';
+    drawEllipse(ctx, 62, 30, 16, 15);
+    ctx.fill();
+    // Black bandit mask
+    ctx.fillStyle = '#111827';
+    drawEllipse(ctx, 63, 29, 11, 4.8);
+    ctx.fill();
+    for (const ex of [58, 68]) {
+      ctx.fillStyle = '#ffffff';
+      drawEllipse(ctx, ex, 29, 3, 3); ctx.fill();
+      ctx.fillStyle = '#090a0f';
+      drawEllipse(ctx, ex + 0.5, 29, 1.6, 1.6); ctx.fill();
+    }
+  });
+
+  // emporium_keeper (Clara the Sanctuary Warden - Warm Studio Portrait)
+  makeCanvas(scene, 'emporium_keeper', 100, 115, (ctx) => {
+    // Explorer jacket & crisp white collar
+    const jGrad = ctx.createLinearGradient(20, 68, 80, 110);
+    jGrad.addColorStop(0, '#d97706');
+    jGrad.addColorStop(1, '#78350f');
+    ctx.fillStyle = jGrad;
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.roundRect(20, 68, 60, 42, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#fffbeb';
+    ctx.beginPath();
+    ctx.moveTo(41, 68); ctx.lineTo(50, 82); ctx.lineTo(59, 68); ctx.closePath();
+    ctx.fill();
+
+    //Emerald sanctuary badge on jacket
+    ctx.fillStyle = '#10b981';
+    drawEllipse(ctx, 64, 82, 4.5, 5.5);
+    ctx.fill();
+
+    // Neck & softly shaded face
+    ctx.fillStyle = '#f3c69f';
+    ctx.fillRect(44, 60, 12, 12);
+    const fGrad = ctx.createRadialGradient(48, 38, 3, 50, 42, 24);
+    fGrad.addColorStop(0, '#ffedd5');
+    fGrad.addColorStop(1, '#f3c69f');
+    ctx.fillStyle = fGrad;
+    drawEllipse(ctx, 50, 42, 22, 22);
+    ctx.fill();
+
+    // Chestnut hair locks framing face
+    ctx.fillStyle = '#5c2e0e';
+    drawEllipse(ctx, 30, 42, 5, 14, 0.15);
+    ctx.fill();
+    drawEllipse(ctx, 70, 42, 5, 14, -0.15);
+    ctx.fill();
+
+    // Rosy cheeks, warm smile, & expressive studio eyes
+    ctx.fillStyle = 'rgba(251, 113, 133, 0.55)';
+    drawEllipse(ctx, 37, 46, 5, 3.2); ctx.fill();
+    drawEllipse(ctx, 63, 46, 5, 3.2); ctx.fill();
+
+    for (const ex of [42, 58]) {
+      ctx.fillStyle = '#1e293b';
+      drawEllipse(ctx, ex, 40, 3.2, 4.2); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      drawEllipse(ctx, ex - 1, 38.5, 1.3, 1.3); ctx.fill();
+    }
+
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.arc(50, 49, 6, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+
+    // Sanctuary Ranger Hat with golden feather plume!
+    const hGrad = ctx.createLinearGradient(22, 8, 78, 28);
+    hGrad.addColorStop(0, '#34d399');
+    hGrad.addColorStop(0.5, '#059669');
+    hGrad.addColorStop(1, '#064e3b');
+    ctx.fillStyle = hGrad;
+    drawEllipse(ctx, 50, 24, 30, 7);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(30, 8, 40, 17, 7);
+    ctx.fill();
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(30, 20, 40, 4.5);
+
+    // Golden feather tucked into hatband
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.moveTo(64, 21);
+    ctx.quadraticCurveTo(72, 4, 78, 3);
+    ctx.quadraticCurveTo(74, 15, 68, 22);
+    ctx.closePath();
+    ctx.fill();
+  });
+
+  // enemy_spider (Venomous Canopy Weaver)
+  makeCanvas(scene, 'enemy_spider', 96, 84, (ctx) => {
+    // Gossamer silk thread
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(48, 0); ctx.lineTo(48, 30);
+    ctx.stroke();
+
+    // Articulated chitinous legs with violet joints
+    ctx.strokeStyle = '#18181b';
+    ctx.lineWidth = 3.2;
+    const legs = [
+      [[40, 26], [22, 10], [8, 22]],
+      [[38, 30], [16, 26], [4, 46]],
+      [[38, 36], [18, 50], [12, 70]],
+      [[40, 42], [24, 66], [20, 80]],
+      [[56, 26], [74, 10], [88, 22]],
+      [[58, 30], [80, 26], [92, 46]],
+      [[58, 36], [78, 50], [84, 70]],
+      [[56, 42], [72, 66], [76, 80]],
+    ];
+    for (const [p0, p1, p2] of legs) {
+      ctx.beginPath();
+      ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]);
+      ctx.stroke();
+      ctx.fillStyle = '#a855f7';
+      drawEllipse(ctx, p1[0], p1[1], 2.6, 2.6);
+      ctx.fill();
+    }
+
+    // Bulbous obsidian-violet abdomen with crimson hourglass
+    const aGrad = ctx.createRadialGradient(44, 44, 3, 48, 50, 20);
+    aGrad.addColorStop(0, '#581c87');
+    aGrad.addColorStop(0.6, '#2e1065');
+    aGrad.addColorStop(1, '#090514');
+    ctx.fillStyle = aGrad;
+    drawEllipse(ctx, 48, 50, 18, 16);
+    ctx.fill();
+
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.moveTo(43, 43); ctx.lineTo(53, 43); ctx.lineTo(48, 51); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(48, 49); ctx.lineTo(43, 57); ctx.lineTo(53, 57); ctx.closePath(); ctx.fill();
+
+    // Cephalothorax, chelicerae fangs & venom drip
+    const cGrad = ctx.createRadialGradient(46, 28, 2, 48, 32, 14);
+    cGrad.addColorStop(0, '#3f3f46');
+    cGrad.addColorStop(1, '#09090b');
+    ctx.fillStyle = cGrad;
+    drawEllipse(ctx, 48, 32, 14, 13);
+    ctx.fill();
+
+    ctx.fillStyle = '#52525b';
+    ctx.beginPath();
+    ctx.moveTo(43, 38); ctx.lineTo(47, 48); ctx.lineTo(42, 48); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(53, 38); ctx.lineTo(49, 48); ctx.lineTo(54, 48); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#4ade80';
+    drawEllipse(ctx, 44, 50, 2.2, 2.6); ctx.fill();
+
+    // Cluster of glowing crimson eyes
+    for (const [ex, ey, r] of [[45, 27, 2.8], [51, 27, 2.8], [41, 25, 1.8], [55, 25, 1.8], [42, 31, 1.5], [54, 31, 1.5]]) {
+      ctx.fillStyle = '#ef4444';
+      drawEllipse(ctx, ex, ey, r, r); ctx.fill();
+    }
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 45.8, 26, 1, 1); ctx.fill();
+    drawEllipse(ctx, 51.8, 26, 1, 1); ctx.fill();
+  });
+
+  // enemy_weasel (Slinky Pine Marten / Weasel)
+  makeCanvas(scene, 'enemy_weasel', 88, 50, (ctx) => {
+    const wGrad = ctx.createLinearGradient(12, 18, 76, 38);
+    wGrad.addColorStop(0, '#c2410c');
+    wGrad.addColorStop(0.6, '#9a3412');
+    wGrad.addColorStop(1, '#431407');
+    ctx.fillStyle = wGrad;
+    drawEllipse(ctx, 42, 30, 30, 11);
+    ctx.fill();
+    ctx.fillStyle = '#ffedd5';
+    drawEllipse(ctx, 48, 34, 17, 6);
+    ctx.fill();
+    ctx.fillStyle = '#7c2d12';
+    drawEllipse(ctx, 70, 22, 13, 12);
+    ctx.fill();
+    ctx.fillStyle = '#fde047';
+    drawEllipse(ctx, 74, 20, 3.2, 3.2); ctx.fill();
+    ctx.fillStyle = '#090a0f';
+    drawEllipse(ctx, 74.6, 20, 1.6, 2.4); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(75, 26); ctx.lineTo(80, 28); ctx.lineTo(77, 32); ctx.closePath();
+    ctx.fill();
+  });
+
+  // Restore `g` for remaining scenery props below
+  g = gfx(scene);
 
   // spider_web
   g.clear();
@@ -2265,40 +3809,6 @@ export function makeTextures(scene: Phaser.Scene) {
   g.fillStyle(0xffd54f, 1);
   g.fillCircle(3, 9, 3);
   g.generateTexture('homing_missile', 32, 18);
-
-  // emporium_keeper
-  g.clear();
-  g.fillStyle(0xffe0bd, 1);
-  g.fillCircle(50, 42, 24);
-  g.fillRect(44, 62, 12, 12);
-  g.fillStyle(0xffb4a2, 0.85);
-  g.fillCircle(38, 46, 5);
-  g.fillCircle(62, 46, 5);
-  g.lineStyle(2, 0x8d5b28, 1);
-  g.lineBetween(44, 52, 50, 56);
-  g.lineBetween(50, 56, 56, 52);
-  g.fillStyle(0x2d3748, 1);
-  g.fillEllipse(42, 40, 4, 6);
-  g.fillEllipse(58, 40, 4, 6);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(43, 38, 1.5);
-  g.fillCircle(59, 38, 1.5);
-  g.fillStyle(0x2d6a4f, 1);
-  g.fillEllipse(50, 24, 56, 14);
-  g.fillRoundedRect(30, 8, 40, 20, 6);
-  g.fillStyle(0x78350f, 1);
-  g.fillRect(30, 22, 40, 5);
-  g.fillStyle(0xffd54f, 1);
-  g.fillTriangle(64, 20, 76, 2, 68, 22);
-  g.fillStyle(0xb45309, 1);
-  g.fillRoundedRect(20, 68, 60, 42, 10);
-  g.fillStyle(0xffffff, 1);
-  g.fillTriangle(44, 68, 50, 80, 56, 68);
-  g.fillStyle(0x334155, 1);
-  g.fillRoundedRect(42, 76, 16, 18, 4);
-  g.fillStyle(0xffe0bd, 1);
-  g.fillEllipse(84, 82, 14, 9);
-  g.generateTexture('emporium_keeper', 100, 115);
 
   // emporium_potion
   g.clear();
