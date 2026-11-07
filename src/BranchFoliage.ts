@@ -289,52 +289,72 @@ export function drawConnectedCanopy(
   const billowScale = 0.75 + 0.25 * densFactor;
   const pal = getLeafPalette(tree.style);
 
-  // Helper to draw a cohesive, 4-tier shaded foliage billow (no disjoint circles!)
+  // Helper to draw a cohesive, 6-tier 3D volumetric foliage billow with perimeter leaf clusters
   const drawFoliageBillow = (
     bx: number,
     by: number,
     rx: number,
     ry: number,
-    sunAngle = -Math.PI * 0.75 // light coming from sun at top-left
+    sunAngle = -Math.PI * 0.72 // light coming from sun at top-left
   ) => {
     rx *= billowScale;
     ry *= billowScale;
     const cosL = Math.cos(sunAngle);
     const sinL = Math.sin(sunAngle);
 
+    // 0. Deep 3D under-canopy drop shadow (gives overhanging 3D shelf depth onto trunk/boughs)
+    canopy.fillStyle(0x050e0a, 0.34);
+    canopy.fillEllipse(bx + 4 * scale, by + 11 * scale, rx * 2.08, ry * 2.02);
+
     // 1. Solid deep ambient shadow backing (ensures zero background gaps)
-    canopy.fillStyle(pal.back, 0.98);
-    canopy.fillEllipse(bx, by + 4 * scale, rx * 2.05, ry * 2.05);
+    canopy.fillStyle(pal.back, 0.99);
+    canopy.fillEllipse(bx, by + 4 * scale, rx * 2.06, ry * 2.05);
 
-    // 2. Rich midtone body volume (slightly elevated from base)
+    // Sculpted 3D perimeter leaf lobes so the silhouette looks like rich 3D foliage rather than a single flat oval
+    for (let k = 0; k < 7; k++) {
+      const a = (k / 7) * Math.PI * 2 + (bx * 0.013);
+      const lx = bx + Math.cos(a) * rx * 0.82;
+      const ly = by + Math.sin(a) * ry * 0.80;
+      const isTopLeft = Math.cos(a - sunAngle) > 0;
+      canopy.fillStyle(isTopLeft ? pal.mid : pal.back, 0.96);
+      canopy.fillEllipse(lx, ly, rx * 0.68, ry * 0.62);
+    }
+
+    // 2. Rich midtone 3D body volume (elevated toward light source)
     canopy.fillStyle(pal.mid, 0.98);
-    canopy.fillEllipse(bx + cosL * 2 * scale, by + sinL * 2 * scale, rx * 1.95, ry * 1.95);
+    canopy.fillEllipse(bx + cosL * (rx * 0.08), by + sinL * (ry * 0.08), rx * 1.90, ry * 1.86);
 
-    // 3. Sunlit upper shell (directed towards sun)
-    canopy.fillStyle(pal.fore, 0.95);
+    // 3. Sunlit 3D upper hemisphere (directed towards sun)
+    canopy.fillStyle(pal.fore, 0.96);
     canopy.fillEllipse(
       bx + cosL * (rx * 0.22),
       by + sinL * (ry * 0.22),
-      rx * 1.6,
-      ry * 1.5
+      rx * 1.56,
+      ry * 1.46
     );
 
-    // 4. Brilliant sun highlight crest
-    canopy.fillStyle(pal.highlight, 0.9);
+    // 4. Sculpted 3D sun-catching leaf crown puffs
+    canopy.fillStyle(pal.highlight, 0.92);
     canopy.fillEllipse(
-      bx + cosL * (rx * 0.38),
-      by + sinL * (ry * 0.38),
-      rx * 1.15,
-      ry * 0.95
+      bx + cosL * (rx * 0.36),
+      by + sinL * (ry * 0.36),
+      rx * 1.12,
+      ry * 0.92
+    );
+    canopy.fillEllipse(
+      bx + cosL * (rx * 0.16) + rx * 0.22,
+      by + sinL * (ry * 0.28),
+      rx * 0.68,
+      ry * 0.54
     );
 
-    // 5. Delicate accent rim
-    canopy.fillStyle(pal.accent, 0.75);
+    // 5. Delicate 3D specular rim leaf cluster
+    canopy.fillStyle(pal.accent, 0.82);
     canopy.fillEllipse(
       bx + cosL * (rx * 0.48),
       by + sinL * (ry * 0.48),
-      rx * 0.65,
-      ry * 0.45
+      rx * 0.62,
+      ry * 0.42
     );
   };
 
@@ -601,57 +621,115 @@ export function renderWholeTreeStructure(
   // 1. Draw Connected Stylized Canopy (no disjoint circles!)
   drawConnectedCanopy(tree, canopy, rnd, V);
 
-  // 2. Draw Style-Specific Trunk, Bark, and Roots
+  // 2. Ground Root Contact Shadow (Anchors the 3D tree trunk into the terrain)
+  const rootSpan = (tree.style === 'kapok' ? 160 : tree.style === 'oak' ? 98 : 54) * scale;
+  trunkGfx.fillStyle(0x050c07, 0.38);
+  trunkGfx.fillEllipse(tx, baseY + 2, rootSpan * 2.15, 22 * scale);
+
+  // 3. Draw Style-Specific 3D Cylindrical Trunk, Bark Ridges, Wood Knots, and Roots
   if (tree.style === 'oak') {
     const tw = 30 * scale;
-    const bw = 90 * scale;
+    const bw = 92 * scale;
+    const midY = (baseY + topY) / 2 + 28;
+    // Main trunk base wood
     trunkGfx.fillStyle(0x5a3418, 1);
     trunkGfx.fillPoints([
       V(tx - bw, baseY),
-      V(tx - bw * 0.5, (baseY + topY) / 2 + 30),
+      V(tx - bw * 0.48, midY),
       V(tx - tw, topY),
       V(tx + tw, topY),
-      V(tx + bw * 0.7, (baseY + topY) / 2 + 25),
+      V(tx + bw * 0.68, midY - 4),
       V(tx + bw * 1.05, baseY),
     ], true);
-    trunkGfx.fillStyle(0x3e200c, 1);
+    // 3D Sunlit Left Cylindrical Flank
+    trunkGfx.fillStyle(0x7c4a24, 0.92);
     trunkGfx.fillPoints([
-      V(tx + bw * 0.1, baseY),
-      V(tx + tw, topY),
-      V(tx + tw * 1.25, topY),
+      V(tx - bw * 0.92, baseY),
+      V(tx - bw * 0.46, midY),
+      V(tx - tw * 0.92, topY),
+      V(tx - tw * 0.15, topY),
+      V(tx - bw * 0.12, midY),
+      V(tx - bw * 0.25, baseY),
+    ], true);
+    // Bright 3D Rim Highlight on Sunlit Edge
+    trunkGfx.fillStyle(0x9c6234, 0.72);
+    trunkGfx.fillPoints([
+      V(tx - bw * 0.85, baseY),
+      V(tx - bw * 0.43, midY),
+      V(tx - tw * 0.82, topY),
+      V(tx - tw * 0.52, topY),
+      V(tx - bw * 0.28, midY),
+      V(tx - bw * 0.58, baseY),
+    ], true);
+    // Deep 3D Shadowed Right Cylindrical Flank
+    trunkGfx.fillStyle(0x361b09, 0.96);
+    trunkGfx.fillPoints([
+      V(tx + bw * 0.12, baseY),
+      V(tx + bw * 0.14, midY),
+      V(tx + tw * 0.25, topY),
+      V(tx + tw * 1.15, topY),
+      V(tx + bw * 0.68, midY - 4),
       V(tx + bw * 1.05, baseY),
     ], true);
-    trunkGfx.lineStyle(3 * scale, 0x2b1507, 0.7);
-    trunkGfx.lineBetween(tx - bw * 0.4, baseY - 5, tx - tw * 0.5, topY + 40);
-    trunkGfx.lineBetween(tx, baseY - 5, tx + 10 * scale, topY + 20);
-    trunkGfx.lineBetween(tx + bw * 0.45, baseY - 10, tx + tw * 0.8, topY + 60);
-    trunkGfx.lineStyle(3.5 * scale, 0x854d24, 0.55);
-    trunkGfx.lineBetween(tx - bw * 0.6, baseY - 15, tx - tw * 0.2, topY + 20);
+    // 3D Sculpted Bark Furrows & Root Buttress Ridges
+    trunkGfx.lineStyle(3.2 * scale, 0x241105, 0.78);
+    trunkGfx.lineBetween(tx - bw * 0.42, baseY - 4, tx - tw * 0.48, topY + 36);
+    trunkGfx.lineBetween(tx - bw * 0.05, baseY - 3, tx + 6 * scale, topY + 20);
+    trunkGfx.lineBetween(tx + bw * 0.42, baseY - 8, tx + tw * 0.72, topY + 55);
+    trunkGfx.lineStyle(2.5 * scale, 0xa46a3a, 0.55);
+    trunkGfx.lineBetween(tx - bw * 0.62, baseY - 12, tx - tw * 0.25, topY + 22);
+    // 3D Oval Bark Knot Hollow with Beveled Rim
+    const ky = midY - 14 * scale;
+    trunkGfx.fillStyle(0x854d24, 0.9);
+    trunkGfx.fillEllipse(tx - 6 * scale, ky, 16 * scale, 22 * scale);
+    trunkGfx.fillStyle(0x1f0e04, 0.95);
+    trunkGfx.fillEllipse(tx - 5 * scale, ky + 1 * scale, 10 * scale, 15 * scale);
+    // Lush 3D Root Moss Cushions at Trunk Base
+    trunkGfx.fillStyle(0x2d6a4f, 0.92);
+    trunkGfx.fillEllipse(tx - bw * 0.55, baseY - 3 * scale, 34 * scale, 11 * scale);
+    trunkGfx.fillEllipse(tx + bw * 0.35, baseY - 2 * scale, 28 * scale, 9 * scale);
+    trunkGfx.fillStyle(0x52b788, 0.8);
+    trunkGfx.fillEllipse(tx - bw * 0.58, baseY - 5 * scale, 22 * scale, 6 * scale);
   } else if (tree.style === 'birch') {
     const tw = 14 * scale;
-    const bw = 27 * scale;
+    const bw = 28 * scale;
+    const midY = (baseY + topY) / 2 + 40;
     trunkGfx.fillStyle(0xe2e8f0, 1);
     trunkGfx.fillPoints([
       V(tx - bw, baseY),
-      V(tx - bw * 0.55, (baseY + topY) / 2 + 40),
+      V(tx - bw * 0.55, midY),
       V(tx - tw, topY),
       V(tx + tw, topY),
-      V(tx + bw * 0.55, (baseY + topY) / 2 + 40),
+      V(tx + bw * 0.55, midY),
       V(tx + bw, baseY),
     ], true);
-    trunkGfx.fillStyle(0xc7d2fe, 0.45);
+    // Sunlit white-silver left highlight
+    trunkGfx.fillStyle(0xffffff, 0.85);
     trunkGfx.fillPoints([
-      V(tx - bw, baseY),
-      V(tx - bw * 0.55, (baseY + topY) / 2 + 40),
-      V(tx - tw, topY),
-      V(tx - tw * 0.4, topY),
-      V(tx - bw * 0.2, (baseY + topY) / 2 + 40),
-      V(tx - bw * 0.5, baseY),
+      V(tx - bw * 0.92, baseY),
+      V(tx - bw * 0.5, midY),
+      V(tx - tw * 0.9, topY),
+      V(tx - tw * 0.25, topY),
+      V(tx - bw * 0.15, midY),
+      V(tx - bw * 0.35, baseY),
     ], true);
-    trunkGfx.lineStyle(2.5 * scale, 0x1e293b, 0.85);
-    for (let y = topY + 30; y < baseY - 10; y += 22) {
-      const xOff = (y % 44 === 0 ? 0 : 5) * scale;
-      trunkGfx.lineBetween(tx - tw + xOff, y, tx + tw + xOff, y + 1);
+    // Shaded cool slate right cylinder edge
+    trunkGfx.fillStyle(0x94a3b8, 0.78);
+    trunkGfx.fillPoints([
+      V(tx + bw * 0.18, baseY),
+      V(tx + bw * 0.15, midY),
+      V(tx + tw * 0.2, topY),
+      V(tx + tw, topY),
+      V(tx + bw * 0.55, midY),
+      V(tx + bw, baseY),
+    ], true);
+    // Classic 3D Birch Bark Lenticels & Peeling Notches
+    trunkGfx.lineStyle(2.5 * scale, 0x1e293b, 0.88);
+    for (let y = topY + 28; y < baseY - 12; y += 22) {
+      const xOff = (y % 44 === 0 ? -2 : 4) * scale;
+      trunkGfx.lineBetween(tx - tw * 0.85 + xOff, y, tx + tw * 0.75 + xOff, y + 1);
+      trunkGfx.fillStyle(0x334155, 0.85);
+      trunkGfx.fillTriangle(tx - tw * 0.85 + xOff, y - 2, tx - tw * 0.85 + xOff, y + 3, tx + 2 * scale, y);
     }
   } else if (tree.style === 'mangrove') {
     const roots = [
@@ -662,90 +740,136 @@ export function renderWholeTreeStructure(
       [100, baseY, 65, (baseY + topY) / 2 + 30, 10, topY + 60],
     ];
     for (const [r0, ry0, rcx, rcy, r1, ry1] of roots) {
-      trunkGfx.lineStyle(12 * scale, 0x1e2715, 1);
       const curve = new Phaser.Curves.QuadraticBezier(
         new Phaser.Math.Vector2(tx + r0 * scale, ry0),
         new Phaser.Math.Vector2(tx + rcx * scale, rcy),
         new Phaser.Math.Vector2(tx + r1 * scale, ry1)
       );
+      trunkGfx.lineStyle(14 * scale, 0x141a0d, 1);
       curve.draw(trunkGfx);
-      trunkGfx.lineStyle(7 * scale, 0x3d4f29, 0.7);
+      trunkGfx.lineStyle(9 * scale, 0x2d3a1e, 1);
+      curve.draw(trunkGfx);
+      trunkGfx.lineStyle(3.5 * scale, 0x5a6d36, 0.8);
       curve.draw(trunkGfx);
     }
     trunkGfx.fillStyle(0x283618, 1);
-    trunkGfx.fillEllipse(tx, topY + 60, 50 * scale, 35 * scale);
+    trunkGfx.fillEllipse(tx, topY + 60, 54 * scale, 36 * scale);
+    trunkGfx.fillStyle(0x4d6130, 0.85);
+    trunkGfx.fillEllipse(tx - 8 * scale, topY + 56, 32 * scale, 22 * scale);
   } else if (tree.style === 'kapok') {
-    const tw = 35 * scale;
-    const bw = 150 * scale;
+    const tw = 36 * scale;
+    const bw = 152 * scale;
+    const midY = (baseY + topY) / 2 + 30;
     trunkGfx.fillStyle(0x323c22, 1);
     trunkGfx.fillPoints([
       V(tx - bw, baseY),
-      V(tx - bw * 0.3, (baseY + topY) / 2 + 30),
+      V(tx - bw * 0.3, midY),
       V(tx - tw, topY),
       V(tx + tw, topY),
-      V(tx + bw * 0.35, (baseY + topY) / 2 + 30),
+      V(tx + bw * 0.35, midY),
       V(tx + bw, baseY),
     ], true);
-    trunkGfx.fillStyle(0x1a2110, 1);
+    // Sunlit 3D left buttress root face
+    trunkGfx.fillStyle(0x4d5d34, 0.9);
     trunkGfx.fillPoints([
-      V(tx - 20 * scale, baseY),
-      V(tx, (baseY + topY) / 2 + 20),
-      V(tx + tw * 0.3, topY),
+      V(tx - bw * 0.92, baseY),
+      V(tx - bw * 0.28, midY),
+      V(tx - tw * 0.85, topY),
+      V(tx - tw * 0.15, topY),
+      V(tx - bw * 0.08, midY),
+      V(tx - bw * 0.25, baseY),
+    ], true);
+    // Shaded 3D right buttress root face
+    trunkGfx.fillStyle(0x1a2110, 0.96);
+    trunkGfx.fillPoints([
+      V(tx - 18 * scale, baseY),
+      V(tx, midY - 10),
+      V(tx + tw * 0.25, topY),
       V(tx + tw, topY),
-      V(tx + bw * 0.35, (baseY + topY) / 2 + 30),
+      V(tx + bw * 0.35, midY),
       V(tx + bw, baseY),
     ], true);
     trunkGfx.lineStyle(4 * scale, 0x141a0b, 0.85);
-    trunkGfx.lineBetween(tx - bw * 0.9, baseY - 5, tx - tw, topY + 40);
+    trunkGfx.lineBetween(tx - bw * 0.88, baseY - 5, tx - tw, topY + 40);
     trunkGfx.lineBetween(tx, baseY, tx - 5 * scale, topY + 30);
-    trunkGfx.lineBetween(tx + bw * 0.9, baseY - 5, tx + tw, topY + 40);
+    trunkGfx.lineBetween(tx + bw * 0.88, baseY - 5, tx + tw, topY + 40);
   } else if (tree.style === 'sakura') {
     const tw = 20 * scale;
-    const bw = 40 * scale;
+    const bw = 42 * scale;
+    const midY = (baseY + topY) / 2 + 50;
     trunkGfx.fillStyle(0x4a2522, 1);
     trunkGfx.fillPoints([
       V(tx - bw, baseY),
-      V(tx - bw * 0.5, (baseY + topY) / 2 + 50),
+      V(tx - bw * 0.5, midY),
       V(tx - tw, topY + 70),
       V(tx - tw * 1.5, topY),
       V(tx, topY),
       V(tx + tw, topY + 80),
-      V(tx + bw * 0.7, (baseY + topY) / 2 + 50),
+      V(tx + bw * 0.7, midY),
       V(tx + bw, baseY),
     ], true);
-    trunkGfx.fillStyle(0x271412, 1);
+    // Warm sunlit cherry-bark left cylinder
+    trunkGfx.fillStyle(0x6e3732, 0.88);
+    trunkGfx.fillPoints([
+      V(tx - bw * 0.9, baseY),
+      V(tx - bw * 0.45, midY),
+      V(tx - tw * 0.9, topY + 70),
+      V(tx - tw * 0.2, topY + 70),
+      V(tx - bw * 0.1, midY),
+      V(tx - bw * 0.25, baseY),
+    ], true);
+    trunkGfx.fillStyle(0x271412, 0.95);
     trunkGfx.fillPoints([
       V(tx - 10 * scale, baseY),
-      V(tx + 5 * scale, (baseY + topY) / 2 + 50),
+      V(tx + 5 * scale, midY),
       V(tx + tw * 0.5, topY + 70),
       V(tx + tw, topY + 80),
-      V(tx + bw * 0.7, (baseY + topY) / 2 + 50),
+      V(tx + bw * 0.7, midY),
       V(tx + bw, baseY),
     ], true);
-    trunkGfx.lineStyle(3 * scale, 0x7c3a2d, 0.5);
+    trunkGfx.lineStyle(3 * scale, 0x8f4939, 0.65);
     trunkGfx.lineBetween(tx - bw * 0.6, baseY - 10, tx + 5 * scale, topY + 90);
   } else if (tree.style === 'pine') {
-    const tw = 12 * scale;
-    const bw = 35 * scale;
+    const tw = 13 * scale;
+    const bw = 36 * scale;
+    const midY = (baseY + topY) / 2 + 50;
     trunkGfx.fillStyle(0x382d24, 1);
     trunkGfx.fillPoints([
       V(tx - bw, baseY),
-      V(tx - bw * 0.5, (baseY + topY) / 2 + 50),
+      V(tx - bw * 0.5, midY),
       V(tx - tw, topY),
       V(tx + tw, topY),
-      V(tx + bw * 0.5, (baseY + topY) / 2 + 50),
+      V(tx + bw * 0.5, midY),
       V(tx + bw, baseY),
     ], true);
-    trunkGfx.lineStyle(2.5 * scale, 0x221a14, 0.8);
-    trunkGfx.lineBetween(tx - 15 * scale, baseY - 15, tx - 5 * scale, (baseY + topY) / 2);
-    trunkGfx.lineBetween(tx - 5 * scale, (baseY + topY) / 2, tx, topY + 10);
+    // Sunlit left pine bark highlight
+    trunkGfx.fillStyle(0x5a483a, 0.88);
+    trunkGfx.fillPoints([
+      V(tx - bw * 0.9, baseY),
+      V(tx - bw * 0.45, midY),
+      V(tx - tw * 0.85, topY),
+      V(tx - tw * 0.15, topY),
+      V(tx - bw * 0.12, midY),
+      V(tx - bw * 0.25, baseY),
+    ], true);
+    trunkGfx.fillStyle(0x221a14, 0.94);
+    trunkGfx.fillPoints([
+      V(tx + bw * 0.1, baseY),
+      V(tx + bw * 0.12, midY),
+      V(tx + tw * 0.2, topY),
+      V(tx + tw, topY),
+      V(tx + bw * 0.5, midY),
+      V(tx + bw, baseY),
+    ], true);
   } else if (tree.style === 'basalt') {
     const drawBasaltCol = (bx: number, by: number, bw: number, bh: number) => {
       trunkGfx.fillStyle(0x18181b, 1);
       trunkGfx.fillRect(bx - bw / 2, by, bw, bh);
-      trunkGfx.fillStyle(0x27272a, 1);
-      trunkGfx.fillRect(bx - bw / 2 + 4, by, bw / 2 - 4, bh);
-      trunkGfx.fillStyle(0x3f3f46, 1);
+      trunkGfx.fillStyle(0x3f3f46, 0.92);
+      trunkGfx.fillRect(bx - bw / 2 + 2, by, bw * 0.42, bh);
+      trunkGfx.fillStyle(0x09090b, 0.92);
+      trunkGfx.fillRect(bx + bw * 0.08, by, bw * 0.42, bh);
+      trunkGfx.fillStyle(0x52525b, 1);
       trunkGfx.fillPoints([
         V(bx, by - 14 * scale),
         V(bx + bw / 2, by - 6 * scale),

@@ -269,6 +269,39 @@ function drawEllipse(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: 
   ctx.ellipse(cx, cy, Math.max(0.5, rx), Math.max(0.5, ry), rot, 0, Math.PI * 2);
 }
 
+function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const rad = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rad, y);
+  ctx.lineTo(x + w - rad, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + rad);
+  ctx.lineTo(x + w, y + h - rad);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+  ctx.lineTo(x + rad, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - rad);
+  ctx.lineTo(x, y + rad);
+  ctx.quadraticCurveTo(x, y, x + rad, y);
+  ctx.closePath();
+}
+
+function drawStudioEye(ctx: CanvasRenderingContext2D, ex: number, ey: number, er: number, irisCol: string) {
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  drawEllipse(ctx, ex, ey + 0.8, er + 1.0, er + 1.0);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  drawEllipse(ctx, ex, ey, er, er);
+  ctx.fill();
+  ctx.fillStyle = irisCol;
+  drawEllipse(ctx, ex, ey, er * 0.82, er * 0.82);
+  ctx.fill();
+  ctx.fillStyle = '#090a0f';
+  drawEllipse(ctx, ex, ey, er * 0.52, er * 0.52);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  drawEllipse(ctx, ex - er * 0.25, ey - er * 0.28, Math.max(1.0, er * 0.26), Math.max(0.9, er * 0.22));
+  ctx.fill();
+}
+
 /**
  * Draws a richly shaded, anatomically sculpted avian model for every species and growth stage (0, 1, 2)
  * plus its multi-feathered articulated wing texture.
@@ -914,17 +947,53 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
       }
     };
 
-    const eyeX = cx + Math.round(16 * sc);
+    const eyeX = cx + Math.round(14.5 * sc);
     const eyeY = cy - Math.round(8 * sc);
-    const eyeR = (stage === 0 ? 8.8 : 8.2) * sc;
+    const eyeR = (stage === 0 ? 8.6 : 8.0) * sc;
+    // Far-side 3/4 perspective eye peeking on the far side of the head (gives true 3D head volume!)
+    const farEyeX = cx + Math.round(26.5 * sc);
+    const farEyeY = cy - Math.round(8.5 * sc);
+    const farEyeRx = eyeR * 0.46;
+    const farEyeRy = eyeR * 0.78;
+
+    const drawFar3DEye = (irisTop: number, irisBot: number, slit = false) => {
+      ctx.save();
+      if (isToucan) {
+        ctx.fillStyle = '#0284c7';
+        drawEllipse(ctx, farEyeX, farEyeY, farEyeRx * 1.35, farEyeRy * 1.25);
+        ctx.fill();
+      }
+      ctx.fillStyle = isOwl || isFalcon || isHawk ? rgba(0xfef08a) : '#f8fafc';
+      drawEllipse(ctx, farEyeX, farEyeY, farEyeRx, farEyeRy);
+      ctx.fill();
+      const iGrad = ctx.createLinearGradient(farEyeX, farEyeY - farEyeRy, farEyeX, farEyeY + farEyeRy);
+      iGrad.addColorStop(0, rgba(irisTop));
+      iGrad.addColorStop(1, rgba(irisBot));
+      ctx.fillStyle = iGrad;
+      drawEllipse(ctx, farEyeX + 0.6 * sc, farEyeY, farEyeRx * 0.82, farEyeRy * 0.82);
+      ctx.fill();
+      ctx.fillStyle = '#090a0f';
+      drawEllipse(ctx, farEyeX + 0.9 * sc, farEyeY, farEyeRx * (slit ? 0.35 : 0.62), farEyeRy * (slit ? 0.8 : 0.62));
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      drawEllipse(ctx, farEyeX, farEyeY - farEyeRy * 0.3, Math.max(0.9, farEyeRx * 0.35), Math.max(0.9, farEyeRy * 0.22));
+      ctx.fill();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.1;
+      drawEllipse(ctx, farEyeX, farEyeY, farEyeRx, farEyeRy);
+      ctx.stroke();
+      ctx.restore();
+    };
 
     if (isOwl) {
       // Binocular twin forward-facing golden nocturnal owl eyes!
       drawStudioEye(cx + 8 * sc, cy - 7 * sc, 7.2 * sc, 0xf59e0b, 0xfef08a);
       drawStudioEye(cx + 21 * sc, cy - 7 * sc, 7.6 * sc, 0xf59e0b, 0xfef08a);
     } else if (isCat) {
+      drawFar3DEye(0x16a34a, 0xa3e635, true);
       drawStudioEye(eyeX, eyeY, eyeR, 0x16a34a, 0xa3e635, true);
     } else if (isFalcon || isHawk) {
+      drawFar3DEye(0xd97706, 0xfde047);
       drawStudioEye(eyeX, eyeY, eyeR * 0.92, 0xd97706, 0xfde047);
       // Fierce supraorbital raptor brow ridge
       ctx.fillStyle = rgba(isFalcon ? 0x0f172a : darken(s.body, 0.35));
@@ -936,10 +1005,13 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
       ctx.closePath();
       ctx.fill();
     } else if (isPhoenix || isWyvern) {
+      drawFar3DEye(0xef4444, 0xfef08a, isWyvern);
       drawStudioEye(eyeX, eyeY, eyeR, 0xef4444, 0xfef08a, isWyvern);
     } else if (isToucan) {
+      drawFar3DEye(0x1e3a8a, 0x38bdf8);
       drawStudioEye(eyeX, eyeY, eyeR * 0.88, 0x1e3a8a, 0x38bdf8);
     } else {
+      drawFar3DEye(0x291d12, 0x78350f);
       drawStudioEye(eyeX, eyeY, eyeR, 0x291d12, 0x78350f);
     }
 
@@ -954,10 +1026,10 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
     }
 
     // -------------------------------------------------------------------------
-    // 9. SCULPTED 3D TWO-MANDIBLE BEAKS (with Nares, Commissure & Highlights)
+    // 9. SCULPTED 3D TWO-MANDIBLE BEAKS (with Curved 3D Root, Nares & Highlights)
     // -------------------------------------------------------------------------
-    const beakX = cx + Math.round(28 * sc);
-    const beakY = cy - Math.round(4 * sc);
+    const beakX = cx + Math.round(25 * sc);
+    const beakY = cy - Math.round(3.5 * sc);
 
     if (isToucan) {
       // ICONIC CURVED TROPICAL RAINBOW TOUCAN BILL!
@@ -965,13 +1037,13 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
       const tbTop = beakY - 9 * sc;
       const tbBot = beakY + 11 * sc;
 
-      // Black basal band at bill root
+      // 3D curved black basal band wrapping around the face
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
-      ctx.moveTo(beakX - 2 * sc, tbTop);
-      ctx.lineTo(beakX + 3.5 * sc, tbTop + 0.5);
-      ctx.lineTo(beakX + 2.5 * sc, tbBot);
-      ctx.lineTo(beakX - 2 * sc, tbBot);
+      ctx.moveTo(beakX - 1 * sc, tbTop);
+      ctx.quadraticCurveTo(beakX - 5 * sc, beakY, beakX - 1 * sc, tbBot);
+      ctx.lineTo(beakX + 3.5 * sc, tbBot);
+      ctx.quadraticCurveTo(beakX, beakY, beakX + 4 * sc, tbTop + 0.5);
       ctx.closePath();
       ctx.fill();
 
@@ -994,7 +1066,8 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
         beakX + tbLen,
         beakY + 5 * sc
       );
-      ctx.quadraticCurveTo(beakX + tbLen * 0.5, beakY + 3 * sc, beakX + 2 * sc, beakY + 3 * sc);
+      ctx.quadraticCurveTo(beakX + tbLen * 0.5, beakY + 3 * sc, beakX + 1 * sc, beakY + 3 * sc);
+      ctx.quadraticCurveTo(beakX - 1.5 * sc, (tbTop + beakY) * 0.5, beakX + 2 * sc, tbTop);
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = '#1e1b18';
@@ -1002,7 +1075,7 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
       ctx.stroke();
 
       // Glossy lime-white dorsal culmen highlight
-      ctx.fillStyle = rgba(0xfef9c3, 0.55);
+      ctx.fillStyle = rgba(0xfef9c3, 0.58);
       ctx.beginPath();
       ctx.moveTo(beakX + 4 * sc, tbTop + 1.5 * sc);
       ctx.quadraticCurveTo(beakX + tbLen * 0.5, tbTop - 0.5 * sc, beakX + tbLen * 0.82, beakY + 0.5 * sc);
@@ -1018,7 +1091,7 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
       lGrad.addColorStop(1, '#881337');
       ctx.fillStyle = lGrad;
       ctx.beginPath();
-      ctx.moveTo(beakX + 1.5 * sc, beakY + 3 * sc);
+      ctx.moveTo(beakX + 1 * sc, beakY + 3 * sc);
       ctx.quadraticCurveTo(beakX + tbLen * 0.5, beakY + 3 * sc, beakX + tbLen * 0.93, beakY + 5.5 * sc);
       ctx.bezierCurveTo(
         beakX + tbLen * 0.72,
@@ -1028,15 +1101,16 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
         beakX + 1.5 * sc,
         tbBot
       );
+      ctx.quadraticCurveTo(beakX - 1 * sc, (beakY + tbBot) * 0.5, beakX + 1 * sc, beakY + 3 * sc);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
     } else if (isFalcon || isHawk) {
       // SHARP HOOKED RAPTOR BEAK WITH GOLDEN CERE & DARK TEARING TIP
-      const fbLen = (stage === 0 ? 14 : stage === 1 ? 18 : 21) * sc;
-      // Waxy yellow cere at beak base
+      const fbLen = (stage === 0 ? 15 : stage === 1 ? 19 : 22) * sc;
+      // Waxy yellow 3D cere at beak base
       ctx.fillStyle = '#facc15';
-      drawEllipse(ctx, beakX + 1 * sc, beakY - 1 * sc, 3.8 * sc, 5 * sc, -0.15);
+      drawEllipse(ctx, beakX + 1 * sc, beakY - 1 * sc, 4.5 * sc, 5.5 * sc, -0.15);
       ctx.fill();
 
       // Hooked Upper Maxilla (Gold base -> Slate-Black hooked tip)
@@ -1061,6 +1135,7 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
       );
       ctx.lineTo(beakX + fbLen * 0.58, beakY + 2.5 * sc); // tomial tooth notch
       ctx.lineTo(beakX + 1 * sc, beakY + 2 * sc);
+      ctx.quadraticCurveTo(beakX - 1.5 * sc, beakY - 2 * sc, beakX + 1 * sc, beakY - 5.5 * sc);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
@@ -1089,6 +1164,7 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
       ctx.moveTo(beakX, beakY - 3.8 * sc);
       ctx.quadraticCurveTo(beakX + tcbLen * 0.6, beakY - 3 * sc, beakX + tcbLen, beakY + 6.5 * sc);
       ctx.quadraticCurveTo(beakX + tcbLen * 0.55, beakY + 1.5 * sc, beakX, beakY + 2.5 * sc);
+      ctx.quadraticCurveTo(beakX - 2 * sc, beakY - 0.5 * sc, beakX, beakY - 3.8 * sc);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
@@ -1130,14 +1206,19 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
       ctx.lineTo(cx - 8 * sc, cy - 12 * sc);
       ctx.stroke();
 
-      // Fake cardboard cone beak with woodgrain lines
-      ctx.fillStyle = '#f59e0b';
+      // Fake 3D cone cardboard beak with curved base
+      const cGrad = ctx.createLinearGradient(beakX, beakY - 6 * sc, beakX + 12 * sc, beakY + 5 * sc);
+      cGrad.addColorStop(0, '#fcd34d');
+      cGrad.addColorStop(0.6, '#f59e0b');
+      cGrad.addColorStop(1, '#b45309');
+      ctx.fillStyle = cGrad;
       ctx.strokeStyle = '#78350f';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.moveTo(beakX + 1 * sc, beakY - 5.5 * sc);
-      ctx.lineTo(beakX + 15 * sc, beakY - 0.5 * sc);
+      ctx.lineTo(beakX + 16 * sc, beakY - 0.5 * sc);
       ctx.lineTo(beakX + 1 * sc, beakY + 4.5 * sc);
+      ctx.quadraticCurveTo(beakX - 2.5 * sc, beakY - 0.5 * sc, beakX + 1 * sc, beakY - 5.5 * sc);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
@@ -1145,85 +1226,102 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
       // Cute kitty pink nose, ":3" mouth, and white whiskers right below!
       ctx.fillStyle = '#fb7185';
       ctx.beginPath();
-      ctx.moveTo(cx + 24 * sc, cy - 3 * sc);
-      ctx.lineTo(cx + 28 * sc, cy - 3 * sc);
-      ctx.lineTo(cx + 26 * sc, cy);
+      ctx.moveTo(cx + 22 * sc, cy - 3 * sc);
+      ctx.lineTo(cx + 26 * sc, cy - 3 * sc);
+      ctx.lineTo(cx + 24 * sc, cy);
       ctx.closePath();
       ctx.fill();
 
       ctx.strokeStyle = rgba(0xffffff, 0.92);
       ctx.lineWidth = 1.3;
       ctx.beginPath();
-      ctx.moveTo(cx + 20 * sc, cy + 2 * sc);
-      ctx.lineTo(cx + 35 * sc, cy);
-      ctx.moveTo(cx + 19 * sc, cy + 5 * sc);
-      ctx.lineTo(cx + 34 * sc, cy + 6 * sc);
-      ctx.moveTo(cx + 18 * sc, cy + 8 * sc);
-      ctx.lineTo(cx + 32 * sc, cy + 11 * sc);
+      ctx.moveTo(cx + 19 * sc, cy + 2 * sc);
+      ctx.lineTo(cx + 34 * sc, cy);
+      ctx.moveTo(cx + 18 * sc, cy + 5 * sc);
+      ctx.lineTo(cx + 33 * sc, cy + 6 * sc);
+      ctx.moveTo(cx + 17 * sc, cy + 8 * sc);
+      ctx.lineTo(cx + 31 * sc, cy + 11 * sc);
       ctx.stroke();
     } else if (isCanary) {
-      // OPEN MELODIOUS SINGING BEAK WITH CUTE PINK TONGUE!
-      const bLen = (stage === 0 ? 12 : stage === 1 ? 15 : 17) * sc;
+      // OPEN MELODIOUS 3D SINGING BEAK WITH CUTE PINK TONGUE!
+      const bLen = (stage === 0 ? 13 : stage === 1 ? 16 : 19) * sc;
       const bCol = s.beak ?? 0xffa62b;
       // Inside mouth cavity & pink tongue
       ctx.fillStyle = '#881337';
       ctx.beginPath();
-      ctx.moveTo(beakX, beakY - 2 * sc);
-      ctx.lineTo(beakX + bLen * 0.7, beakY);
-      ctx.lineTo(beakX, beakY + 4 * sc);
+      ctx.moveTo(beakX - 1 * sc, beakY - 2.5 * sc);
+      ctx.lineTo(beakX + bLen * 0.72, beakY);
+      ctx.lineTo(beakX - 1 * sc, beakY + 4.5 * sc);
       ctx.closePath();
       ctx.fill();
       ctx.fillStyle = '#fb7185';
-      drawEllipse(ctx, beakX + 4 * sc, beakY + 2 * sc, 3.5 * sc, 1.5 * sc);
+      drawEllipse(ctx, beakX + 4 * sc, beakY + 2 * sc, 3.8 * sc, 1.6 * sc);
       ctx.fill();
 
-      // Upper singing mandible
-      ctx.fillStyle = rgba(lighten(bCol, 0.15));
+      // Upper singing mandible with 3D curved face root
+      const uGrad = ctx.createLinearGradient(beakX, beakY - 6 * sc, beakX + bLen, beakY);
+      uGrad.addColorStop(0, rgba(lighten(bCol, 0.3)));
+      uGrad.addColorStop(1, rgba(bCol));
+      ctx.fillStyle = uGrad;
       ctx.strokeStyle = rgba(darken(bCol, 0.45));
       ctx.lineWidth = 1.1;
       ctx.beginPath();
-      ctx.moveTo(beakX - 1 * sc, beakY - 6 * sc);
+      ctx.moveTo(beakX, beakY - 6 * sc);
       ctx.quadraticCurveTo(beakX + bLen * 0.55, beakY - 6.5 * sc, beakX + bLen, beakY - 2 * sc);
-      ctx.lineTo(beakX, beakY - 0.5 * sc);
+      ctx.lineTo(beakX - 1 * sc, beakY - 0.5 * sc);
+      ctx.quadraticCurveTo(beakX - 3 * sc, beakY - 3.5 * sc, beakX, beakY - 6 * sc);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
 
       // Lower singing mandible
-      ctx.fillStyle = rgba(darken(bCol, 0.08));
+      ctx.fillStyle = rgba(darken(bCol, 0.1));
       ctx.beginPath();
       ctx.moveTo(beakX - 1 * sc, beakY + 1.5 * sc);
       ctx.lineTo(beakX + bLen * 0.88, beakY + 3.5 * sc);
-      ctx.quadraticCurveTo(beakX + bLen * 0.45, beakY + 6.5 * sc, beakX - 1 * sc, beakY + 5.5 * sc);
+      ctx.quadraticCurveTo(beakX + bLen * 0.45, beakY + 6.5 * sc, beakX, beakY + 5.5 * sc);
+      ctx.quadraticCurveTo(beakX - 2.5 * sc, beakY + 3.5 * sc, beakX - 1 * sc, beakY + 1.5 * sc);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
     } else {
-      // SCULPTED CONICAL SONGBIRD / DOVE / PHOENIX BEAK (Upper + Lower Mandibles)
-      const bLen = (stage === 0 ? 12 : stage === 1 ? 15 : 18) * sc;
+      // SCULPTED 3D CONICAL SONGBIRD / DOVE / PHOENIX BEAK (Curved 3D Root + Upper/Lower Planes)
+      const bLen = (stage === 0 ? 13 : stage === 1 ? 16 : 20) * sc;
       const bCol = s.beak ?? 0xffa62b;
 
-      // Upper Maxilla
-      const uGrad = ctx.createLinearGradient(beakX, beakY - 6 * sc, beakX + bLen, beakY);
-      uGrad.addColorStop(0, rgba(lighten(bCol, 0.28)));
-      uGrad.addColorStop(1, rgba(bCol));
+      // Upper Maxilla with 3D curved base wrapping around cheek
+      const uGrad = ctx.createLinearGradient(beakX - 2 * sc, beakY - 6.5 * sc, beakX + bLen, beakY + 1 * sc);
+      uGrad.addColorStop(0, rgba(lighten(bCol, 0.35)));
+      uGrad.addColorStop(0.6, rgba(bCol));
+      uGrad.addColorStop(1, rgba(darken(bCol, 0.12)));
       ctx.fillStyle = uGrad;
       ctx.strokeStyle = rgba(darken(bCol, 0.45));
       ctx.lineWidth = 1.15;
       ctx.beginPath();
-      ctx.moveTo(beakX - 1 * sc, beakY - 6 * sc);
+      ctx.moveTo(beakX, beakY - 6.2 * sc);
       ctx.quadraticCurveTo(beakX + bLen * 0.55, beakY - 5.5 * sc, beakX + bLen, beakY + 0.5 * sc);
-      ctx.quadraticCurveTo(beakX + bLen * 0.45, beakY + 1.5 * sc, beakX - 1 * sc, beakY + 0.5 * sc);
+      ctx.quadraticCurveTo(beakX + bLen * 0.45, beakY + 1.8 * sc, beakX - 1.5 * sc, beakY + 0.8 * sc);
+      ctx.quadraticCurveTo(beakX - 3.5 * sc, beakY - 3 * sc, beakX, beakY - 6.2 * sc);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
 
-      // Lower Mandible
-      ctx.fillStyle = rgba(darken(bCol, 0.14));
+      // Glossy dorsal culmen ridge highlight
+      ctx.fillStyle = rgba(0xffffff, 0.42);
       ctx.beginPath();
-      ctx.moveTo(beakX - 1 * sc, beakY + 0.5 * sc);
-      ctx.quadraticCurveTo(beakX + bLen * 0.45, beakY + 1.5 * sc, beakX + bLen * 0.9, beakY + 1 * sc);
-      ctx.quadraticCurveTo(beakX + bLen * 0.45, beakY + 6 * sc, beakX - 1 * sc, beakY + 5 * sc);
+      ctx.moveTo(beakX + 1 * sc, beakY - 5 * sc);
+      ctx.quadraticCurveTo(beakX + bLen * 0.45, beakY - 4.2 * sc, beakX + bLen * 0.82, beakY - 0.3 * sc);
+      ctx.quadraticCurveTo(beakX + bLen * 0.4, beakY - 2 * sc, beakX + 1 * sc, beakY - 2.8 * sc);
+      ctx.closePath();
+      ctx.fill();
+
+      // Lower Mandible (3D underside shadow plane)
+      ctx.fillStyle = rgba(darken(bCol, 0.18));
+      ctx.beginPath();
+      ctx.moveTo(beakX - 1.5 * sc, beakY + 0.8 * sc);
+      ctx.quadraticCurveTo(beakX + bLen * 0.45, beakY + 1.8 * sc, beakX + bLen * 0.9, beakY + 1.2 * sc);
+      ctx.quadraticCurveTo(beakX + bLen * 0.45, beakY + 6.5 * sc, beakX, beakY + 5.2 * sc);
+      ctx.quadraticCurveTo(beakX - 2.8 * sc, beakY + 3.2 * sc, beakX - 1.5 * sc, beakY + 0.8 * sc);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
@@ -1238,6 +1336,337 @@ function drawSimpleBird(scene: Phaser.Scene, key: string, s: BirdLook, stage: nu
   makeCanvas(scene, `bird_${key}_${stage}`, cw, ch, renderBirdBody);
   if (stage === 2) {
     makeCanvas(scene, `bird_${key}`, cw, ch, renderBirdBody);
+  }
+
+  // ---------------------------------------------------------------------------
+  // 9B. TRUE 3D FRONTAL-YAW TURN MODEL (`bird_${key}_${stage}_turn`)
+  //     Used when the bird rotates from left-to-right or right-to-left so it
+  //     genuinely turns toward the camera in 3D instead of 2D-flipping!
+  // ---------------------------------------------------------------------------
+  const renderBirdTurn = (ctx: CanvasRenderingContext2D) => {
+    const footY = cy + Math.round(34 * sc);
+    const headTopY = cy - Math.round(25 * sc);
+    const rBodyW = Math.round(28 * sc);
+    const rBodyH = Math.round(30 * sc);
+
+    // 1. Foreshortened 3D Tail Fan peeking behind the body
+    if (isPhoenix) {
+      for (const dx of [-12 * sc, 0, 12 * sc]) {
+        const g = ctx.createLinearGradient(cx, cy, cx + dx * 1.4, cy + 32 * sc);
+        g.addColorStop(0, '#ff3d00');
+        g.addColorStop(1, '#ffee58');
+        ctx.strokeStyle = g;
+        ctx.lineWidth = 3.5 * sc;
+        ctx.beginPath();
+        ctx.moveTo(cx + dx * 0.4, cy + 12 * sc);
+        ctx.quadraticCurveTo(cx + dx, cy + 24 * sc, cx + dx * 1.3, cy + 34 * sc);
+        ctx.stroke();
+      }
+    } else {
+      ctx.fillStyle = rgba(darken(s.wing, 0.18));
+      ctx.strokeStyle = rgba(darken(s.wing, 0.45));
+      ctx.lineWidth = 1.2;
+      for (const ang of [-0.25, 0, 0.25]) {
+        ctx.save();
+        ctx.translate(cx, cy + 16 * sc);
+        ctx.rotate(ang);
+        drawEllipse(ctx, 0, 10 * sc, 4.5 * sc, 10 * sc);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // 2. Both 3D Talons / Feet Symmetrically Below Chest
+    const legCol = isFalcon || isHawk || isOwl ? 0xf59e0b : isCrow || isWyvern ? 0x374151 : 0xf08c28;
+    for (const lx of [cx - 8 * sc, cx + 8 * sc]) {
+      if (isCat) {
+        ctx.fillStyle = rgba(0xfff5eb);
+        drawEllipse(ctx, lx, footY - 1 * sc, 4.5 * sc, 3.2 * sc);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = rgba(darken(s.body, 0.12));
+        drawEllipse(ctx, lx, footY - 10 * sc, 4 * sc, 4.2 * sc);
+        ctx.fill();
+        ctx.strokeStyle = rgba(legCol);
+        ctx.lineWidth = stage === 0 ? 2.2 : 2.8;
+        ctx.beginPath();
+        ctx.moveTo(lx, footY - 9 * sc);
+        ctx.lineTo(lx, footY);
+        ctx.moveTo(lx - 4 * sc, footY + 0.8);
+        ctx.lineTo(lx + 4 * sc, footY + 0.8);
+        ctx.stroke();
+      }
+    }
+
+    // 3. Frontal Crest / Horns / Ears (Symmetrical 3D Crown)
+    if (isPhoenix) {
+      for (const [dx, h] of [[-6 * sc, 18 * sc], [0, 23 * sc], [6 * sc, 18 * sc]]) {
+        const cGrad = ctx.createLinearGradient(cx + dx, headTopY + 6 * sc, cx + dx * 1.2, headTopY - h);
+        cGrad.addColorStop(0, '#ff3d00');
+        cGrad.addColorStop(1, '#fff176');
+        ctx.fillStyle = cGrad;
+        ctx.beginPath();
+        ctx.moveTo(cx + dx - 3.5 * sc, headTopY + 6 * sc);
+        ctx.quadraticCurveTo(cx + dx, headTopY - h * 0.5, cx + dx * 1.2, headTopY - h);
+        ctx.quadraticCurveTo(cx + dx + 3.5 * sc, headTopY - h * 0.4, cx + dx + 3.5 * sc, headTopY + 6 * sc);
+        ctx.closePath();
+        ctx.fill();
+      }
+    } else if (isMama || s.crest || isCanary) {
+      ctx.fillStyle = rgba(lighten(s.wing, 0.12));
+      ctx.strokeStyle = rgba(darken(s.wing, 0.4));
+      ctx.lineWidth = 1.1;
+      for (const dx of [-3.5 * sc, 3.5 * sc]) {
+        ctx.beginPath();
+        ctx.moveTo(cx + dx * 0.5, headTopY + 6 * sc);
+        ctx.quadraticCurveTo(cx + dx * 1.8, headTopY - 8 * sc, cx + dx * 1.2, headTopY - 14 * sc);
+        ctx.quadraticCurveTo(cx, headTopY - 4 * sc, cx, headTopY + 6 * sc);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    // 4. Sculpted 3D Spherical Frontal Body & Head Mass
+    const bodyLight = isToucan ? 0x334155 : lighten(s.body, 0.3);
+    const bodyMid = isToucan ? 0x0f172a : s.body;
+    const bodyDark = isToucan ? 0x020617 : darken(s.body, 0.35);
+    const bGrad = ctx.createRadialGradient(cx, cy - 10 * sc, 3 * sc, cx, cy + 2 * sc, 34 * sc);
+    bGrad.addColorStop(0, rgba(bodyLight));
+    bGrad.addColorStop(0.55, rgba(bodyMid));
+    bGrad.addColorStop(1, rgba(bodyDark));
+
+    ctx.save();
+    ctx.fillStyle = bGrad;
+    ctx.strokeStyle = rgba(darken(isToucan ? 0x1e293b : s.body, 0.5), 0.92);
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - rBodyH);
+    ctx.bezierCurveTo(cx + rBodyW * 1.02, cy - rBodyH, cx + rBodyW * 1.12, cy + rBodyH * 0.2, cx + rBodyW * 0.85, cy + rBodyH * 0.78);
+    ctx.bezierCurveTo(cx + rBodyW * 0.45, cy + rBodyH * 1.05, cx - rBodyW * 0.45, cy + rBodyH * 1.05, cx - rBodyW * 0.85, cy + rBodyH * 0.78);
+    ctx.bezierCurveTo(cx - rBodyW * 1.12, cy + rBodyH * 0.2, cx - rBodyW * 1.02, cy - rBodyH, cx, cy - rBodyH);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.save();
+    ctx.clip();
+
+    // Frontal 3D Chest & Belly Patch
+    if (isToucan) {
+      const bibGrad = ctx.createRadialGradient(cx, cy - 2 * sc, 2 * sc, cx, cy + 2 * sc, 21 * sc);
+      bibGrad.addColorStop(0, '#fffbeb');
+      bibGrad.addColorStop(0.45, '#fde047');
+      bibGrad.addColorStop(1, '#f59e0b');
+      ctx.fillStyle = bibGrad;
+      drawEllipse(ctx, cx, cy + 2 * sc, 19 * sc, 17 * sc);
+      ctx.fill();
+      ctx.strokeStyle = '#e11d48';
+      ctx.lineWidth = 3.2 * sc;
+      ctx.beginPath();
+      ctx.arc(cx, cy + 1 * sc, 18.5 * sc, 0.2, Math.PI - 0.2);
+      ctx.stroke();
+    } else {
+      const belGrad = ctx.createRadialGradient(cx, cy + 4 * sc, 2 * sc, cx, cy + 9 * sc, 22 * sc);
+      belGrad.addColorStop(0, rgba(lighten(s.belly, 0.38)));
+      belGrad.addColorStop(0.65, rgba(s.belly));
+      belGrad.addColorStop(1, rgba(darken(s.belly, 0.18)));
+      ctx.fillStyle = belGrad;
+      drawEllipse(ctx, cx, cy + 9 * sc, 21 * sc, 19 * sc);
+      ctx.fill();
+
+      if (isFalcon) {
+        // Frontal Peregrine slate helmet & twin malar cheek bars + barred breast
+        ctx.fillStyle = rgba(0x1e293b, 0.94);
+        drawEllipse(ctx, cx, cy - 17 * sc, 26 * sc, 14 * sc);
+        ctx.fill();
+        for (const side of [-1, 1]) {
+          drawEllipse(ctx, cx + side * 12 * sc, cy - 1 * sc, 4 * sc, 9 * sc, side * 0.12);
+          ctx.fill();
+        }
+        ctx.strokeStyle = rgba(0x334155, 0.7);
+        ctx.lineWidth = 1.4 * sc;
+        for (const ry of [4, 9, 14, 19]) {
+          ctx.beginPath();
+          ctx.moveTo(cx - 14 * sc, cy + ry * sc);
+          ctx.quadraticCurveTo(cx, cy + (ry + 2.5) * sc, cx + 14 * sc, cy + ry * sc);
+          ctx.stroke();
+        }
+      }
+    }
+
+    ctx.restore(); // unclip
+    ctx.stroke();
+    ctx.restore();
+
+    // 5. Owl Discs / Cat Ears in Frontal 3D View
+    if (isOwl || isCat) {
+      for (const side of [-1, 1]) {
+        const ex = cx + side * 12 * sc;
+        ctx.fillStyle = rgba(isOwl ? darken(s.wing, 0.05) : s.body);
+        ctx.strokeStyle = rgba(darken(s.body, 0.45));
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.moveTo(ex - 6 * sc, headTopY + 8 * sc);
+        ctx.lineTo(ex + side * 6 * sc, headTopY - 13 * sc);
+        ctx.lineTo(ex + 6 * sc, headTopY + 8 * sc);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+      if (isOwl) {
+        for (const side of [-1, 1]) {
+          ctx.fillStyle = rgba(lighten(s.belly, 0.2));
+          ctx.strokeStyle = rgba(darken(s.body, 0.4));
+          ctx.lineWidth = 1.3;
+          drawEllipse(ctx, cx + side * 9.5 * sc, cy - 7 * sc, 10.5 * sc, 11.5 * sc);
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 6. Symmetrical Binocular 3D Eyes Looking Forward!
+    const drawFrontEye = (ex: number, ey: number, er: number, irisTop: number, irisBot: number, slit = false) => {
+      if (isToucan) {
+        const ringGrad = ctx.createRadialGradient(ex, ey, er * 0.6, ex, ey, er * 1.45);
+        ringGrad.addColorStop(0, '#38bdf8');
+        ringGrad.addColorStop(1, '#0369a1');
+        ctx.fillStyle = ringGrad;
+        drawEllipse(ctx, ex, ey, er * 1.4, er * 1.35);
+        ctx.fill();
+      }
+      ctx.fillStyle = rgba(0x000000, 0.26);
+      drawEllipse(ctx, ex, ey + 0.8 * sc, er + 1 * sc, er + 1 * sc);
+      ctx.fill();
+      ctx.fillStyle = isOwl || isFalcon || isHawk ? rgba(0xfef08a) : '#ffffff';
+      drawEllipse(ctx, ex, ey, er, er);
+      ctx.fill();
+      const ir = er * 0.84;
+      const iGrad = ctx.createLinearGradient(ex, ey - ir, ex, ey + ir);
+      iGrad.addColorStop(0, rgba(irisTop));
+      iGrad.addColorStop(1, rgba(irisBot));
+      ctx.fillStyle = iGrad;
+      drawEllipse(ctx, ex, ey, ir, ir);
+      ctx.fill();
+      ctx.fillStyle = '#090a0f';
+      drawEllipse(ctx, ex, ey, ir * (slit ? 0.34 : 0.64), ir * (slit ? 0.82 : 0.64));
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      drawEllipse(ctx, ex - ir * 0.25, ey - ir * 0.3, Math.max(1.2, er * 0.26), Math.max(1.0, er * 0.22));
+      ctx.fill();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(ex, ey, er, Math.PI * 1.08, Math.PI * 1.92);
+      ctx.stroke();
+    };
+
+    const fEyeR = (stage === 0 ? 7.4 : 7.0) * sc;
+    for (const side of [-1, 1]) {
+      const ex = cx + side * (isOwl ? 9.5 : 10.5) * sc;
+      const ey = cy - 8 * sc;
+      if (isCat) {
+        drawFrontEye(ex, ey, fEyeR, 0x16a34a, 0xa3e635, true);
+      } else if (isOwl || isFalcon || isHawk) {
+        drawFrontEye(ex, ey, fEyeR, 0xd97706, 0xfde047);
+      } else if (isPhoenix || isWyvern) {
+        drawFrontEye(ex, ey, fEyeR, 0xef4444, 0xfef08a, isWyvern);
+      } else if (isToucan) {
+        drawFrontEye(ex, ey, fEyeR * 0.9, 0x1e3a8a, 0x38bdf8);
+      } else {
+        drawFrontEye(ex, ey, fEyeR, 0x291d12, 0x78350f);
+      }
+      // Rosy cheeks on both sides
+      if (!isOwl && !isFalcon && !isHawk && !isCrow && !isWyvern) {
+        ctx.fillStyle = rgba(0xff758f, 0.5);
+        drawEllipse(ctx, cx + side * 14 * sc, cy + 2 * sc, 5 * sc, 3.8 * sc);
+        ctx.fill();
+      }
+    }
+
+    // 7. Foreshortened 3D Frontal Beak Pointing Toward the Viewer!
+    const fBeakY = cy - 3 * sc;
+    if (isToucan) {
+      // Foreshortened 3D Toucan Rainbow Bill curving forward & down
+      const tGrad = ctx.createLinearGradient(cx, fBeakY - 9 * sc, cx, fBeakY + 15 * sc);
+      tGrad.addColorStop(0, '#facc15');
+      tGrad.addColorStop(0.55, '#fb923c');
+      tGrad.addColorStop(0.8, '#e11d48');
+      tGrad.addColorStop(1, '#881337');
+      ctx.fillStyle = tGrad;
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(cx - 8.5 * sc, fBeakY - 5 * sc);
+      ctx.quadraticCurveTo(cx, fBeakY - 11 * sc, cx + 8.5 * sc, fBeakY - 5 * sc);
+      ctx.quadraticCurveTo(cx + 9 * sc, fBeakY + 8 * sc, cx, fBeakY + 15 * sc);
+      ctx.quadraticCurveTo(cx - 9 * sc, fBeakY + 8 * sc, cx - 8.5 * sc, fBeakY - 5 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // Central culmen highlight ridge
+      ctx.fillStyle = rgba(0xfef9c3, 0.55);
+      drawEllipse(ctx, cx, fBeakY - 1 * sc, 3 * sc, 8 * sc);
+      ctx.fill();
+    } else if (isFalcon || isHawk || isOwl) {
+      // Foreshortened hooked 3D raptor/owl beak
+      ctx.fillStyle = '#facc15';
+      drawEllipse(ctx, cx, fBeakY - 3 * sc, 5.5 * sc, 3.2 * sc);
+      ctx.fill();
+      const rGrad = ctx.createLinearGradient(cx, fBeakY - 4 * sc, cx, fBeakY + 9 * sc);
+      rGrad.addColorStop(0, '#fde047');
+      rGrad.addColorStop(0.5, '#64748b');
+      rGrad.addColorStop(1, '#090a0f');
+      ctx.fillStyle = rGrad;
+      ctx.strokeStyle = '#090a0f';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(cx - 5 * sc, fBeakY - 2 * sc);
+      ctx.quadraticCurveTo(cx, fBeakY - 5 * sc, cx + 5 * sc, fBeakY - 2 * sc);
+      ctx.quadraticCurveTo(cx + 4 * sc, fBeakY + 4 * sc, cx, fBeakY + 9.5 * sc);
+      ctx.quadraticCurveTo(cx - 4 * sc, fBeakY + 4 * sc, cx - 5 * sc, fBeakY - 2 * sc);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      // 3D Conical Frontal Songbird / Canary / Dove / Phoenix Beak (Upper & Lower 3D Diamond Cone)
+      const bCol = s.beak ?? 0xffa62b;
+      // Lower mandible shadow cone
+      ctx.fillStyle = rgba(darken(bCol, 0.2));
+      ctx.strokeStyle = rgba(darken(bCol, 0.48));
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(cx - 6.5 * sc, fBeakY);
+      ctx.quadraticCurveTo(cx, fBeakY + 7.5 * sc, cx + 6.5 * sc, fBeakY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Upper 3D pyramid/cone maxilla pointing at camera
+      const uGrad = ctx.createRadialGradient(cx, fBeakY - 2 * sc, 1, cx, fBeakY, 8 * sc);
+      uGrad.addColorStop(0, rgba(lighten(bCol, 0.38)));
+      uGrad.addColorStop(0.65, rgba(bCol));
+      uGrad.addColorStop(1, rgba(darken(bCol, 0.12)));
+      ctx.fillStyle = uGrad;
+      ctx.beginPath();
+      ctx.moveTo(cx - 7 * sc, fBeakY);
+      ctx.quadraticCurveTo(cx, fBeakY - 7 * sc, cx + 7 * sc, fBeakY);
+      ctx.quadraticCurveTo(cx, fBeakY + 3.5 * sc, cx - 7 * sc, fBeakY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Specular tip dot pointing at viewer
+      ctx.fillStyle = rgba(0xffffff, 0.55);
+      drawEllipse(ctx, cx, fBeakY - 1.2 * sc, 2.2 * sc, 1.5 * sc);
+      ctx.fill();
+    }
+  };
+
+  makeCanvas(scene, `bird_${key}_${stage}_turn`, cw, ch, renderBirdTurn);
+  if (stage === 2) {
+    makeCanvas(scene, `bird_${key}_turn`, cw, ch, renderBirdTurn);
   }
 
   // ---------------------------------------------------------------------------
@@ -1462,495 +1891,1003 @@ export function makeTextures(scene: Phaser.Scene) {
   featherTex(scene, 'feather_phoenix', 0xb91c1c, 0xf97316, 0x450a0a, 0xfde047);
 
   let g = gfx(scene);
-  g.fillStyle(0xe39b00, 1);
-  g.fillEllipse(16, 21, 30, 38);
-  g.fillStyle(0xffd84a, 1);
-  g.fillEllipse(16, 20, 26, 34);
-  g.fillStyle(0xffffff, 0.8);
-  g.fillEllipse(10, 12, 6, 10);
-  g.generateTexture('goldegg', 32, 42);
   g.destroy();
 
-  // currency_dollar (Crisp, unmistakable shiny gold coin with embossed $ symbol for HUD & shop)
-  g = gfx(scene);
-  g.fillStyle(0x190d05, 0.4);
-  g.fillCircle(19, 21, 16);
-  g.fillStyle(0xd97706, 1);
-  g.fillCircle(18, 18, 16);
-  g.fillStyle(0xf59e0b, 1);
-  g.fillCircle(18, 18, 14);
-  g.fillStyle(0xfde047, 1);
-  g.fillCircle(18, 18, 11);
-  g.fillStyle(0xb45309, 1);
-  g.fillRect(17, 8, 2.5, 20); // vertical $ bar
-  g.fillRect(13, 11, 9, 2.2);
-  g.fillRect(13, 11, 2.5, 5);
-  g.fillRect(13, 16, 9, 2.2);
-  g.fillRect(20, 17, 2.5, 5);
-  g.fillRect(13, 22, 9, 2.2);
-  g.generateTexture('currency_dollar', 38, 38);
-  g.destroy();
+  // goldegg (3D Sculpted Metallic Golden Egg with Specular Rim & Warm Shadow)
+  makeCanvas(scene, 'goldegg', 32, 42, (ctx) => {
+    const grad = ctx.createRadialGradient(12, 13, 2, 16, 22, 19);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.22, '#fef08a');
+    grad.addColorStop(0.58, '#f59e0b');
+    grad.addColorStop(1, '#78350f');
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(16, 3);
+    ctx.bezierCurveTo(27, 3, 30, 19, 29, 28);
+    ctx.bezierCurveTo(28, 37, 22, 40, 16, 40);
+    ctx.bezierCurveTo(10, 40, 4, 37, 3, 28);
+    ctx.bezierCurveTo(2, 19, 5, 3, 16, 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
 
-  // Maple Samara (Helicopter Seed) - Horizontal Rotor Orientation
-  g = gfx(scene);
-  g.fillStyle(0xdfd4b8, 0.9);
-  g.fillEllipse(24, 12, 26, 10);
-  g.fillStyle(0xc8b27a, 0.95);
-  g.fillTriangle(9, 11, 38, 8, 26, 6);
-  g.lineStyle(1.2, 0x8d6e63, 0.75);
-  g.lineBetween(9, 12, 37, 10);
-  g.lineBetween(15, 12, 25, 16);
-  g.lineBetween(22, 11, 31, 15);
-  g.lineBetween(28, 10, 36, 14);
-  g.fillStyle(0x5d4037, 1);
-  g.fillEllipse(9, 12, 10, 8);
-  g.fillStyle(0x8d6e63, 1);
-  g.fillEllipse(8, 11, 6, 5);
-  g.generateTexture('seed', 40, 24);
-  g.destroy();
+    // Glossy 3D catchlight arc
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+    drawEllipse(ctx, 11, 13, 3.2, 6.2, 0.25);
+    ctx.fill();
+  });
 
-  // Corn with leaf parachute (drifts down gently from the sky)
-  g = gfx(scene);
-  g.fillStyle(0x22c55e, 1);
-  g.fillEllipse(15, 6, 24, 10);
-  g.fillStyle(0x16a34a, 1);
-  g.fillEllipse(15, 5, 18, 6);
-  g.lineStyle(1, 0xdcfce7, 0.85);
-  g.lineBetween(6, 7, 12, 17);
-  g.lineBetween(24, 7, 18, 17);
-  g.fillStyle(0xe0a800, 1);
-  g.fillEllipse(15, 24, 14, 17);
-  g.fillStyle(0xffe45e, 1);
-  g.fillEllipse(14, 23, 10, 13);
-  g.lineStyle(1, 0xe0a800, 1);
-  g.lineBetween(14, 17, 14, 28);
-  g.generateTexture('corn', 30, 36);
-  g.destroy();
+  // currency_dollar (3D Embossed Beveled Gold Coin with Specular Sheen)
+  makeCanvas(scene, 'currency_dollar', 38, 38, (ctx) => {
+    ctx.fillStyle = 'rgba(25, 13, 5, 0.35)';
+    drawEllipse(ctx, 19, 20.5, 16, 16);
+    ctx.fill();
 
-  // Berry with leaf parachute (sweet canopy fruit gliding down softly)
-  g = gfx(scene);
-  g.fillStyle(0x22c55e, 1);
-  g.fillEllipse(17, 6, 26, 10);
-  g.fillStyle(0x16a34a, 1);
-  g.fillEllipse(17, 5, 20, 6);
-  g.lineStyle(1, 0xdcfce7, 0.85);
-  g.lineBetween(7, 7, 13, 17);
-  g.lineBetween(27, 7, 21, 17);
-  g.fillStyle(0xe0243a, 1);
-  g.fillCircle(13, 24, 8);
-  g.fillCircle(20, 24, 6);
-  g.fillStyle(0xffffff, 0.75);
-  g.fillCircle(10, 21, 2);
-  g.generateTexture('berry', 34, 36);
-  g.destroy();
+    const rGrad = ctx.createLinearGradient(4, 4, 32, 32);
+    rGrad.addColorStop(0, '#fef08a');
+    rGrad.addColorStop(0.45, '#f59e0b');
+    rGrad.addColorStop(1, '#92400e');
+    ctx.fillStyle = rGrad;
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 1.4;
+    drawEllipse(ctx, 18, 18, 15.5, 15.5);
+    ctx.fill();
+    ctx.stroke();
 
-  // cinder_acorn (Fiery Phoenix-rebirthing nut dropped by Sugar Glider)
-  g = gfx(scene);
-  g.fillStyle(0xff5722, 0.45);
-  g.fillCircle(16, 18, 14);
-  g.fillStyle(0xd84315, 1);
-  g.fillEllipse(16, 20, 16, 18);
-  g.fillStyle(0xffa000, 1);
-  g.fillEllipse(16, 19, 11, 13);
-  g.fillStyle(0xfff176, 1);
-  g.fillCircle(16, 18, 4);
-  g.fillStyle(0x3e2723, 1);
-  g.fillRoundedRect(7, 8, 18, 8, 3);
-  g.lineStyle(1.5, 0xff5722, 1);
-  g.lineBetween(16, 8, 16, 3);
-  g.generateTexture('cinder_acorn', 32, 34);
-  g.destroy();
+    const iGrad = ctx.createRadialGradient(14, 13, 2, 18, 18, 12.5);
+    iGrad.addColorStop(0, '#fef9c3');
+    iGrad.addColorStop(0.65, '#fbbf24');
+    iGrad.addColorStop(1, '#b45309');
+    ctx.fillStyle = iGrad;
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 1.2;
+    drawEllipse(ctx, 18, 18, 12, 12);
+    ctx.fill();
+    ctx.stroke();
 
-  g = gfx(scene);
-  g.fillStyle(0xfff5dc, 1);
-  g.fillEllipse(14, 18, 24, 30);
-  g.fillStyle(0xe2c9a0, 1);
-  g.fillCircle(9, 20, 2);
-  g.fillCircle(18, 13, 2);
-  g.fillCircle(17, 24, 1.6);
-  g.generateTexture('egg', 28, 36);
-  g.destroy();
+    // Embossed 3D '$' symbol
+    ctx.font = 'bold 17px "Trebuchet MS", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fef9c3';
+    ctx.fillText('$', 18.6, 19.2);
+    ctx.fillStyle = '#78350f';
+    ctx.fillText('$', 18, 18.5);
+  });
 
-  g = gfx(scene);
-  g.fillStyle(0x8a5528, 1);
-  g.fillEllipse(8, 11, 13, 14);
-  g.fillStyle(0xc8934f, 1);
-  g.fillEllipse(8, 12, 9, 10);
-  g.fillStyle(0x5a3418, 1);
-  g.fillEllipse(8, 5, 15, 7);
-  g.fillRect(7, 0, 2, 4);
-  g.generateTexture('acorn', 16, 18);
-  g.destroy();
+  // seed: 3D Maple Samara (Helicopter Seed) - Horizontal Rotor Orientation with Veined Wing & Plump Nutlet
+  makeCanvas(scene, 'seed', 40, 24, (ctx) => {
+    // Translucent 3D veined samara airfoil wing
+    const wGrad = ctx.createLinearGradient(8, 6, 38, 16);
+    wGrad.addColorStop(0, '#d6b87c');
+    wGrad.addColorStop(0.5, '#ede2c4');
+    wGrad.addColorStop(1, '#b59257');
+    ctx.fillStyle = wGrad;
+    ctx.strokeStyle = '#78532a';
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(9, 12);
+    ctx.bezierCurveTo(18, 5, 34, 4, 38, 10);
+    ctx.bezierCurveTo(39, 15, 27, 19, 11, 14);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
 
-  g = gfx(scene);
-  g.fillStyle(0xffc700, 1);
-  g.fillTriangle(2, 20, 4, 4, 11, 14);
-  g.fillTriangle(10, 14, 17, 0, 24, 14);
-  g.fillTriangle(23, 14, 30, 4, 32, 20);
-  g.fillRect(2, 14, 30, 7);
-  g.fillStyle(0xe0243a, 1);
-  g.fillCircle(17, 17, 2.5);
-  g.generateTexture('crown', 34, 22);
-  g.destroy();
+    // Thickened leading-edge aerodynamic spar along top of samara wing
+    const sGrad = ctx.createLinearGradient(9, 9, 36, 8);
+    sGrad.addColorStop(0, '#6d4522');
+    sGrad.addColorStop(1, '#a67b44');
+    ctx.strokeStyle = sGrad;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(9, 11.5);
+    ctx.quadraticCurveTo(23, 6.5, 37, 9.5);
+    ctx.stroke();
 
-  // --- Weapons: Stick, Slingshot, Bow, Rifle, Laser ---
-  g = gfx(scene);
-  g.lineStyle(6, 0x6d4c41, 1);
-  g.lineBetween(8, 30, 28, 6);
-  g.lineStyle(2, 0x4e342e, 1);
-  g.lineBetween(12, 26, 15, 23);
-  g.lineBetween(21, 15, 24, 12);
-  g.lineStyle(3, 0x6d4c41, 1);
-  g.lineBetween(20, 16, 26, 12);
-  g.fillStyle(0x43a047, 1);
-  g.fillEllipse(28, 10, 8, 4);
-  g.fillEllipse(25, 6, 7, 3);
-  g.lineStyle(1, 0x2e7d32, 1);
-  g.lineBetween(24, 10, 31, 10);
-  g.generateTexture('weapon_stick', 36, 36);
-  g.destroy();
+    // Delicate branching wing veins
+    ctx.strokeStyle = 'rgba(120, 83, 42, 0.55)';
+    ctx.lineWidth = 0.85;
+    for (const [vx, vy, ex, ey] of [[15, 10, 22, 16], [21, 9, 29, 15.5], [27, 9, 34, 14]]) {
+      ctx.beginPath();
+      ctx.moveTo(vx, vy);
+      ctx.quadraticCurveTo((vx + ex) * 0.5, vy + 2, ex, ey);
+      ctx.stroke();
+    }
 
-  g = gfx(scene);
-  g.lineStyle(5.5, 0x8a5528, 1);
-  g.lineBetween(16, 38, 16, 22);
-  g.lineBetween(16, 22, 6, 8);
-  g.lineBetween(16, 22, 26, 8);
-  g.lineStyle(2.5, 0xe53935, 1);
-  g.lineBetween(6, 8, 16, 16);
-  g.lineBetween(26, 8, 16, 16);
-  g.fillStyle(0x4e342e, 1);
-  g.fillCircle(16, 16, 4);
-  g.fillStyle(0x9e9e9e, 1);
-  g.fillCircle(16, 15, 2.5);
-  g.generateTexture('slingshot', 32, 40);
-  g.generateTexture('weapon_slingshot', 32, 40);
-  g.destroy();
+    // 3D spherical nutlet seed pod on the left
+    const nGrad = ctx.createRadialGradient(7.5, 10.5, 1, 9, 12.5, 6);
+    nGrad.addColorStop(0, '#c6935b');
+    nGrad.addColorStop(0.55, '#6e4220');
+    nGrad.addColorStop(1, '#3b210d');
+    ctx.fillStyle = nGrad;
+    ctx.strokeStyle = '#271408';
+    ctx.lineWidth = 1.1;
+    drawEllipse(ctx, 9, 12.2, 5.2, 4.2, -0.15);
+    ctx.fill();
+    ctx.stroke();
 
-  g = gfx(scene);
-  g.lineStyle(4, 0x8d5b28, 1);
-  g.lineBetween(8, 5, 22, 18);
-  g.lineBetween(22, 18, 8, 31);
-  g.lineStyle(5, 0x5c3818, 1);
-  g.lineBetween(8, 5, 11, 8);
-  g.lineBetween(8, 31, 11, 28);
-  g.lineStyle(1.5, 0xffffff, 0.95);
-  g.lineBetween(8, 5, 8, 31);
-  g.lineStyle(2, 0xbcaaa4, 1);
-  g.lineBetween(6, 18, 30, 18);
-  g.fillStyle(0x78909c, 1);
-  g.fillTriangle(34, 18, 29, 14, 29, 22);
-  g.fillStyle(0xe53935, 1);
-  g.fillTriangle(7, 18, 4, 14, 10, 14);
-  g.fillTriangle(7, 18, 4, 22, 10, 22);
-  g.generateTexture('weapon_bow', 36, 36);
-  g.destroy();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    drawEllipse(ctx, 7.6, 10.8, 1.8, 1.1, -0.2);
+    ctx.fill();
+  });
 
-  g = gfx(scene);
-  g.fillStyle(0x6d4c41, 1);
-  g.fillRoundedRect(4, 12, 14, 10, 3);
-  g.fillStyle(0x475569, 1);
-  g.fillRect(14, 11, 25, 5);
-  g.fillRect(12, 14, 8, 5);
-  g.fillRect(37, 8, 2, 4);
-  g.lineStyle(1.5, 0xd97706, 1);
-  g.lineBetween(14, 17, 18, 21);
-  g.lineBetween(18, 21, 20, 16);
-  g.generateTexture('weapon_rifle', 42, 26);
-  g.destroy();
+  // corn: 3D Golden Sweetcorn Kernel / Cob with Lush Leaf Parachute
+  makeCanvas(scene, 'corn', 30, 36, (ctx) => {
+    // Gossamer suspension silk threads
+    ctx.strokeStyle = 'rgba(220, 252, 231, 0.9)';
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(6, 7); ctx.lineTo(12, 18);
+    ctx.moveTo(24, 7); ctx.lineTo(18, 18);
+    ctx.stroke();
 
-  g = gfx(scene);
-  g.fillStyle(0xd90429, 1);
-  g.fillRoundedRect(8, 14, 8, 12, 3);
-  g.fillStyle(0xe2e8f0, 1);
-  g.fillRoundedRect(12, 8, 16, 10, 4);
-  g.fillStyle(0x00f0ff, 1);
-  g.fillRect(16, 9, 3, 8);
-  g.fillRect(21, 9, 3, 8);
-  g.fillStyle(0x94a3b8, 1);
-  g.fillTriangle(28, 8, 38, 11, 28, 16);
-  g.fillStyle(0x00ffff, 1);
-  g.fillCircle(37, 13, 3);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(37, 13, 1.5);
-  g.generateTexture('weapon_laser', 40, 28);
-  g.destroy();
+    // 3D arched canopy leaf parachute
+    const lGrad = ctx.createRadialGradient(15, 4, 2, 15, 6, 13);
+    lGrad.addColorStop(0, '#86efac');
+    lGrad.addColorStop(0.55, '#22c55e');
+    lGrad.addColorStop(1, '#14532d');
+    ctx.fillStyle = lGrad;
+    ctx.strokeStyle = '#052e16';
+    ctx.lineWidth = 1;
+    drawEllipse(ctx, 15, 6, 12, 5);
+    ctx.fill();
+    ctx.stroke();
 
-  g = gfx(scene);
-  g.lineStyle(2, 0xd7ccc8, 1);
-  g.lineBetween(2, 5, 24, 5);
-  g.fillStyle(0x90a4ae, 1);
-  g.fillTriangle(29, 5, 23, 2, 23, 8);
-  g.fillStyle(0xef4444, 1);
-  g.fillTriangle(4, 5, 1, 2, 7, 2);
-  g.fillTriangle(4, 5, 1, 8, 7, 8);
-  g.generateTexture('arrow', 30, 10);
-  g.destroy();
+    // Plump 3D golden corn cob / kernel cluster
+    const cGrad = ctx.createRadialGradient(13, 21, 1.5, 15, 24, 9.5);
+    cGrad.addColorStop(0, '#fef9c3');
+    cGrad.addColorStop(0.45, '#facc15');
+    cGrad.addColorStop(1, '#b45309');
+    ctx.fillStyle = cGrad;
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 1.1;
+    drawEllipse(ctx, 15, 24, 7.2, 8.8);
+    ctx.fill();
+    ctx.stroke();
 
-  g = gfx(scene);
-  g.fillStyle(0x334155, 1);
-  g.fillRoundedRect(4, 20, 24, 8, 2);
-  g.fillStyle(0xef4444, 1);
-  g.fillRoundedRect(7, 6, 18, 15, 6);
-  g.fillStyle(0xffffff, 0.8);
-  g.fillEllipse(12, 10, 4, 7);
-  g.generateTexture('siren_light', 32, 32);
-  g.destroy();
+    // Individual kernel grid texture
+    ctx.strokeStyle = 'rgba(146, 64, 14, 0.45)';
+    ctx.lineWidth = 0.85;
+    ctx.beginPath();
+    ctx.moveTo(15, 16); ctx.lineTo(15, 32);
+    ctx.moveTo(10, 21); ctx.lineTo(20, 21);
+    ctx.moveTo(9, 25); ctx.lineTo(21, 25);
+    ctx.moveTo(10, 29); ctx.lineTo(20, 29);
+    ctx.stroke();
+  });
 
-  g = gfx(scene);
-  // Organic puffy cumulus cloud with gentle rounded shading (no flat smeared rectangle)
-  g.fillStyle(0xf1f5f9, 0.95);
-  g.fillCircle(48, 54, 26);
-  g.fillCircle(82, 58, 28);
-  g.fillCircle(124, 58, 28);
-  g.fillCircle(156, 52, 24);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(54, 48, 28);
-  g.fillCircle(90, 38, 36);
-  g.fillCircle(132, 40, 32);
-  g.fillCircle(154, 48, 24);
-  g.fillCircle(88, 54, 30);
-  g.fillCircle(122, 54, 28);
-  g.generateTexture('cloud', 196, 92);
-  g.destroy();
+  // berry: 3D Glossy Ruby Canopy Berries with Leaf Parachute
+  makeCanvas(scene, 'berry', 34, 36, (ctx) => {
+    ctx.strokeStyle = 'rgba(220, 252, 231, 0.9)';
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(7, 7); ctx.lineTo(13, 18);
+    ctx.moveTo(27, 7); ctx.lineTo(21, 18);
+    ctx.stroke();
 
-  g = gfx(scene);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(5, 5, 5);
-  g.generateTexture('spark', 10, 10);
-  g.destroy();
+    const lGrad = ctx.createRadialGradient(17, 4, 2, 17, 6, 14);
+    lGrad.addColorStop(0, '#86efac');
+    lGrad.addColorStop(0.55, '#22c55e');
+    lGrad.addColorStop(1, '#14532d');
+    ctx.fillStyle = lGrad;
+    ctx.strokeStyle = '#052e16';
+    ctx.lineWidth = 1;
+    drawEllipse(ctx, 17, 6, 13, 5);
+    ctx.fill();
+    ctx.stroke();
 
-  g = gfx(scene);
-  g.fillStyle(0x4fc3f7, 1);
-  g.fillTriangle(15, 2, 2, 11, 28, 11);
-  g.fillStyle(0x0288d1, 1);
-  g.fillTriangle(2, 11, 28, 11, 15, 28);
-  g.fillStyle(0xb3e5fc, 1);
-  g.fillTriangle(15, 2, 8, 11, 15, 11);
-  g.fillStyle(0x29b6f6, 1);
-  g.fillTriangle(8, 11, 22, 11, 15, 28);
-  g.generateTexture('gem', 30, 30);
-  g.destroy();
+    // Twin 3D ruby berries
+    for (const [bx, by, br] of [[20, 24, 6.2], [13, 24, 7.8]]) {
+      const bGrad = ctx.createRadialGradient(bx - 2, by - 2.5, 1, bx, by, br);
+      bGrad.addColorStop(0, '#fda4af');
+      bGrad.addColorStop(0.35, '#e11d48');
+      bGrad.addColorStop(1, '#4c0519');
+      ctx.fillStyle = bGrad;
+      ctx.strokeStyle = '#4c0519';
+      ctx.lineWidth = 1;
+      drawEllipse(ctx, bx, by, br, br);
+      ctx.fill();
+      ctx.stroke();
 
-  g = gfx(scene);
-  g.fillStyle(0xe0f7fa, 1);
-  g.fillTriangle(16, 2, 4, 11, 28, 11);
-  g.fillStyle(0x00e5ff, 1);
-  g.fillTriangle(4, 11, 28, 11, 16, 30);
-  g.fillStyle(0xffffff, 1);
-  g.fillTriangle(16, 2, 10, 11, 16, 11);
-  g.fillStyle(0x84ffff, 1);
-  g.fillTriangle(10, 11, 22, 11, 16, 30);
-  g.generateTexture('gem_diamond', 32, 32);
-  g.destroy();
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      drawEllipse(ctx, bx - br * 0.35, by - br * 0.35, br * 0.26, br * 0.2, -0.3);
+      ctx.fill();
+    }
+  });
 
-  g = gfx(scene);
-  g.fillStyle(0xdfeaf2, 1);
-  g.fillRoundedRect(8, 0, 10, 10, 2);
-  g.fillStyle(0x8a5528, 1);
-  g.fillRect(8, 0, 10, 4);
-  g.fillStyle(0xb48cff, 1);
-  g.fillCircle(13, 22, 11);
-  g.fillStyle(0xe6d4ff, 1);
-  g.fillCircle(9, 19, 3);
-  g.generateTexture('potion', 26, 34);
-  g.destroy();
+  // cinder_acorn: 3D Volcanic Magma Nut
+  makeCanvas(scene, 'cinder_acorn', 32, 34, (ctx) => {
+    const aGrad = ctx.createRadialGradient(16, 18, 2, 16, 18, 15);
+    aGrad.addColorStop(0, 'rgba(255, 152, 0, 0.65)');
+    aGrad.addColorStop(1, 'rgba(255, 87, 34, 0)');
+    ctx.fillStyle = aGrad;
+    drawEllipse(ctx, 16, 18, 15, 15);
+    ctx.fill();
 
-  // Santa hat
-  g = gfx(scene);
-  g.fillStyle(0xd32f2f, 1);
-  g.fillTriangle(4, 24, 18, 2, 32, 24);
-  g.fillStyle(0xffffff, 1);
-  g.fillRoundedRect(2, 22, 32, 8, 4);
-  g.fillCircle(18, 3, 5);
-  g.generateTexture('hat_santa', 36, 32);
-  g.destroy();
+    const nGrad = ctx.createRadialGradient(14, 18, 1.5, 16, 20, 9.5);
+    nGrad.addColorStop(0, '#fff9c4');
+    nGrad.addColorStop(0.4, '#ff9800');
+    nGrad.addColorStop(0.8, '#d84315');
+    nGrad.addColorStop(1, '#4e1405');
+    ctx.fillStyle = nGrad;
+    drawEllipse(ctx, 16, 20, 8, 9.5);
+    ctx.fill();
 
-  // Archimedes wire-rim glasses
-  g = gfx(scene);
-  g.lineStyle(2, 0xd4af37, 1);
-  g.strokeCircle(9, 9, 8);
-  g.strokeCircle(25, 9, 8);
-  g.lineBetween(17, 9, 17, 9);
-  g.fillStyle(0xe0f7fa, 0.4);
-  g.fillCircle(9, 9, 7);
-  g.fillCircle(25, 9, 7);
-  g.generateTexture('glasses_archimedes', 34, 18);
-  g.destroy();
+    // Knobby 3D volcanic oak cupule cap
+    const cGrad = ctx.createLinearGradient(7, 8, 25, 15);
+    cGrad.addColorStop(0, '#5d4037');
+    cGrad.addColorStop(1, '#271408');
+    ctx.fillStyle = cGrad;
+    ctx.beginPath();
+    ctx.roundRect(7, 8, 18, 7.5, 3.5);
+    ctx.fill();
+  });
 
-  // Pirate hat & eyepatch
-  g = gfx(scene);
-  g.fillStyle(0x1a1a1a, 1);
-  g.fillEllipse(20, 16, 38, 18);
-  g.fillTriangle(2, 22, 20, 4, 38, 22);
-  g.lineStyle(2, 0xffd700, 1);
-  g.lineBetween(6, 20, 34, 20);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(20, 12, 3);
-  g.fillRect(19, 14, 2, 4);
-  g.generateTexture('hat_pirate', 40, 24);
-  g.destroy();
+  // egg: 3D Sculpted Speckled Sanctuary Egg with Smooth Spherical Lighting
+  makeCanvas(scene, 'egg', 28, 36, (ctx) => {
+    const eGrad = ctx.createRadialGradient(11, 11, 2, 14, 19, 16);
+    eGrad.addColorStop(0, '#ffffff');
+    eGrad.addColorStop(0.55, '#fff5dc');
+    eGrad.addColorStop(1, '#cbb289');
+    ctx.fillStyle = eGrad;
+    ctx.strokeStyle = '#8c6f47';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(14, 3);
+    ctx.bezierCurveTo(23, 3, 26, 17, 25, 25);
+    ctx.bezierCurveTo(24, 32, 19, 34, 14, 34);
+    ctx.bezierCurveTo(9, 34, 4, 32, 3, 25);
+    ctx.bezierCurveTo(2, 17, 5, 3, 14, 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
 
-  g = gfx(scene);
-  g.fillStyle(0x111111, 1);
-  g.fillCircle(8, 8, 6);
-  g.lineStyle(1.5, 0x111111, 1);
-  g.lineBetween(0, 4, 16, 12);
-  g.generateTexture('eyepatch', 16, 16);
-  g.destroy();
+    // Organic shell speckles
+    ctx.fillStyle = 'rgba(168, 134, 92, 0.55)';
+    for (const [sx, sy, rx, ry] of [[9, 20, 2, 1.6], [18, 13, 2.2, 1.8], [17, 24, 1.6, 1.4], [12, 27, 1.4, 1.1]]) {
+      drawEllipse(ctx, sx, sy, rx, ry, 0.2);
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    drawEllipse(ctx, 10, 11, 2.4, 4.5, 0.25);
+    ctx.fill();
+  });
 
-  // Natural bird eyelid for lifelike blinking animation
-  g = gfx(scene);
-  g.fillStyle(0x00796b, 1);
-  g.fillEllipse(9, 6, 16, 9);
-  g.lineStyle(1.5, 0x142823, 1);
-  g.strokeEllipse(9, 6, 16, 9);
-  g.generateTexture('bird_eyelid', 18, 12);
-  g.destroy();
+  // acorn: 3D Woodland Oak Acorn
+  makeCanvas(scene, 'acorn', 16, 18, (ctx) => {
+    const nGrad = ctx.createRadialGradient(6.5, 10, 1, 8, 11.5, 6.5);
+    nGrad.addColorStop(0, '#eab676');
+    nGrad.addColorStop(0.6, '#9c5a25');
+    nGrad.addColorStop(1, '#4a2508');
+    ctx.fillStyle = nGrad;
+    drawEllipse(ctx, 8, 11.5, 6, 6.2);
+    ctx.fill();
 
-  // sparrow_twig (Branch fetched by bird for nest building matching Reference Sheets Row 2!)
-  g = gfx(scene);
-  g.lineStyle(3.2, 0x5a3418, 1);
-  g.beginPath();
-  g.moveTo(2, 14);
-  g.lineTo(28, 8);
-  g.strokePath();
-  g.lineStyle(2.4, 0x5a3418, 1);
-  g.beginPath();
-  g.moveTo(18, 10);
-  g.lineTo(26, 2);
-  g.strokePath();
-  g.fillStyle(0x4ade80, 1);
-  g.fillCircle(28, 8, 2.5);
-  g.fillCircle(26, 2, 2);
-  g.generateTexture('sparrow_twig', 32, 18);
-  g.destroy();
+    const cGrad = ctx.createLinearGradient(1, 3, 15, 8);
+    cGrad.addColorStop(0, '#7c4a21');
+    cGrad.addColorStop(1, '#3b1e08');
+    ctx.fillStyle = cGrad;
+    drawEllipse(ctx, 8, 5.5, 7, 3.5);
+    ctx.fill();
+    ctx.fillRect(7, 0.5, 2, 3.5);
+  });
+
+  // crown: 3D Jeweled Royal King Songbird Crown
+  makeCanvas(scene, 'crown', 34, 22, (ctx) => {
+    const cGrad = ctx.createLinearGradient(2, 2, 32, 20);
+    cGrad.addColorStop(0, '#fef08a');
+    cGrad.addColorStop(0.5, '#f59e0b');
+    cGrad.addColorStop(1, '#b45309');
+    ctx.fillStyle = cGrad;
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(3, 19);
+    ctx.lineTo(3, 4);
+    ctx.lineTo(10, 13);
+    ctx.lineTo(17, 1);
+    ctx.lineTo(24, 13);
+    ctx.lineTo(31, 4);
+    ctx.lineTo(31, 19);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Velvet royal band & 3D gemstones
+    ctx.fillStyle = '#991b1b';
+    ctx.fillRect(4, 15, 26, 3.5);
+    for (const [gx, col] of [[9, '#38bdf8'], [17, '#ef4444'], [25, '#38bdf8']] as [number, string][]) {
+      ctx.fillStyle = col;
+      drawEllipse(ctx, gx, 16, 2.2, 2.2);
+      ctx.fill();
+    }
+  });
+
+  // --- 3D Sculpted Weapons: Stick, Slingshot, Bow, Rifle, Laser ---
+  makeCanvas(scene, 'weapon_stick', 36, 36, (ctx) => {
+    ctx.strokeStyle = '#3e2723';
+    ctx.lineWidth = 7.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(7, 30); ctx.lineTo(28, 7);
+    ctx.stroke();
+    const sGrad = ctx.createLinearGradient(7, 30, 28, 7);
+    sGrad.addColorStop(0, '#5d4037');
+    sGrad.addColorStop(0.5, '#8d6e63');
+    sGrad.addColorStop(1, '#6d4c41');
+    ctx.strokeStyle = sGrad;
+    ctx.lineWidth = 5.2;
+    ctx.stroke();
+
+    // Sprouting green leaves
+    ctx.fillStyle = '#22c55e';
+    drawEllipse(ctx, 28, 10, 4.5, 2.4, 0.3); ctx.fill();
+    drawEllipse(ctx, 24, 5.5, 4, 2, -0.4); ctx.fill();
+  });
+
+  const renderSlingshot = (ctx: CanvasRenderingContext2D) => {
+    ctx.strokeStyle = '#3e200c';
+    ctx.lineWidth = 6.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(16, 37); ctx.lineTo(16, 22);
+    ctx.lineTo(6, 8); ctx.moveTo(16, 22); ctx.lineTo(26, 8);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#a16207';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(6, 8); ctx.lineTo(16, 16); ctx.lineTo(26, 8);
+    ctx.stroke();
+
+    const pGrad = ctx.createRadialGradient(15, 14, 0.5, 16, 15, 4);
+    pGrad.addColorStop(0, '#cbd5e1');
+    pGrad.addColorStop(1, '#475569');
+    ctx.fillStyle = pGrad;
+    drawEllipse(ctx, 16, 15, 3.8, 3.8);
+    ctx.fill();
+  };
+  makeCanvas(scene, 'slingshot', 32, 40, renderSlingshot);
+  makeCanvas(scene, 'weapon_slingshot', 32, 40, renderSlingshot);
+
+  makeCanvas(scene, 'weapon_bow', 36, 36, (ctx) => {
+    // Bowstring
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(9, 4); ctx.lineTo(9, 32);
+    ctx.stroke();
+
+    // Sculpted recurve yew bow limbs
+    const bGrad = ctx.createLinearGradient(8, 4, 24, 32);
+    bGrad.addColorStop(0, '#b45309');
+    bGrad.addColorStop(0.5, '#f59e0b');
+    bGrad.addColorStop(1, '#78350f');
+    ctx.strokeStyle = bGrad;
+    ctx.lineWidth = 4.2;
+    ctx.beginPath();
+    ctx.moveTo(9, 4);
+    ctx.quadraticCurveTo(26, 18, 9, 32);
+    ctx.stroke();
+
+    // Nocked arrow
+    ctx.strokeStyle = '#d6d3d1';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(6, 18); ctx.lineTo(30, 18);
+    ctx.stroke();
+    ctx.fillStyle = '#94a3b8';
+    ctx.beginPath();
+    ctx.moveTo(35, 18); ctx.lineTo(28, 14); ctx.lineTo(28, 22); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.moveTo(8, 18); ctx.lineTo(4, 14); ctx.lineTo(10, 14); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(8, 18); ctx.lineTo(4, 22); ctx.lineTo(10, 22); ctx.closePath(); ctx.fill();
+  });
+
+  makeCanvas(scene, 'weapon_rifle', 42, 26, (ctx) => {
+    const sGrad = ctx.createLinearGradient(4, 12, 18, 22);
+    sGrad.addColorStop(0, '#9a3412');
+    sGrad.addColorStop(1, '#431407');
+    ctx.fillStyle = sGrad;
+    ctx.beginPath();
+    ctx.roundRect(4, 12, 14, 10, 3);
+    ctx.fill();
+
+    const mGrad = ctx.createLinearGradient(14, 9, 14, 17);
+    mGrad.addColorStop(0, '#94a3b8');
+    mGrad.addColorStop(0.5, '#475569');
+    mGrad.addColorStop(1, '#1e293b');
+    ctx.fillStyle = mGrad;
+    ctx.beginPath();
+    ctx.roundRect(13, 10, 26, 5.5, 2);
+    ctx.fill();
+    ctx.fillRect(36, 7.5, 2.5, 3.5);
+  });
+
+  makeCanvas(scene, 'weapon_laser', 40, 28, (ctx) => {
+    ctx.fillStyle = '#be123c';
+    ctx.beginPath();
+    ctx.roundRect(7, 14, 8, 12, 3);
+    ctx.fill();
+
+    const bGrad = ctx.createLinearGradient(10, 6, 30, 18);
+    bGrad.addColorStop(0, '#f8fafc');
+    bGrad.addColorStop(1, '#64748b');
+    ctx.fillStyle = bGrad;
+    ctx.beginPath();
+    ctx.roundRect(11, 7, 18, 11, 4);
+    ctx.fill();
+
+    ctx.fillStyle = '#00f0ff';
+    ctx.fillRect(15, 9, 3, 7);
+    ctx.fillRect(20, 9, 3, 7);
+
+    const cGrad = ctx.createRadialGradient(36, 12.5, 0.5, 36, 12.5, 4.5);
+    cGrad.addColorStop(0, '#ffffff');
+    cGrad.addColorStop(0.5, '#00ffff');
+    cGrad.addColorStop(1, 'rgba(0, 255, 255, 0)');
+    ctx.fillStyle = cGrad;
+    drawEllipse(ctx, 36, 12.5, 4.5, 4.5);
+    ctx.fill();
+  });
+
+  makeCanvas(scene, 'arrow', 30, 10, (ctx) => {
+    ctx.strokeStyle = '#d6d3d1';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(2, 5); ctx.lineTo(24, 5);
+    ctx.stroke();
+    ctx.fillStyle = '#cbd5e1';
+    ctx.beginPath();
+    ctx.moveTo(29, 5); ctx.lineTo(22, 1.5); ctx.lineTo(22, 8.5); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.moveTo(5, 5); ctx.lineTo(1, 1.5); ctx.lineTo(8, 1.5); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(5, 5); ctx.lineTo(1, 8.5); ctx.lineTo(8, 8.5); ctx.closePath(); ctx.fill();
+  });
+
+  makeCanvas(scene, 'siren_light', 32, 32, (ctx) => {
+    ctx.fillStyle = '#334155';
+    ctx.beginPath();
+    ctx.roundRect(4, 20, 24, 8, 2.5);
+    ctx.fill();
+    const sGrad = ctx.createRadialGradient(13, 11, 2, 16, 14, 11);
+    sGrad.addColorStop(0, '#fecdd3');
+    sGrad.addColorStop(0.4, '#ef4444');
+    sGrad.addColorStop(1, '#991b1b');
+    ctx.fillStyle = sGrad;
+    ctx.beginPath();
+    ctx.roundRect(7, 6, 18, 15, 6);
+    ctx.fill();
+  });
+
+  // cloud: 3D Volumetric Sunlit Cumulus Cloud with Soft Lavender-Blue Underside Shadow
+  makeCanvas(scene, 'cloud', 196, 92, (ctx) => {
+    // Soft ambient base shadow puffs
+    const sGrad = ctx.createLinearGradient(98, 22, 98, 82);
+    sGrad.addColorStop(0, '#ffffff');
+    sGrad.addColorStop(0.65, '#f1f5f9');
+    sGrad.addColorStop(1, '#cbd5e1');
+    ctx.fillStyle = sGrad;
+    for (const [cx, cy, r] of [[46, 56, 25], [82, 60, 28], [124, 60, 28], [156, 54, 23], [92, 38, 35], [130, 40, 31], [56, 46, 27]]) {
+      drawEllipse(ctx, cx, cy, r, r * 0.92);
+      ctx.fill();
+    }
+    // Sunlit 3D top billows
+    for (const [cx, cy, r] of [[56, 44, 24], [90, 34, 32], [128, 37, 28], [152, 48, 20], [92, 50, 26]]) {
+      const bGrad = ctx.createRadialGradient(cx - r * 0.25, cy - r * 0.28, 2, cx, cy, r);
+      bGrad.addColorStop(0, '#ffffff');
+      bGrad.addColorStop(0.75, 'rgba(255, 255, 255, 0.92)');
+      bGrad.addColorStop(1, 'rgba(226, 232, 240, 0)');
+      ctx.fillStyle = bGrad;
+      drawEllipse(ctx, cx, cy, r, r * 0.9);
+      ctx.fill();
+    }
+  });
+
+  makeCanvas(scene, 'spark', 10, 10, (ctx) => {
+    const grad = ctx.createRadialGradient(5, 5, 0.5, 5, 5, 5);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.6, 'rgba(255, 255, 255, 0.85)');
+    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = grad;
+    drawEllipse(ctx, 5, 5, 5, 5);
+    ctx.fill();
+  });
+
+  // gem & gem_diamond: 3D Faceted Brilliant-Cut Sanctuary Gems
+  const drawFacetedGem = (ctx: CanvasRenderingContext2D, w: number, topCol: string, midCol: string, botCol: string, rimCol: string) => {
+    const cx = w / 2;
+    ctx.fillStyle = midCol;
+    ctx.strokeStyle = rimCol;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx, 2);
+    ctx.lineTo(w - 2, 11);
+    ctx.lineTo(cx, w - 2);
+    ctx.lineTo(2, 11);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Crown table facet
+    ctx.fillStyle = topCol;
+    ctx.beginPath();
+    ctx.moveTo(cx, 2); ctx.lineTo(w - 7, 11); ctx.lineTo(7, 11); ctx.closePath();
+    ctx.fill();
+
+    // Left sunlit pavilion facet
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(cx, 2); ctx.lineTo(7, 11); ctx.lineTo(cx, 11); ctx.closePath();
+    ctx.fill();
+
+    // Right deep pavilion facet
+    ctx.fillStyle = botCol;
+    ctx.beginPath();
+    ctx.moveTo(cx, 11); ctx.lineTo(w - 2, 11); ctx.lineTo(cx, w - 2); ctx.closePath();
+    ctx.fill();
+  };
+
+  makeCanvas(scene, 'gem', 30, 30, (ctx) => drawFacetedGem(ctx, 30, '#bae6fd', '#38bdf8', '#0369a1', '#0c4a6e'));
+  makeCanvas(scene, 'gem_diamond', 32, 32, (ctx) => drawFacetedGem(ctx, 32, '#ffffff', '#67e8f9', '#0891b2', '#164e63'));
+
+  // potion: 3D Glass Alchemist Flask with Glowing Elixir
+  makeCanvas(scene, 'potion', 26, 34, (ctx) => {
+    ctx.fillStyle = '#92400e';
+    ctx.beginPath();
+    ctx.roundRect(9, 1, 8, 5, 1.5);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(224, 242, 254, 0.65)';
+    ctx.fillRect(8, 5, 10, 6);
+
+    const pGrad = ctx.createRadialGradient(10, 19, 1.5, 13, 22, 11);
+    pGrad.addColorStop(0, '#f3e8ff');
+    pGrad.addColorStop(0.45, '#c084fc');
+    pGrad.addColorStop(1, '#581c87');
+    ctx.fillStyle = pGrad;
+    ctx.strokeStyle = '#e0f2fe';
+    ctx.lineWidth = 1.2;
+    drawEllipse(ctx, 13, 22, 10.5, 10.5);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    drawEllipse(ctx, 9.5, 18.5, 2.2, 3.4, 0.3);
+    ctx.fill();
+  });
+
+  makeCanvas(scene, 'hat_santa', 36, 32, (ctx) => {
+    const hGrad = ctx.createLinearGradient(6, 4, 30, 24);
+    hGrad.addColorStop(0, '#ef4444');
+    hGrad.addColorStop(1, '#991b1b');
+    ctx.fillStyle = hGrad;
+    ctx.beginPath();
+    ctx.moveTo(4, 24); ctx.quadraticCurveTo(16, 2, 20, 3); ctx.lineTo(32, 24); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(2, 22, 32, 8, 4);
+    ctx.fill();
+    drawEllipse(ctx, 19, 4, 5, 5);
+    ctx.fill();
+  });
+
+  makeCanvas(scene, 'glasses_archimedes', 34, 18, (ctx) => {
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.42)';
+    drawEllipse(ctx, 9, 9, 7, 7); ctx.fill();
+    drawEllipse(ctx, 25, 9, 7, 7); ctx.fill();
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 2;
+    drawEllipse(ctx, 9, 9, 7.5, 7.5); ctx.stroke();
+    drawEllipse(ctx, 25, 9, 7.5, 7.5); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(16.5, 9); ctx.lineTo(17.5, 9);
+    ctx.stroke();
+  });
+
+  makeCanvas(scene, 'hat_pirate', 40, 24, (ctx) => {
+    ctx.fillStyle = '#0f172a';
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(2, 21);
+    ctx.quadraticCurveTo(20, 1, 38, 21);
+    ctx.quadraticCurveTo(20, 24, 2, 21);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 20, 13, 3.2, 3.2);
+    ctx.fill();
+  });
+
+  makeCanvas(scene, 'eyepatch', 16, 16, (ctx) => {
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(0, 4); ctx.lineTo(16, 12);
+    ctx.stroke();
+    ctx.fillStyle = '#0f172a';
+    drawEllipse(ctx, 8, 8, 5.5, 5.5);
+    ctx.fill();
+  });
+
+  makeCanvas(scene, 'bird_eyelid', 18, 12, (ctx) => {
+    const eGrad = ctx.createLinearGradient(9, 1, 9, 11);
+    eGrad.addColorStop(0, '#38bdf8');
+    eGrad.addColorStop(1, '#0284c7');
+    ctx.fillStyle = eGrad;
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.4;
+    drawEllipse(ctx, 9, 6, 7.8, 4.5);
+    ctx.fill();
+    ctx.stroke();
+  });
+
+  // sparrow_twig: 3D Sculpted Woodland Twig with Cylindrical Bark & Tender Leaf Buds!
+  makeCanvas(scene, 'sparrow_twig', 36, 22, (ctx) => {
+    // Drop shadow
+    ctx.strokeStyle = 'rgba(15, 23, 42, 0.28)';
+    ctx.lineWidth = 4.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(3, 17); ctx.quadraticCurveTo(17, 13, 31, 10);
+    ctx.stroke();
+
+    // Main 3D cylindrical branch twig
+    ctx.strokeStyle = '#3b1e08';
+    ctx.lineWidth = 4.2;
+    ctx.beginPath();
+    ctx.moveTo(3, 15.5); ctx.quadraticCurveTo(17, 11.5, 31, 8.5);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#7c4a21';
+    ctx.lineWidth = 2.8;
+    ctx.stroke();
+
+    ctx.strokeStyle = '#b47b44';
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(4, 14.5); ctx.quadraticCurveTo(17, 10.5, 30, 7.7);
+    ctx.stroke();
+
+    // Forked side shoot
+    ctx.strokeStyle = '#4a2508';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(18, 11.5); ctx.quadraticCurveTo(22, 6, 27, 3.5);
+    ctx.stroke();
+
+    // 3D veined green leaves sprouting from twig tips
+    for (const [lx, ly, rot] of [[31, 8, -0.2], [27, 3.5, -0.6]]) {
+      const lGrad = ctx.createLinearGradient(lx - 3, ly - 2, lx + 3, ly + 2);
+      lGrad.addColorStop(0, '#86efac');
+      lGrad.addColorStop(1, '#15803d');
+      ctx.fillStyle = lGrad;
+      ctx.strokeStyle = '#052e16';
+      ctx.lineWidth = 0.8;
+      drawEllipse(ctx, lx, ly, 3.6, 2.1, rot);
+      ctx.fill();
+      ctx.stroke();
+    }
+  });
+
+  // ===========================================================================
+  // 6 HIGH-DEFINITION 3D SCULPTED NEST STAGES (`nest_stage_1` .. `nest_stage_6`)
+  // ===========================================================================
+  for (let stage = 1; stage <= 6; stage++) {
+    makeCanvas(scene, `nest_stage_${stage}`, 104, 48, (ctx) => {
+      const cx = 52;
+      const cy = 26;
+
+      const draw3DTwig = (x1: number, y1: number, x2: number, y2: number, w: number, colDark: string, colMid: string, colLight: string) => {
+        const mx = (x1 + x2) * 0.5;
+        const my = (y1 + y2) * 0.5 + 2.5;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = 'rgba(10, 5, 2, 0.35)';
+        ctx.lineWidth = w + 1.4;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1 + 1.5); ctx.quadraticCurveTo(mx, my + 1.5, x2, y2 + 1.5);
+        ctx.stroke();
+
+        ctx.strokeStyle = colDark;
+        ctx.lineWidth = w + 1.0;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1); ctx.quadraticCurveTo(mx, my, x2, y2);
+        ctx.stroke();
+
+        ctx.strokeStyle = colMid;
+        ctx.lineWidth = w * 0.72;
+        ctx.stroke();
+
+        ctx.strokeStyle = colLight;
+        ctx.lineWidth = w * 0.28;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1 - w * 0.2); ctx.quadraticCurveTo(mx, my - w * 0.2, x2, y2 - w * 0.2);
+        ctx.stroke();
+      };
+
+      if (stage === 1) {
+        // Stage 1: First 4 3D cylindrical foundation twigs laid across the branch fork
+        draw3DTwig(cx - 26, cy + 5, cx + 25, cy + 1, 3.8, '#2b1507', '#5a3418', '#93592b');
+        draw3DTwig(cx - 20, cy - 1, cx + 19, cy + 8, 3.5, '#3e200c', '#6e3d1b', '#a86b38');
+        draw3DTwig(cx - 14, cy + 9, cx + 21, cy - 2, 3.4, '#2b1507', '#5a3418', '#93592b');
+        draw3DTwig(cx - 22, cy + 2, cx + 14, cy + 6, 3.0, '#3e200c', '#7c4a21', '#b47b44');
+        return;
+      }
+
+      if (stage === 2) {
+        // Stage 2: Criss-crossed 3D stick platform with forest moss tufts
+        draw3DTwig(cx - 32, cy + 6, cx + 30, cy + 2, 4.0, '#2b1507', '#5a3418', '#93592b');
+        draw3DTwig(cx - 28, cy - 2, cx + 26, cy + 9, 3.8, '#3e200c', '#6e3d1b', '#a86b38');
+        draw3DTwig(cx - 22, cy + 10, cx + 24, cy - 2, 3.6, '#2b1507', '#5a3418', '#93592b');
+        draw3DTwig(cx - 16, cy + 12, cx + 18, cy + 1, 3.4, '#3e200c', '#7c4a21', '#b47b44');
+        draw3DTwig(cx - 29, cy + 4, cx + 28, cy + 1, 2.8, '#4a2508', '#8a5528', '#c68a4c');
+
+        const mGrad = ctx.createRadialGradient(cx - 6, cy + 3, 1, cx - 6, cy + 5, 7);
+        mGrad.addColorStop(0, '#86efac');
+        mGrad.addColorStop(1, '#15803d');
+        ctx.fillStyle = mGrad;
+        drawEllipse(ctx, cx - 6, cy + 5, 6.5, 4);
+        ctx.fill();
+        return;
+      }
+
+      // Stages 3..6: Sculpted 3D Wicker Bowl Cup with Concave Interior & Braided Twig Rim
+      const rx = stage === 3 ? 33 : stage === 4 ? 38 : stage === 5 ? 42 : 45;
+      const ry = stage === 3 ? 10 : stage === 4 ? 13 : stage === 5 ? 15 : 17;
+
+      // Ambient contact shadow under the nest cup
+      const sGrad = ctx.createRadialGradient(cx, cy + 10, 4, cx, cy + 10, rx * 1.05);
+      sGrad.addColorStop(0, 'rgba(10, 5, 2, 0.55)');
+      sGrad.addColorStop(1, 'rgba(10, 5, 2, 0)');
+      ctx.fillStyle = sGrad;
+      drawEllipse(ctx, cx, cy + 10, rx * 1.05, ry * 0.75);
+      ctx.fill();
+
+      // 3D Spherical Outer Wicker Bowl Body
+      const bGrad = ctx.createRadialGradient(cx - rx * 0.25, cy - 2, 3, cx, cy + 6, rx * 1.1);
+      bGrad.addColorStop(0, '#9c663b');
+      bGrad.addColorStop(0.55, '#5e3316');
+      bGrad.addColorStop(1, '#241105');
+      ctx.fillStyle = bGrad;
+      ctx.strokeStyle = '#1c0d04';
+      ctx.lineWidth = 1.4;
+      drawEllipse(ctx, cx, cy + 6, rx, ry);
+      ctx.fill();
+      ctx.stroke();
+
+      // Woven 3D twig ribs around outer bowl
+      const ribCount = stage + 3;
+      for (let i = 0; i < ribCount; i++) {
+        const t = i / (ribCount - 1) - 0.5;
+        const bx = cx + t * rx * 1.65;
+        draw3DTwig(
+          bx - 6,
+          cy + 6 + (1 - Math.abs(t)) * (ry * 0.65),
+          bx + 6,
+          cy - 1 + Math.abs(t) * 4,
+          2.6,
+          '#241105',
+          '#6e3d1b',
+          '#b07543'
+        );
+      }
+      // Horizontal rim twigs
+      draw3DTwig(cx - rx * 0.92, cy + 4, cx + rx * 0.92, cy + 4, 3.0, '#241105', '#7c4a21', '#c68a4c');
+      if (stage >= 4) {
+        draw3DTwig(cx - rx * 0.78, cy + 10, cx + rx * 0.78, cy + 10, 2.8, '#1c0d04', '#5e3316', '#9c663b');
+      }
+
+      // 3D Concave Interior Cup Hollow (Deep shadow at top wall, warm bedding at bottom)
+      const inRx = rx * 0.76;
+      const inRy = ry * 0.58;
+      const iGrad = ctx.createLinearGradient(cx, cy - inRy, cx, cy + inRy + 2);
+      if (stage >= 5) {
+        iGrad.addColorStop(0, '#3e200c');
+        iGrad.addColorStop(0.45, '#c9a464');
+        iGrad.addColorStop(1, '#fef08a');
+      } else {
+        iGrad.addColorStop(0, '#1c0d04');
+        iGrad.addColorStop(1, '#5e3316');
+      }
+      ctx.fillStyle = iGrad;
+      ctx.strokeStyle = '#2b1507';
+      ctx.lineWidth = 1.2;
+      drawEllipse(ctx, cx, cy + 1.5, inRx, inRy);
+      ctx.fill();
+      ctx.stroke();
+
+      // Stage 5 & 6: Soft golden straw swirls, fluffy white down feathers & 3D emerald moss cushions
+      if (stage >= 5) {
+        ctx.strokeStyle = 'rgba(254, 240, 138, 0.75)';
+        ctx.lineWidth = 1.3;
+        for (let s = 0; s < 4; s++) {
+          drawEllipse(ctx, cx + (s - 1.5) * 4, cy + 2, inRx * (0.65 - s * 0.08), inRy * 0.45);
+          ctx.stroke();
+        }
+      }
+      if (stage === 6) {
+        // Fluffy white down plumes tucked inside the master nest rim
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        for (const [fx, fy, rot] of [[-14, 1, -0.2], [0, 3, 0], [14, 1, 0.2]]) {
+          drawEllipse(ctx, cx + fx, cy + fy, 6, 2.8, rot);
+          ctx.fill();
+        }
+      }
+
+      // Lush 3D forest moss cushions along the rim
+      const mossPositions = stage === 3 ? [[-14, 6]] : stage === 4 ? [[-20, 7], [20, 6]] : [[-26, 7], [26, 7], [-10, 11], [12, 11]];
+      for (const [mx, my] of mossPositions) {
+        const mGrad = ctx.createRadialGradient(cx + mx - 1, cy + my - 1.5, 0.5, cx + mx, cy + my, 6.5);
+        mGrad.addColorStop(0, '#86efac');
+        mGrad.addColorStop(0.55, '#22c55e');
+        mGrad.addColorStop(1, '#14532d');
+        ctx.fillStyle = mGrad;
+        drawEllipse(ctx, cx + mx, cy + my, 6.2, 4.2);
+        ctx.fill();
+      }
+    });
+  }
 
   // Hedwig Hogwarts wax-sealed envelope
-  g = gfx(scene);
-  g.fillStyle(0xfff8e7, 1);
-  g.fillRoundedRect(2, 2, 32, 22, 3);
-  g.lineStyle(1.5, 0xd7ccc8, 1);
-  g.strokeRoundedRect(2, 2, 32, 22, 3);
-  g.lineBetween(2, 2, 18, 14);
-  g.lineBetween(34, 2, 18, 14);
-  g.fillStyle(0xb71c1c, 1);
-  g.fillCircle(18, 13, 4);
-  g.fillStyle(0xffd700, 1);
-  g.fillCircle(18, 13, 1.5);
-  g.generateTexture('drop_envelope', 36, 26);
-  g.destroy();
+  makeCanvas(scene, 'drop_envelope', 36, 26, (ctx) => {
+    const pGrad = ctx.createLinearGradient(2, 2, 34, 24);
+    pGrad.addColorStop(0, '#fffbeb');
+    pGrad.addColorStop(1, '#fde68a');
+    ctx.fillStyle = pGrad;
+    ctx.strokeStyle = '#b45309';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.roundRect(2, 2, 32, 22, 3);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(2, 2); ctx.lineTo(18, 14); ctx.lineTo(34, 2);
+    ctx.stroke();
 
-  // Candy cane
-  g = gfx(scene);
-  g.lineStyle(6, 0xffffff, 1);
-  g.beginPath();
-  g.moveTo(7, 28);
-  g.lineTo(7, 10);
-  g.arc(13, 10, 6, Math.PI, 0, false);
-  g.strokePath();
-  g.lineStyle(3, 0xd32f2f, 1);
-  for (let i = 0; i < 4; i++) {
-    g.lineBetween(4, 24 - i * 5, 10, 22 - i * 5);
-  }
-  g.generateTexture('drop_candycane', 22, 30);
-  g.destroy();
+    const wGrad = ctx.createRadialGradient(17, 12, 0.5, 18, 13, 4.5);
+    wGrad.addColorStop(0, '#ef4444');
+    wGrad.addColorStop(1, '#7f1d1d');
+    ctx.fillStyle = wGrad;
+    drawEllipse(ctx, 18, 13, 4.5, 4.5);
+    ctx.fill();
+  });
 
-  // Golden Pinecone (environmental secret)
-  g = gfx(scene);
-  g.fillStyle(0xb78103, 1);
-  g.fillEllipse(15, 18, 24, 30);
-  g.fillStyle(0xffd700, 1);
-  for (let y = 8; y <= 26; y += 6) {
-    for (let x = 7; x <= 23; x += 6) {
-      g.fillCircle(x, y, 3.5);
+  makeCanvas(scene, 'drop_candycane', 22, 30, (ctx) => {
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(7, 27); ctx.lineTo(7, 10);
+    ctx.arc(13, 10, 6, Math.PI, 0, false);
+    ctx.stroke();
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  makeCanvas(scene, 'drop_pinecone', 30, 36, (ctx) => {
+    const pGrad = ctx.createRadialGradient(12, 14, 2, 15, 19, 15);
+    pGrad.addColorStop(0, '#fef08a');
+    pGrad.addColorStop(0.5, '#f59e0b');
+    pGrad.addColorStop(1, '#78350f');
+    ctx.fillStyle = pGrad;
+    drawEllipse(ctx, 15, 19, 11.5, 14.5);
+    ctx.fill();
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 1.1;
+    for (let y = 9; y <= 27; y += 5) {
+      for (let x = 7; x <= 23; x += 5) {
+        drawEllipse(ctx, x, y, 3.2, 2.5);
+        ctx.stroke();
+      }
     }
-  }
-  g.fillStyle(0xffffff, 0.8);
-  g.fillCircle(10, 10, 2);
-  g.generateTexture('drop_pinecone', 30, 36);
-  g.destroy();
+  });
 
-  // Baguette bread crumb (BREAD cheat)
-  g = gfx(scene);
-  g.fillStyle(0xc68a4c, 1);
-  g.fillEllipse(18, 12, 34, 18);
-  g.fillStyle(0xf5d6a7, 1);
-  g.fillEllipse(18, 12, 28, 12);
-  g.lineStyle(2, 0x8d5b2d, 1);
-  g.lineBetween(10, 7, 14, 16);
-  g.lineBetween(18, 7, 22, 16);
-  g.lineBetween(26, 7, 30, 16);
-  g.generateTexture('drop_baguette', 36, 24);
-  g.destroy();
+  makeCanvas(scene, 'drop_baguette', 36, 24, (ctx) => {
+    const bGrad = ctx.createRadialGradient(16, 9, 2, 18, 12, 16);
+    bGrad.addColorStop(0, '#fde68a');
+    bGrad.addColorStop(0.6, '#d97706');
+    bGrad.addColorStop(1, '#78350f');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 18, 12, 16, 8);
+    ctx.fill();
+    ctx.strokeStyle = '#fef3c7';
+    ctx.lineWidth = 1.6;
+    for (const sx of [11, 18, 25]) {
+      ctx.beginPath();
+      ctx.moveTo(sx - 2, 7); ctx.lineTo(sx + 2, 16);
+      ctx.stroke();
+    }
+  });
 
-  // Shiny key & ring (MURDER crow trinkets)
-  g = gfx(scene);
-  g.lineStyle(2, 0xc0c0c0, 1);
-  g.strokeCircle(8, 10, 6);
-  g.fillStyle(0xffffff, 0.8);
-  g.fillCircle(7, 9, 2);
-  g.fillRect(14, 9, 14, 2);
-  g.fillRect(22, 11, 2, 4);
-  g.fillRect(26, 11, 2, 5);
-  g.generateTexture('drop_trinket_key', 30, 20);
-  g.destroy();
+  makeCanvas(scene, 'drop_trinket_key', 30, 20, (ctx) => {
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 2.5;
+    drawEllipse(ctx, 8, 10, 5.5, 5.5);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(13.5, 10); ctx.lineTo(28, 10);
+    ctx.moveTo(22, 10); ctx.lineTo(22, 15);
+    ctx.moveTo(26, 10); ctx.lineTo(26, 16);
+    ctx.stroke();
+  });
 
-  g = gfx(scene);
-  g.lineStyle(3, 0xffd700, 1);
-  g.strokeCircle(12, 14, 9);
-  g.fillStyle(0xe91e63, 1);
-  g.fillTriangle(12, 2, 7, 8, 17, 8);
-  g.fillStyle(0xffffff, 0.8);
-  g.fillCircle(12, 5, 2);
-  g.generateTexture('drop_trinket_ring', 24, 24);
-  g.destroy();
+  makeCanvas(scene, 'drop_trinket_ring', 24, 24, (ctx) => {
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 3;
+    drawEllipse(ctx, 12, 14, 8, 8);
+    ctx.stroke();
+    ctx.fillStyle = '#f43f5e';
+    ctx.beginPath();
+    ctx.moveTo(12, 2); ctx.lineTo(7, 8); ctx.lineTo(17, 8); ctx.closePath();
+    ctx.fill();
+  });
 
-  // Disco Ball (DISCO cheat)
-  g = gfx(scene);
-  g.lineStyle(2, 0xcccccc, 1);
-  g.lineBetween(20, 0, 20, 10);
-  g.fillStyle(0xbbbbbb, 1);
-  g.fillCircle(20, 26, 16);
-  g.lineStyle(1, 0x555555, 0.5);
-  for (let i = -12; i <= 12; i += 5) {
-    g.lineBetween(20 + i, 12, 20 + i, 40);
-    g.lineBetween(6, 26 + i, 34, 26 + i);
-  }
-  g.fillStyle(0xffffff, 0.9);
-  g.fillRect(15, 18, 3, 3);
-  g.fillRect(24, 22, 3, 3);
-  g.fillRect(18, 30, 3, 3);
-  g.generateTexture('discoball', 40, 44);
-  g.destroy();
+  makeCanvas(scene, 'discoball', 40, 44, (ctx) => {
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(20, 0); ctx.lineTo(20, 10);
+    ctx.stroke();
+    const dGrad = ctx.createRadialGradient(15, 20, 2, 20, 26, 16);
+    dGrad.addColorStop(0, '#ffffff');
+    dGrad.addColorStop(0.5, '#cbd5e1');
+    dGrad.addColorStop(1, '#475569');
+    ctx.fillStyle = dGrad;
+    drawEllipse(ctx, 20, 26, 16, 16);
+    ctx.fill();
+  });
 
-  // Umbrella (Rain dance)
-  g = gfx(scene);
-  g.fillStyle(0xff6b81, 1);
-  g.fillCircle(16, 14, 14);
-  g.fillStyle(0x59b8f2, 1);
-  g.fillRect(2, 14, 28, 14);
-  g.lineStyle(2, 0x8a5528, 1);
-  g.lineBetween(16, 8, 16, 26);
-  g.beginPath();
-  g.arc(13, 26, 3, 0, Math.PI, false);
-  g.strokePath();
-  g.generateTexture('umbrella', 32, 32);
-  g.destroy();
+  makeCanvas(scene, 'umbrella', 32, 32, (ctx) => {
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(16, 4); ctx.lineTo(16, 26);
+    ctx.arc(13, 26, 3, 0, Math.PI, false);
+    ctx.stroke();
+    const uGrad = ctx.createRadialGradient(14, 9, 2, 16, 14, 15);
+    uGrad.addColorStop(0, '#fda4af');
+    uGrad.addColorStop(0.6, '#f43f5e');
+    uGrad.addColorStop(1, '#9f1239');
+    ctx.fillStyle = uGrad;
+    ctx.beginPath();
+    ctx.arc(16, 15, 14, Math.PI, 0, false);
+    ctx.closePath();
+    ctx.fill();
+  });
 
-  // Googly eye (DERP cheat)
-  g = gfx(scene);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(10, 10, 9);
-  g.lineStyle(1.5, 0x000000, 1);
-  g.strokeCircle(10, 10, 9);
-  g.fillStyle(0x000000, 1);
-  g.fillCircle(8, 11, 5);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(9, 9, 2);
-  g.generateTexture('googly_eye', 20, 20);
-  g.destroy();
+  makeCanvas(scene, 'googly_eye', 20, 20, (ctx) => {
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.5;
+    drawEllipse(ctx, 10, 10, 8.8, 8.8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#090a0f';
+    drawEllipse(ctx, 8.5, 11, 4.8, 4.8);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 9.5, 9.2, 1.8, 1.8);
+    ctx.fill();
+  });
 
-  // Tawny Frogmouth Stick Bug - Disguised for each World's unique tree bark
+  // Tawny Frogmouth Stick Bug - 3D Sculpted Bark Camouflage per World
   const stickBugThemes = [
     { id: 1, bgCol: 0x5c381e, lineCol: 0x3d2311, knotCol: 0x422613, fleckCol: 0x4d7c0f, eyeCol: 0xffe600, pupilCol: 0x0a0a0a },
     { id: 2, bgCol: 0x313d1e, lineCol: 0x1f2713, knotCol: 0x242e16, fleckCol: 0x10b981, eyeCol: 0xfacc15, pupilCol: 0x0a0a0a },
@@ -1959,168 +2896,157 @@ export function makeTextures(scene: Phaser.Scene) {
   ];
 
   for (const st of stickBugThemes) {
-    // Hidden
-    g = gfx(scene);
-    g.fillStyle(st.bgCol, 1);
-    g.fillRoundedRect(2, 4, 40, 16, 6);
-    g.lineStyle(1.5, st.lineCol, 1);
-    g.lineBetween(6, 9, 36, 9);
-    g.lineBetween(8, 14, 34, 14);
-    g.fillStyle(st.knotCol, 1);
-    g.fillCircle(18, 12, 2.5);
-    g.fillStyle(st.fleckCol, 0.85);
-    g.fillCircle(10, 6, 1.6);
-    g.fillCircle(30, 16, 1.6);
-    if (st.id === 4) {
-      // Volcanic magma crack
-      g.lineStyle(1.2, 0xef4444, 0.9);
-      g.lineBetween(14, 11, 26, 11);
-    }
-    g.generateTexture(`stick_bug_hidden_${st.id}`, 44, 24);
-    if (st.id === 1) g.generateTexture('stick_bug_hidden', 44, 24);
-    g.destroy();
+    const drawStickBug = (ctx: CanvasRenderingContext2D, peeking: boolean) => {
+      const bGrad = ctx.createLinearGradient(22, 4, 22, 20);
+      bGrad.addColorStop(0, rgba(lighten(st.bgCol, 0.22)));
+      bGrad.addColorStop(0.5, rgba(st.bgCol));
+      bGrad.addColorStop(1, rgba(darken(st.bgCol, 0.35)));
+      ctx.fillStyle = bGrad;
+      ctx.strokeStyle = rgba(st.lineCol);
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.roundRect(2, 4, 40, 16, 7);
+      ctx.fill();
+      ctx.stroke();
 
-    // Peeking
-    g = gfx(scene);
-    g.fillStyle(st.bgCol, 1);
-    g.fillRoundedRect(2, 4, 40, 16, 6);
-    g.lineStyle(1.5, st.lineCol, 1);
-    g.lineBetween(6, 9, 36, 9);
-    g.lineBetween(8, 14, 34, 14);
-    g.fillStyle(st.knotCol, 1);
-    g.fillCircle(18, 12, 2.5);
-    g.fillStyle(st.fleckCol, 0.85);
-    g.fillCircle(10, 6, 1.6);
-    g.fillCircle(30, 16, 1.6);
-    if (st.id === 4) {
-      g.lineStyle(1.2, 0xef4444, 0.9);
-      g.lineBetween(14, 11, 26, 11);
-    }
-    // Eyes
-    g.fillStyle(st.eyeCol, 1);
-    g.fillCircle(14, 11, 5);
-    g.fillCircle(26, 11, 5);
-    g.fillStyle(st.pupilCol, 1);
-    g.fillCircle(14.5, 11, 2.8);
-    g.fillCircle(26.5, 11, 2.8);
-    g.fillStyle(0xffffff, 1);
-    g.fillCircle(15.5, 10, 1.2);
-    g.fillCircle(27.5, 10, 1.2);
-    g.generateTexture(`stick_bug_peeking_${st.id}`, 44, 24);
+      ctx.fillStyle = rgba(st.fleckCol, 0.9);
+      drawEllipse(ctx, 10, 6, 2.2, 1.5); ctx.fill();
+      drawEllipse(ctx, 32, 16, 2.2, 1.5); ctx.fill();
+
+      if (peeking) {
+        for (const ex of [14, 26]) {
+          ctx.fillStyle = rgba(st.eyeCol);
+          drawEllipse(ctx, ex, 11, 5, 5); ctx.fill();
+          ctx.fillStyle = rgba(st.pupilCol);
+          drawEllipse(ctx, ex + 0.5, 11, 2.8, 2.8); ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          drawEllipse(ctx, ex + 1.5, 9.8, 1.2, 1.2); ctx.fill();
+        }
+      }
+    };
+
+    makeCanvas(scene, `stick_bug_hidden_${st.id}`, 44, 24, (ctx) => drawStickBug(ctx, false));
+    if (st.id === 1) makeCanvas(scene, 'stick_bug_hidden', 44, 24, (ctx) => drawStickBug(ctx, false));
+
+    makeCanvas(scene, `stick_bug_peeking_${st.id}`, 44, 24, (ctx) => drawStickBug(ctx, true));
     if (st.id === 1) {
-      g.generateTexture('stick_bug_peeking', 44, 24);
-      g.generateTexture('frogmouth_stick', 44, 24);
+      makeCanvas(scene, 'stick_bug_peeking', 44, 24, (ctx) => drawStickBug(ctx, true));
+      makeCanvas(scene, 'frogmouth_stick', 44, 24, (ctx) => drawStickBug(ctx, true));
     }
-    g.destroy();
   }
 
   // Sacred Phoenix Pyre Altar
-  g = gfx(scene);
-  g.fillStyle(0x3e2723, 1);
-  g.fillRect(10, 28, 24, 12);
-  g.fillStyle(0x5d4037, 1);
-  g.fillRoundedRect(6, 22, 32, 10, 4);
-  g.fillStyle(0x8d6e63, 1);
-  g.fillEllipse(22, 22, 28, 12);
-  g.fillStyle(0xd84315, 1);
-  g.fillTriangle(12, 20, 22, 0, 32, 20);
-  g.fillStyle(0xff9800, 1);
-  g.fillTriangle(15, 20, 22, 4, 29, 20);
-  g.fillStyle(0xffeb3b, 1);
-  g.fillTriangle(18, 20, 22, 8, 26, 20);
-  g.generateTexture('pyre_altar', 44, 42);
-  g.destroy();
+  makeCanvas(scene, 'pyre_altar', 44, 42, (ctx) => {
+    ctx.fillStyle = '#3e2723';
+    ctx.fillRect(10, 28, 24, 12);
+    ctx.fillStyle = '#5d4037';
+    ctx.beginPath();
+    ctx.roundRect(6, 22, 32, 10, 4);
+    ctx.fill();
+    const fGrad = ctx.createRadialGradient(22, 16, 2, 22, 12, 16);
+    fGrad.addColorStop(0, '#ffffff');
+    fGrad.addColorStop(0.35, '#fde047');
+    fGrad.addColorStop(0.7, '#f97316');
+    fGrad.addColorStop(1, '#dc2626');
+    ctx.fillStyle = fGrad;
+    ctx.beginPath();
+    ctx.moveTo(11, 22);
+    ctx.quadraticCurveTo(14, 8, 22, 1);
+    ctx.quadraticCurveTo(30, 8, 33, 22);
+    ctx.closePath();
+    ctx.fill();
+  });
 
   // Solar Ember (Phoenix drop, 500c)
-  g = gfx(scene);
-  g.fillStyle(0xff3d00, 0.35);
-  g.fillCircle(16, 16, 15);
-  g.fillStyle(0xff6d00, 0.7);
-  g.fillCircle(16, 16, 12);
-  g.fillStyle(0xffd600, 1);
-  g.fillCircle(16, 16, 8.5);
-  g.fillStyle(0xffffff, 0.9);
-  g.fillCircle(14, 13, 3);
-  g.generateTexture('drop_solar_ember', 32, 32);
-  g.destroy();
+  makeCanvas(scene, 'drop_solar_ember', 32, 32, (ctx) => {
+    const eGrad = ctx.createRadialGradient(14, 13, 1.5, 16, 16, 15);
+    eGrad.addColorStop(0, '#ffffff');
+    eGrad.addColorStop(0.3, '#fef08a');
+    eGrad.addColorStop(0.65, '#f97316');
+    eGrad.addColorStop(1, 'rgba(220, 38, 38, 0)');
+    ctx.fillStyle = eGrad;
+    drawEllipse(ctx, 16, 16, 15, 15);
+    ctx.fill();
+  });
 
-  // Golden Tree Beetle (Cruncher drop, 150c)
-  g = gfx(scene);
-  // Legs
-  g.lineStyle(1.8, 0x854d0e, 1);
-  g.lineBetween(8, 10, 3, 7);
-  g.lineBetween(8, 16, 2, 16);
-  g.lineBetween(8, 22, 4, 25);
-  g.lineBetween(24, 10, 29, 7);
-  g.lineBetween(24, 16, 30, 16);
-  g.lineBetween(24, 22, 28, 25);
-  // Antennae
-  g.lineBetween(13, 8, 8, 2);
-  g.lineBetween(19, 8, 24, 2);
-  // Carapace / Body (Iridescent Golden Bronze & Emerald)
-  g.fillStyle(0xd97706, 1);
-  g.fillEllipse(16, 17, 18, 22);
-  g.fillStyle(0x84cc16, 0.7);
-  g.fillEllipse(16, 17, 14, 18);
-  g.fillStyle(0xfde047, 1);
-  g.fillEllipse(16, 17, 10, 14);
-  // Wing split seam
-  g.lineStyle(1.5, 0x78350f, 0.9);
-  g.lineBetween(16, 8, 16, 26);
-  // Head & Eyes
-  g.fillStyle(0x92400e, 1);
-  g.fillCircle(16, 8, 4.5);
-  g.fillStyle(0x000000, 1);
-  g.fillCircle(13, 7, 1.5);
-  g.fillCircle(19, 7, 1.5);
-  // Specular sheen
-  g.fillStyle(0xffffff, 0.85);
-  g.fillEllipse(13, 14, 3, 6);
-  g.generateTexture('drop_beetle', 32, 32);
-  g.destroy();
+  // Golden Tree Beetle (Cruncher drop, 150c - 3D Iridescent Scarab Carapace)
+  makeCanvas(scene, 'drop_beetle', 32, 32, (ctx) => {
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    for (const [x1, y1, x2, y2] of [[8, 10, 3, 7], [8, 16, 2, 16], [8, 22, 4, 25], [24, 10, 29, 7], [24, 16, 30, 16], [24, 22, 28, 25], [13, 8, 8, 2], [19, 8, 24, 2]]) {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    const cGrad = ctx.createRadialGradient(13, 14, 1.5, 16, 17, 11);
+    cGrad.addColorStop(0, '#fef9c3');
+    cGrad.addColorStop(0.35, '#a3e635');
+    cGrad.addColorStop(0.7, '#d97706');
+    cGrad.addColorStop(1, '#78350f');
+    ctx.fillStyle = cGrad;
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = 1.2;
+    drawEllipse(ctx, 16, 17, 9, 11);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(16, 8); ctx.lineTo(16, 27);
+    ctx.stroke();
+
+    ctx.fillStyle = '#451a03';
+    drawEllipse(ctx, 16, 7.5, 4.5, 3.8);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    drawEllipse(ctx, 13, 13.5, 2.2, 4.5, 0.2);
+    ctx.fill();
+  });
 
   // Luminous Forest Pearl (Toucan drop, 500c)
-  g = gfx(scene);
-  // Radiant soft aura
-  g.fillStyle(0x38bdf8, 0.25);
-  g.fillCircle(16, 16, 15);
-  g.fillStyle(0xf472b6, 0.28);
-  g.fillCircle(16, 16, 13);
-  // Pearl luster sphere
-  g.fillStyle(0xf1f5f9, 1);
-  g.fillCircle(16, 16, 11);
-  g.fillStyle(0xe0e7ff, 0.8);
-  g.fillCircle(16, 16, 9.5);
-  g.fillStyle(0xfff1f2, 0.7);
-  g.fillCircle(15, 15, 7.5);
-  // Pearlescent gleam star
-  g.fillStyle(0xffffff, 0.95);
-  g.fillCircle(12, 12, 3.5);
-  g.fillCircle(18, 19, 1.8);
-  g.generateTexture('drop_pearl', 32, 32);
-  g.destroy();
+  makeCanvas(scene, 'drop_pearl', 32, 32, (ctx) => {
+    const aGrad = ctx.createRadialGradient(16, 16, 4, 16, 16, 15);
+    aGrad.addColorStop(0, 'rgba(244, 114, 182, 0.45)');
+    aGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+    ctx.fillStyle = aGrad;
+    drawEllipse(ctx, 16, 16, 15, 15);
+    ctx.fill();
+
+    const pGrad = ctx.createRadialGradient(12, 12, 1.5, 16, 16, 11);
+    pGrad.addColorStop(0, '#ffffff');
+    pGrad.addColorStop(0.45, '#fce7f3');
+    pGrad.addColorStop(0.8, '#bae6fd');
+    pGrad.addColorStop(1, '#64748b');
+    ctx.fillStyle = pGrad;
+    drawEllipse(ctx, 16, 16, 10.5, 10.5);
+    ctx.fill();
+  });
 
   // Amber Nectar Pod (Ember Shrike drop, 200c - Food for Sugar Glider)
-  g = gfx(scene);
-  // Warm golden amber aura
-  g.fillStyle(0xf59e0b, 0.28);
-  g.fillCircle(16, 17, 15);
-  // Honey teardrop droplet body
-  g.fillStyle(0xd97706, 1);
-  g.fillEllipse(16, 19, 18, 20);
-  g.fillStyle(0xfbbf24, 1);
-  g.fillEllipse(16, 20, 14, 15);
-  // Droplet tip tapering up
-  g.fillStyle(0xd97706, 1);
-  g.fillTriangle(10, 16, 22, 16, 16, 4);
-  g.fillStyle(0xfde047, 0.92);
-  g.fillTriangle(12, 17, 20, 17, 16, 7);
-  // Specular gleam
-  g.fillStyle(0xffffff, 0.95);
-  g.fillCircle(13, 15, 3.2);
-  g.fillCircle(18, 22, 1.6);
-  g.generateTexture('drop_nectar', 32, 32);
-  g.destroy();
+  makeCanvas(scene, 'drop_nectar', 32, 32, (ctx) => {
+    const nGrad = ctx.createRadialGradient(13, 16, 1.5, 16, 19, 11);
+    nGrad.addColorStop(0, '#ffffff');
+    nGrad.addColorStop(0.3, '#fef08a');
+    nGrad.addColorStop(0.7, '#f59e0b');
+    nGrad.addColorStop(1, '#92400e');
+    ctx.fillStyle = nGrad;
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(16, 3);
+    ctx.bezierCurveTo(23, 12, 26, 18, 25, 22);
+    ctx.bezierCurveTo(24, 27, 20, 29, 16, 29);
+    ctx.bezierCurveTo(12, 29, 8, 27, 7, 22);
+    ctx.bezierCurveTo(6, 18, 9, 12, 16, 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    drawEllipse(ctx, 12.5, 17, 2.2, 4.2, 0.25);
+    ctx.fill();
+  });
 
   // Soft ground shadow for Sugar Glider / Cinder Gecko
   makeCanvas(scene, 'shadow_bird_adult', 64, 24, (ctx) => {
@@ -3611,907 +4537,713 @@ export function makeTextures(scene: Phaser.Scene) {
     ctx.fill();
   });
 
-  // Restore `g` for remaining scenery props below
+  // spider_web (3D silk dewdrop web)
+  makeCanvas(scene, 'spider_web', 70, 70, (ctx) => {
+    ctx.strokeStyle = 'rgba(255,255,255,0.78)';
+    ctx.lineWidth = 1.6;
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4;
+      ctx.beginPath();
+      ctx.moveTo(35, 35);
+      ctx.lineTo(35 + Math.cos(a) * 32, 35 + Math.sin(a) * 32);
+      ctx.stroke();
+    }
+    [11, 21, 30].forEach((r) => {
+      ctx.beginPath();
+      for (let i = 0; i <= 8; i++) {
+        const a1 = (i * Math.PI) / 4;
+        const a2 = ((i + 1) * Math.PI) / 4;
+        const x1 = 35 + Math.cos(a1) * r;
+        const y1 = 35 + Math.sin(a1) * r;
+        const x2 = 35 + Math.cos(a2) * r;
+        const y2 = 35 + Math.sin(a2) * r;
+        const mx = 35 + Math.cos((a1 + a2) / 2) * (r * 0.88);
+        const my = 35 + Math.sin((a1 + a2) / 2) * (r * 0.88);
+        if (i === 0) ctx.moveTo(x1, y1);
+        ctx.quadraticCurveTo(mx, my, x2, y2);
+      }
+      ctx.stroke();
+    });
+    // 3D shimmering dewdrops
+    [[24, 24], [46, 28], [29, 48], [44, 44]].forEach(([dx, dy]) => {
+      ctx.fillStyle = '#bae6fd';
+      drawEllipse(ctx, dx, dy, 2, 2); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      drawEllipse(ctx, dx - 0.5, dy - 0.5, 0.8, 0.8); ctx.fill();
+    });
+  });
+
+  // truffle (3D gnarled black diamond truffle)
+  makeCanvas(scene, 'truffle', 22, 22, (ctx) => {
+    const gT = ctx.createRadialGradient(8, 8, 1, 11, 11, 10);
+    gT.addColorStop(0, '#78350f');
+    gT.addColorStop(0.55, '#451a03');
+    gT.addColorStop(1, '#1c0a00');
+    ctx.fillStyle = gT;
+    drawEllipse(ctx, 11, 11, 9, 8.5);
+    ctx.fill();
+    ctx.fillStyle = '#fbbf24';
+    drawEllipse(ctx, 14, 13, 2, 1.8); ctx.fill();
+    drawEllipse(ctx, 8, 14, 1.4, 1.2); ctx.fill();
+  });
+
+  // pinecone (3D layered conifer cone)
+  makeCanvas(scene, 'pinecone', 24, 30, (ctx) => {
+    const pGrad = ctx.createRadialGradient(9, 12, 2, 12, 16, 13);
+    pGrad.addColorStop(0, '#b45309');
+    pGrad.addColorStop(0.65, '#78350f');
+    pGrad.addColorStop(1, '#271408');
+    ctx.fillStyle = pGrad;
+    drawEllipse(ctx, 12, 16, 9, 11);
+    ctx.fill();
+    for (let r = 0; r < 4; r++) {
+      for (let c = -1; c <= 1; c++) {
+        ctx.fillStyle = r % 2 === 0 ? '#92400e' : '#b45309';
+        drawEllipse(ctx, 12 + c * 3.5, 9 + r * 4.5, 3.2, 2.4);
+        ctx.fill();
+      }
+    }
+    ctx.fillStyle = '#f59e0b';
+    drawEllipse(ctx, 12, 4, 2.5, 2.5); ctx.fill();
+  });
+
+  // enemy_glutton (3D bulbous Insaniquarium-style feeder monster)
+  makeCanvas(scene, 'enemy_glutton', 96, 88, (ctx) => {
+    ctx.fillStyle = '#365314';
+    ctx.beginPath();
+    ctx.moveTo(22, 34); ctx.lineTo(4, 18); ctx.lineTo(28, 46); ctx.closePath();
+    ctx.fill();
+    const bGrad = ctx.createRadialGradient(38, 34, 6, 48, 48, 38);
+    bGrad.addColorStop(0, '#a3e635');
+    bGrad.addColorStop(0.55, '#4d7c0f');
+    bGrad.addColorStop(1, '#1a2e05');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 48, 48, 34, 28);
+    ctx.fill();
+    const belGrad = ctx.createRadialGradient(44, 52, 4, 46, 54, 24);
+    belGrad.addColorStop(0, '#ecfccb');
+    belGrad.addColorStop(0.6, '#84cc16');
+    belGrad.addColorStop(1, 'rgba(77,124,15,0)');
+    ctx.fillStyle = belGrad;
+    drawEllipse(ctx, 46, 54, 24, 19);
+    ctx.fill();
+    // Cavernous 3D mouth
+    ctx.fillStyle = '#0f172a';
+    drawEllipse(ctx, 66, 44, 16, 13);
+    ctx.fill();
+    ctx.fillStyle = '#991b1b';
+    drawEllipse(ctx, 64, 48, 10, 6);
+    ctx.fill();
+    // 3D ivory fangs
+    ctx.fillStyle = '#fef08a';
+    [[60, 34, 62, 41, 64, 34], [68, 33, 70, 40, 72, 33], [62, 54, 64, 47, 66, 54], [70, 53, 72, 46, 74, 53]].forEach(([x1, y1, x2, y2, x3, y3]) => {
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x3, y3); ctx.closePath(); ctx.fill();
+    });
+    drawStudioEye(ctx, 58, 24, 7.5, '#d90429');
+  });
+
+  // enemy_bombardier (3D armored tactical bomber raptor)
+  makeCanvas(scene, 'enemy_bombardier', 120, 70, (ctx) => {
+    const wGrad = ctx.createLinearGradient(0, 12, 0, 58);
+    wGrad.addColorStop(0, '#64748b');
+    wGrad.addColorStop(0.6, '#334155');
+    wGrad.addColorStop(1, '#0f172a');
+    ctx.fillStyle = wGrad;
+    ctx.beginPath(); ctx.moveTo(55, 34); ctx.lineTo(4, 14); ctx.lineTo(28, 56); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(65, 34); ctx.lineTo(116, 14); ctx.lineTo(92, 56); ctx.closePath(); ctx.fill();
+    const bGrad = ctx.createRadialGradient(54, 32, 4, 60, 38, 28);
+    bGrad.addColorStop(0, '#475569');
+    bGrad.addColorStop(0.65, '#1e293b');
+    bGrad.addColorStop(1, '#090d16');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 60, 38, 26, 14);
+    ctx.fill();
+    // Leather bomb harness
+    ctx.fillStyle = '#b45309';
+    drawRoundedRect(ctx, 42, 28, 36, 18, 5);
+    ctx.fill();
+    // Head & aviator goggles
+    ctx.fillStyle = '#0f172a';
+    drawEllipse(ctx, 78, 28, 13, 13);
+    ctx.fill();
+    ctx.fillStyle = '#94a3b8';
+    ctx.beginPath(); ctx.moveTo(84, 24); ctx.lineTo(104, 30); ctx.lineTo(96, 36); ctx.lineTo(84, 34); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#f59e0b';
+    drawRoundedRect(ctx, 75, 21, 15, 7, 2.5); ctx.fill();
+    ctx.fillStyle = '#38bdf8';
+    drawRoundedRect(ctx, 79, 22.5, 7, 4, 1.5); ctx.fill();
+    // Under-wing 3D missile pods
+    [22, 74].forEach((px) => {
+      ctx.fillStyle = '#0f172a';
+      drawRoundedRect(ctx, px, 40, 24, 13, 4); ctx.fill();
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(px + 6, 40, 3, 13);
+      ctx.fillRect(px + 12, 40, 3, 13);
+      ctx.fillStyle = '#ef4444';
+      drawEllipse(ctx, px + 24, 44, 3, 3); ctx.fill();
+      drawEllipse(ctx, px + 24, 50, 3, 3); ctx.fill();
+    });
+  });
+
+  // enemy_vulture_active (3D Gourmet Chef Vulture)
+  makeCanvas(scene, 'enemy_vulture_active', 104, 92, (ctx) => {
+    ctx.fillStyle = '#1c1917';
+    ctx.beginPath(); ctx.moveTo(48, 48); ctx.lineTo(6, 20); ctx.lineTo(24, 66); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(56, 48); ctx.lineTo(98, 20); ctx.lineTo(80, 66); ctx.closePath(); ctx.fill();
+    const bGrad = ctx.createRadialGradient(46, 46, 4, 52, 54, 26);
+    bGrad.addColorStop(0, '#57534e');
+    bGrad.addColorStop(0.65, '#292524');
+    bGrad.addColorStop(1, '#0c0a09');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 52, 54, 23, 21);
+    ctx.fill();
+    ctx.fillStyle = '#f1f5f9';
+    drawEllipse(ctx, 52, 38, 15, 7.5);
+    ctx.fill();
+    ctx.fillStyle = '#be123c';
+    drawRoundedRect(ctx, 47, 24, 10, 15, 4); ctx.fill();
+    drawEllipse(ctx, 52, 22, 13, 13); ctx.fill();
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath(); ctx.moveTo(58, 19); ctx.lineTo(79, 25); ctx.lineTo(75, 31); ctx.lineTo(58, 28); ctx.closePath(); ctx.fill();
+    drawStudioEye(ctx, 58, 18, 4.5, '#ef4444');
+    // Chef Toque Hat
+    ctx.fillStyle = '#ffffff';
+    drawRoundedRect(ctx, 42, 8, 20, 6, 2); ctx.fill();
+    drawEllipse(ctx, 45, 5, 7, 6); ctx.fill();
+    drawEllipse(ctx, 52, 3, 8, 7); ctx.fill();
+    drawEllipse(ctx, 59, 5, 7, 6); ctx.fill();
+  });
+
+  // enemy_vulture_dormant (3D Sleeping Vulture in Bubble)
+  makeCanvas(scene, 'enemy_vulture_dormant', 104, 92, (ctx) => {
+    const bubGrad = ctx.createRadialGradient(38, 32, 6, 52, 48, 46);
+    bubGrad.addColorStop(0, 'rgba(255,255,255,0.65)');
+    bubGrad.addColorStop(0.55, 'rgba(56,189,248,0.28)');
+    bubGrad.addColorStop(1, 'rgba(2,132,199,0.55)');
+    ctx.fillStyle = bubGrad;
+    drawEllipse(ctx, 52, 48, 45, 45);
+    ctx.fill();
+    ctx.fillStyle = '#334155';
+    drawEllipse(ctx, 52, 50, 26, 26);
+    ctx.fill();
+    ctx.fillStyle = '#f1f5f9';
+    drawEllipse(ctx, 52, 34, 13, 6.5);
+    ctx.fill();
+    ctx.fillStyle = '#f472b6';
+    drawEllipse(ctx, 52, 24, 12, 12);
+    ctx.fill();
+    ctx.strokeStyle = '#831843';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(56, 23, 4, 0, Math.PI); ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    drawEllipse(ctx, 36, 26, 8, 4, -0.4);
+    ctx.fill();
+  });
+
+  // homing_missile (3D sleek rocket missile)
+  makeCanvas(scene, 'homing_missile', 32, 18, (ctx) => {
+    const mGrad = ctx.createLinearGradient(6, 5, 6, 13);
+    mGrad.addColorStop(0, '#f8fafc');
+    mGrad.addColorStop(0.5, '#cbd5e1');
+    mGrad.addColorStop(1, '#475569');
+    ctx.fillStyle = mGrad;
+    drawRoundedRect(ctx, 6, 5, 18, 8, 3);
+    ctx.fill();
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath(); ctx.moveTo(22, 5); ctx.lineTo(31, 9); ctx.lineTo(22, 13); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(8, 5); ctx.lineTo(2, 1); ctx.lineTo(11, 5); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(8, 13); ctx.lineTo(2, 17); ctx.lineTo(11, 13); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#facc15';
+    drawEllipse(ctx, 4, 9, 3.5, 2.5); ctx.fill();
+  });
+
+  // emporium_potion (3D Golden Crystal Flask)
+  makeCanvas(scene, 'emporium_potion', 48, 54, (ctx) => {
+    ctx.fillStyle = 'rgba(56,189,248,0.38)';
+    drawRoundedRect(ctx, 10, 18, 28, 30, 9);
+    ctx.fill();
+    const lGrad = ctx.createRadialGradient(20, 30, 2, 24, 35, 16);
+    lGrad.addColorStop(0, '#fef08a');
+    lGrad.addColorStop(0.6, '#eab308');
+    lGrad.addColorStop(1, '#a16207');
+    ctx.fillStyle = lGrad;
+    drawRoundedRect(ctx, 12, 24, 24, 22, 7);
+    ctx.fill();
+    ctx.fillStyle = '#92400e';
+    drawRoundedRect(ctx, 18, 8, 12, 10, 2);
+    ctx.fill();
+    ctx.fillStyle = '#ef4444';
+    drawRoundedRect(ctx, 16, 15, 16, 4, 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    drawRoundedRect(ctx, 14, 22, 4, 18, 2);
+    ctx.fill();
+  });
+
+  // backdrop_preview (3D Framed Landscape Canvas)
+  makeCanvas(scene, 'backdrop_preview', 80, 56, (ctx) => {
+    ctx.fillStyle = '#78350f';
+    drawRoundedRect(ctx, 2, 2, 76, 52, 5);
+    ctx.fill();
+    const sGrad = ctx.createLinearGradient(6, 6, 6, 50);
+    sGrad.addColorStop(0, '#0284c7');
+    sGrad.addColorStop(1, '#bae6fd');
+    ctx.fillStyle = sGrad;
+    drawRoundedRect(ctx, 6, 6, 68, 44, 3);
+    ctx.fill();
+    ctx.fillStyle = '#fde047';
+    drawEllipse(ctx, 40, 26, 13, 13);
+    ctx.fill();
+    ctx.fillStyle = '#16a34a';
+    drawEllipse(ctx, 40, 45, 32, 9);
+    ctx.fill();
+  });
+
+  // enemy_bat & articulated bat parts (3D Nocturnal Vampire Bat)
+  makeCanvas(scene, 'enemy_bat', 96, 64, (ctx) => {
+    ctx.fillStyle = '#191024';
+    ctx.beginPath();
+    ctx.moveTo(42, 34); ctx.lineTo(6, 10); ctx.lineTo(14, 44); ctx.lineTo(24, 38); ctx.lineTo(32, 44); ctx.lineTo(42, 38);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(54, 34); ctx.lineTo(90, 10); ctx.lineTo(82, 44); ctx.lineTo(72, 38); ctx.lineTo(64, 44); ctx.lineTo(54, 38);
+    ctx.closePath(); ctx.fill();
+    const bGrad = ctx.createRadialGradient(44, 24, 3, 48, 32, 22);
+    bGrad.addColorStop(0, '#581c87');
+    bGrad.addColorStop(0.6, '#2a1b38');
+    bGrad.addColorStop(1, '#0f0718');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 48, 38, 15, 13); ctx.fill();
+    drawEllipse(ctx, 48, 25, 14, 13); ctx.fill();
+    drawStudioEye(ctx, 43, 24, 4, '#ef4444');
+    drawStudioEye(ctx, 53, 24, 4, '#ef4444');
+  });
+
+  makeCanvas(scene, 'enemy_bat_body', 64, 60, (ctx) => {
+    // 3D Pointy Bat Ears
+    ctx.fillStyle = '#2a1b38';
+    ctx.beginPath(); ctx.moveTo(22, 24); ctx.lineTo(17, 6); ctx.lineTo(30, 18); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(42, 24); ctx.lineTo(47, 6); ctx.lineTo(34, 18); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#f472b6';
+    ctx.beginPath(); ctx.moveTo(23, 22); ctx.lineTo(19, 10); ctx.lineTo(28, 18); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(41, 22); ctx.lineTo(45, 10); ctx.lineTo(36, 18); ctx.closePath(); ctx.fill();
+    const bGrad = ctx.createRadialGradient(28, 24, 3, 32, 34, 22);
+    bGrad.addColorStop(0, '#6b21a8');
+    bGrad.addColorStop(0.6, '#2e1065');
+    bGrad.addColorStop(1, '#0f0718');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 32, 40, 14, 12); ctx.fill();
+    drawEllipse(ctx, 32, 27, 15, 14); ctx.fill();
+    drawStudioEye(ctx, 27, 26, 4.2, '#ef4444');
+    drawStudioEye(ctx, 37, 26, 4.2, '#ef4444');
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.moveTo(29, 33); ctx.lineTo(30, 38); ctx.lineTo(31, 33); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(33, 33); ctx.lineTo(34, 38); ctx.lineTo(35, 33); ctx.closePath(); ctx.fill();
+  });
+
+  makeCanvas(scene, 'enemy_bat_wing_left', 48, 48, (ctx) => {
+    const wGrad = ctx.createLinearGradient(6, 6, 44, 42);
+    wGrad.addColorStop(0, '#4c1d95');
+    wGrad.addColorStop(0.6, '#1e1b4b');
+    wGrad.addColorStop(1, '#090514');
+    ctx.fillStyle = wGrad;
+    ctx.beginPath();
+    ctx.moveTo(44, 26); ctx.lineTo(6, 6); ctx.lineTo(12, 42); ctx.lineTo(22, 35); ctx.lineTo(32, 41); ctx.lineTo(44, 30);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#7c3aed';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(44, 26); ctx.lineTo(8, 8);
+    ctx.moveTo(8, 8); ctx.lineTo(12, 40);
+    ctx.moveTo(8, 8); ctx.lineTo(22, 34);
+    ctx.moveTo(8, 8); ctx.lineTo(32, 39);
+    ctx.stroke();
+  });
+
+  makeCanvas(scene, 'enemy_bat_wing_right', 48, 48, (ctx) => {
+    const wGrad = ctx.createLinearGradient(42, 6, 4, 42);
+    wGrad.addColorStop(0, '#4c1d95');
+    wGrad.addColorStop(0.6, '#1e1b4b');
+    wGrad.addColorStop(1, '#090514');
+    ctx.fillStyle = wGrad;
+    ctx.beginPath();
+    ctx.moveTo(4, 26); ctx.lineTo(42, 6); ctx.lineTo(36, 42); ctx.lineTo(26, 35); ctx.lineTo(16, 41); ctx.lineTo(4, 30);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#7c3aed';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(4, 26); ctx.lineTo(40, 8);
+    ctx.moveTo(40, 8); ctx.lineTo(36, 40);
+    ctx.moveTo(40, 8); ctx.lineTo(26, 34);
+    ctx.moveTo(40, 8); ctx.lineTo(16, 39);
+    ctx.stroke();
+  });
+
+  // =========================================================================
+  // WORLD 5 FINAL BOSS: MALAKOR, THE SOVEREIGN SHADOW ROC (3D Canvas)
+  // =========================================================================
+  makeCanvas(scene, 'boss_roc_body', 180, 140, (ctx) => {
+    const rGrad = ctx.createRadialGradient(78, 56, 10, 90, 75, 72);
+    rGrad.addColorStop(0, '#581c87');
+    rGrad.addColorStop(0.55, '#2e1065');
+    rGrad.addColorStop(1, '#090414');
+    ctx.fillStyle = rGrad;
+    drawEllipse(ctx, 90, 75, 65, 45);
+    ctx.fill();
+    // Crowned obsidian skull
+    ctx.fillStyle = '#1e1b4b';
+    drawEllipse(ctx, 90, 32, 28, 22);
+    ctx.fill();
+    // 3D hooked basalt beak
+    ctx.fillStyle = '#334155';
+    ctx.beginPath(); ctx.moveTo(90, 22); ctx.lineTo(128, 35); ctx.lineTo(122, 44); ctx.lineTo(90, 44); ctx.closePath(); ctx.fill();
+    drawStudioEye(ctx, 82, 28, 6.5, '#ef4444');
+    drawStudioEye(ctx, 98, 28, 6.5, '#ef4444');
+    // Glowing Abyssal Chest Core
+    const cGrad = ctx.createRadialGradient(90, 85, 2, 90, 85, 26);
+    cGrad.addColorStop(0, '#fef08a');
+    cGrad.addColorStop(0.35, '#f43f5e');
+    cGrad.addColorStop(0.7, '#9333ea');
+    cGrad.addColorStop(1, 'rgba(126,34,206,0)');
+    ctx.fillStyle = cGrad;
+    drawEllipse(ctx, 90, 85, 26, 26);
+    ctx.fill();
+  });
+
+  makeCanvas(scene, 'boss_roc_wing_l', 160, 120, (ctx) => {
+    const wGrad = ctx.createLinearGradient(150, 70, 10, 15);
+    wGrad.addColorStop(0, '#3b0764');
+    wGrad.addColorStop(0.6, '#1e1b4b');
+    wGrad.addColorStop(1, '#c084fc');
+    ctx.fillStyle = wGrad;
+    ctx.beginPath(); ctx.moveTo(150, 70); ctx.lineTo(10, 15); ctx.lineTo(75, 115); ctx.closePath(); ctx.fill();
+  });
+
+  makeCanvas(scene, 'boss_roc_wing_r', 160, 120, (ctx) => {
+    const wGrad = ctx.createLinearGradient(10, 70, 150, 15);
+    wGrad.addColorStop(0, '#3b0764');
+    wGrad.addColorStop(0.6, '#1e1b4b');
+    wGrad.addColorStop(1, '#c084fc');
+    ctx.fillStyle = wGrad;
+    ctx.beginPath(); ctx.moveTo(10, 70); ctx.lineTo(150, 15); ctx.lineTo(85, 115); ctx.closePath(); ctx.fill();
+  });
+
+  makeCanvas(scene, 'boss_void_orb', 44, 44, (ctx) => {
+    const oGrad = ctx.createRadialGradient(22, 22, 2, 22, 22, 20);
+    oGrad.addColorStop(0, '#ffffff');
+    oGrad.addColorStop(0.3, '#ef4444');
+    oGrad.addColorStop(0.65, '#7e22ce');
+    oGrad.addColorStop(1, 'rgba(126,34,206,0)');
+    ctx.fillStyle = oGrad;
+    drawEllipse(ctx, 22, 22, 20, 20);
+    ctx.fill();
+  });
+
+  // =========================================================================
+  // WORLD 5 FINAL TITAN: TITANORAPTOR (3D Canvas)
+  // =========================================================================
+  makeCanvas(scene, 'boss_dino_body', 200, 150, (ctx) => {
+    const dGrad = ctx.createRadialGradient(88, 72, 10, 100, 85, 62);
+    dGrad.addColorStop(0, '#22c55e');
+    dGrad.addColorStop(0.55, '#15803d');
+    dGrad.addColorStop(1, '#052e16');
+    ctx.fillStyle = dGrad;
+    drawEllipse(ctx, 100, 85, 55, 34);
+    ctx.fill();
+    ctx.fillStyle = '#fbbf24';
+    drawEllipse(ctx, 96, 94, 36, 17);
+    ctx.fill();
+    // Neck & Raptor Head
+    ctx.fillStyle = '#166534';
+    drawRoundedRect(ctx, 74, 28, 44, 52, 16);
+    ctx.fill();
+    // Cranial crest
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath(); ctx.moveTo(92, 20); ctx.lineTo(45, 2); ctx.lineTo(74, 28); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#14532d';
+    drawRoundedRect(ctx, 82, 16, 72, 28, 10);
+    ctx.fill();
+    // Teeth
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath(); ctx.moveTo(122 + i * 6, 32); ctx.lineTo(124 + i * 6, 38); ctx.lineTo(126 + i * 6, 32); ctx.closePath(); ctx.fill();
+    }
+    drawStudioEye(ctx, 108, 26, 6.5, '#f59e0b');
+  });
+
+  makeCanvas(scene, 'boss_dino_wing_l', 160, 120, (ctx) => {
+    const wGrad = ctx.createLinearGradient(150, 70, 12, 15);
+    wGrad.addColorStop(0, '#14532d');
+    wGrad.addColorStop(0.65, '#166534');
+    wGrad.addColorStop(1, '#b91c1c');
+    ctx.fillStyle = wGrad;
+    ctx.beginPath(); ctx.moveTo(150, 70); ctx.lineTo(12, 15); ctx.lineTo(75, 115); ctx.closePath(); ctx.fill();
+  });
+
+  makeCanvas(scene, 'boss_dino_wing_r', 160, 120, (ctx) => {
+    const wGrad = ctx.createLinearGradient(10, 70, 148, 15);
+    wGrad.addColorStop(0, '#14532d');
+    wGrad.addColorStop(0.65, '#166534');
+    wGrad.addColorStop(1, '#b91c1c');
+    ctx.fillStyle = wGrad;
+    ctx.beginPath(); ctx.moveTo(10, 70); ctx.lineTo(148, 15); ctx.lineTo(85, 115); ctx.closePath(); ctx.fill();
+  });
+
+  makeCanvas(scene, 'boss_dino_boulder', 44, 44, (ctx) => {
+    const bGrad = ctx.createRadialGradient(18, 16, 2, 22, 22, 18);
+    bGrad.addColorStop(0, '#fef08a');
+    bGrad.addColorStop(0.4, '#ef4444');
+    bGrad.addColorStop(0.75, '#292524');
+    bGrad.addColorStop(1, '#0c0a09');
+    ctx.fillStyle = bGrad;
+    drawEllipse(ctx, 22, 22, 18, 18);
+    ctx.fill();
+  });
+
+  // =========================================================================
+  // 3D SCENERY PROPS (Stones, Boulders, Flora, & Countryside Structures)
+  // =========================================================================
+  // scenery_stone_moss (3D sculpted river boulder with velvet moss cushion)
+  makeCanvas(scene, 'scenery_stone_moss', 80, 56, (ctx) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.34)';
+    drawEllipse(ctx, 40, 48, 35, 7);
+    ctx.fill();
+    const stGrad = ctx.createRadialGradient(28, 24, 4, 40, 36, 34);
+    stGrad.addColorStop(0, '#cbd5e1');
+    stGrad.addColorStop(0.45, '#64748b');
+    stGrad.addColorStop(0.85, '#334155');
+    stGrad.addColorStop(1, '#0f172a');
+    ctx.fillStyle = stGrad;
+    drawEllipse(ctx, 40, 36, 32, 16);
+    ctx.fill();
+    // 3D pillowy moss cap
+    const mGrad = ctx.createRadialGradient(32, 20, 2, 36, 24, 26);
+    mGrad.addColorStop(0, '#86efac');
+    mGrad.addColorStop(0.55, '#22c55e');
+    mGrad.addColorStop(1, '#14532d');
+    ctx.fillStyle = mGrad;
+    drawEllipse(ctx, 36, 24, 26, 7.5);
+    ctx.fill();
+  });
+
+  // scenery_stone_crag (3D faceted granite mountain crag)
+  makeCanvas(scene, 'scenery_stone_crag', 96, 72, (ctx) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.36)';
+    drawEllipse(ctx, 48, 64, 41, 8);
+    ctx.fill();
+    // Shaded right cliff face
+    const rGrad = ctx.createLinearGradient(48, 8, 88, 62);
+    rGrad.addColorStop(0, '#475569');
+    rGrad.addColorStop(1, '#1e293b');
+    ctx.fillStyle = rGrad;
+    ctx.beginPath();
+    ctx.moveTo(52, 8); ctx.lineTo(84, 28); ctx.lineTo(88, 62); ctx.lineTo(54, 62);
+    ctx.closePath(); ctx.fill();
+    // Sunlit left cliff face
+    const lGrad = ctx.createLinearGradient(12, 12, 56, 60);
+    lGrad.addColorStop(0, '#cbd5e1');
+    lGrad.addColorStop(0.55, '#64748b');
+    lGrad.addColorStop(1, '#334155');
+    ctx.fillStyle = lGrad;
+    ctx.beginPath();
+    ctx.moveTo(10, 60); ctx.lineTo(24, 20); ctx.lineTo(52, 8); ctx.lineTo(56, 62);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(248,250,252,0.75)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(24, 20); ctx.lineTo(52, 8); ctx.lineTo(56, 60);
+    ctx.stroke();
+  });
+
+  // scenery_stone_volcanic (3D obsidian crag with glowing lava veins)
+  makeCanvas(scene, 'scenery_stone_volcanic', 80, 64, (ctx) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.42)';
+    drawEllipse(ctx, 40, 56, 36, 8);
+    ctx.fill();
+    const vGrad = ctx.createLinearGradient(12, 8, 72, 54);
+    vGrad.addColorStop(0, '#3f3f46');
+    vGrad.addColorStop(0.5, '#18181b');
+    vGrad.addColorStop(1, '#09090b');
+    ctx.fillStyle = vGrad;
+    ctx.beginPath();
+    ctx.moveTo(8, 52); ctx.lineTo(20, 16); ctx.lineTo(44, 6); ctx.lineTo(72, 22); ctx.lineTo(76, 54);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(44, 12); ctx.lineTo(38, 32); ctx.lineTo(52, 50); ctx.stroke();
+    ctx.strokeStyle = '#fde047';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(44, 12); ctx.lineTo(38, 32); ctx.lineTo(52, 50); ctx.stroke();
+  });
+
+  // scenery_stone_pebbles (3D smooth river pebbles)
+  makeCanvas(scene, 'scenery_stone_pebbles', 48, 32, (ctx) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    drawEllipse(ctx, 24, 26, 21, 5);
+    ctx.fill();
+    [[16, 20, 9, 7], [30, 22, 7.5, 6], [23, 24, 5.5, 4.5]].forEach(([px, py, rx, ry]) => {
+      const pGrad = ctx.createRadialGradient(px - rx * 0.3, py - ry * 0.3, 1, px, py, rx);
+      pGrad.addColorStop(0, '#cbd5e1');
+      pGrad.addColorStop(0.55, '#64748b');
+      pGrad.addColorStop(1, '#1e293b');
+      ctx.fillStyle = pGrad;
+      drawEllipse(ctx, px, py, rx, ry);
+      ctx.fill();
+    });
+  });
+
+  // scenery_mushrooms (3D glossy red Amanita toadstools)
+  makeCanvas(scene, 'scenery_mushrooms', 64, 48, (ctx) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    drawEllipse(ctx, 34, 42, 27, 5);
+    ctx.fill();
+    const drawToadstool = (cx: number, cy: number, sc: number) => {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(sc, sc);
+      // 3D cylindrical stalk
+      const sGrad = ctx.createLinearGradient(-7, 0, 7, 0);
+      sGrad.addColorStop(0, '#f8fafc');
+      sGrad.addColorStop(0.6, '#e2e8f0');
+      sGrad.addColorStop(1, '#94a3b8');
+      ctx.fillStyle = sGrad;
+      drawRoundedRect(ctx, -7, -2, 14, 22, 6);
+      ctx.fill();
+      // 3D dome cap
+      const cGrad = ctx.createRadialGradient(-6, -10, 2, 0, -4, 22);
+      cGrad.addColorStop(0, '#f87171');
+      cGrad.addColorStop(0.45, '#dc2626');
+      cGrad.addColorStop(1, '#7f1d1d');
+      ctx.fillStyle = cGrad;
+      drawEllipse(ctx, 0, -4, 22, 12);
+      ctx.fill();
+      // Raised 3D white warts
+      ctx.fillStyle = '#ffffff';
+      [[-8, -8, 3.2], [4, -10, 2.8], [11, -5, 2.5], [-13, -3, 2.2], [-1, -4, 2.8]].forEach(([wx, wy, wr]) => {
+        drawEllipse(ctx, wx, wy, wr, wr * 0.85);
+        ctx.fill();
+      });
+      ctx.restore();
+    };
+    drawToadstool(28, 22, 1.0);
+    drawToadstool(50, 29, 0.58);
+  });
+
+  // scenery_fern (3D layered woodland fern fronds)
+  makeCanvas(scene, 'scenery_fern', 56, 56, (ctx) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    drawEllipse(ctx, 28, 50, 22, 4.5);
+    ctx.fill();
+    [[-0.48, 26], [0, 32], [0.48, 26]].forEach(([ang, len]) => {
+      ctx.save();
+      ctx.translate(28, 48);
+      ctx.rotate(ang);
+      ctx.strokeStyle = '#14532d';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -len); ctx.stroke();
+      for (let y = -6; y >= -len; y -= 5) {
+        const w = (1 - Math.abs(y) / (len + 6)) * 10 + 3;
+        const lGrad = ctx.createLinearGradient(-w, y, w, y);
+        lGrad.addColorStop(0, '#4ade80');
+        lGrad.addColorStop(0.5, '#16a34a');
+        lGrad.addColorStop(1, '#14532d');
+        ctx.fillStyle = lGrad;
+        drawEllipse(ctx, 0, y, w, 2.6);
+        ctx.fill();
+      }
+      ctx.restore();
+    });
+  });
+
+  // scenery_flower_bush (3D volumetric flowering shrub)
+  makeCanvas(scene, 'scenery_flower_bush', 64, 48, (ctx) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    drawEllipse(ctx, 32, 42, 28, 6);
+    ctx.fill();
+    [[18, 30, 15], [46, 30, 15], [32, 21, 17]].forEach(([bx, by, br]) => {
+      const fGrad = ctx.createRadialGradient(bx - br * 0.3, by - br * 0.3, 2, bx, by, br);
+      fGrad.addColorStop(0, '#86efac');
+      fGrad.addColorStop(0.55, '#16a34a');
+      fGrad.addColorStop(1, '#14532d');
+      ctx.fillStyle = fGrad;
+      drawEllipse(ctx, bx, by, br, br * 0.92);
+      ctx.fill();
+    });
+    [[20, 20, '#f472b6'], [44, 22, '#f43f5e'], [32, 12, '#fbbf24'], [30, 28, '#c084fc'], [42, 34, '#38bdf8']].forEach(([fx, fy, col]) => {
+      ctx.fillStyle = col as string;
+      for (let a = 0; a < 5; a++) {
+        const ang = (a * Math.PI * 2) / 5;
+        drawEllipse(ctx, (fx as number) + Math.cos(ang) * 3, (fy as number) + Math.sin(ang) * 3, 2.4, 2.4);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#fef08a';
+      drawEllipse(ctx, fx as number, fy as number, 2.2, 2.2);
+      ctx.fill();
+    });
+  });
+
+  // scenery_hanging_vine (3D trailing botanical ivy)
+  makeCanvas(scene, 'scenery_hanging_vine', 40, 80, (ctx) => {
+    ctx.strokeStyle = '#14532d';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(20, 0);
+    ctx.bezierCurveTo(10, 24, 30, 48, 18, 76);
+    ctx.stroke();
+    [[14, 12, 8], [25, 22, 8.5], [13, 34, 9], [26, 44, 8.5], [14, 56, 7.5], [23, 66, 6.5]].forEach(([vx, vy, s]) => {
+      const lGrad = ctx.createRadialGradient(vx - 2, vy - 2, 1, vx, vy, s);
+      lGrad.addColorStop(0, '#86efac');
+      lGrad.addColorStop(0.6, '#16a34a');
+      lGrad.addColorStop(1, '#14532d');
+      ctx.fillStyle = lGrad;
+      drawEllipse(ctx, vx, vy, s * 0.75, s * 0.52);
+      ctx.fill();
+    });
+  });
+
+  // scenery_crystal (3D faceted mystic amethyst cluster)
+  makeCanvas(scene, 'scenery_crystal', 48, 64, (ctx) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    drawEllipse(ctx, 24, 58, 21, 5);
+    ctx.fill();
+    ctx.fillStyle = '#1e293b';
+    drawRoundedRect(ctx, 8, 48, 32, 12, 4);
+    ctx.fill();
+    const drawShard = (x1: number, y1: number, x2: number, x3: number) => {
+      const cGrad = ctx.createLinearGradient(x2, y1, x3, 50);
+      cGrad.addColorStop(0, '#f3e8ff');
+      cGrad.addColorStop(0.45, '#a855f7');
+      cGrad.addColorStop(1, '#581c87');
+      ctx.fillStyle = cGrad;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, 50); ctx.lineTo(x3, 50); ctx.closePath(); ctx.fill();
+    };
+    drawShard(12, 22, 6, 20);
+    drawShard(36, 26, 28, 42);
+    drawShard(24, 8, 14, 34);
+  });
+
+  // scenery_lantern (3D wooden garden lantern with warm glow)
+  makeCanvas(scene, 'scenery_lantern', 40, 56, (ctx) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    drawEllipse(ctx, 20, 52, 14, 4);
+    ctx.fill();
+    ctx.fillStyle = '#451a03';
+    drawRoundedRect(ctx, 18, 10, 4, 42, 1.5); ctx.fill();
+    drawRoundedRect(ctx, 12, 50, 16, 4, 2); ctx.fill();
+    drawRoundedRect(ctx, 10, 10, 18, 3.5, 1.5); ctx.fill();
+    const lGrad = ctx.createRadialGradient(10, 30, 1, 10, 30, 9);
+    lGrad.addColorStop(0, '#ffffff');
+    lGrad.addColorStop(0.5, '#fde047');
+    lGrad.addColorStop(1, '#d97706');
+    ctx.fillStyle = lGrad;
+    drawRoundedRect(ctx, 4, 22, 12, 15, 3);
+    ctx.fill();
+    ctx.fillStyle = '#271408';
+    ctx.beginPath(); ctx.moveTo(10, 17); ctx.lineTo(2, 23); ctx.lineTo(18, 23); ctx.closePath(); ctx.fill();
+  });
+
+  // Keep remaining farm scenery & trophies crisp via temporary graphics helper
   g = gfx(scene);
-
-  // spider_web
-  g.clear();
-  g.lineStyle(1.5, 0xffffff, 0.7);
-  for (let i = 0; i < 8; i++) {
-    const a = (i * Math.PI) / 4;
-    g.lineBetween(35, 35, 35 + Math.cos(a) * 32, 35 + Math.sin(a) * 32);
-  }
-  g.strokeCircle(35, 35, 12);
-  g.strokeCircle(35, 35, 22);
-  g.strokeCircle(35, 35, 31);
-  g.generateTexture('spider_web', 70, 70);
-
-  // truffle
-  g.clear();
-  g.fillStyle(0x29180f, 1);
-  g.fillCircle(11, 11, 9);
-  g.fillStyle(0x52331f, 1);
-  g.fillCircle(9, 9, 4);
-  g.fillStyle(0xfbbf24, 0.8);
-  g.fillCircle(14, 13, 2);
-  g.generateTexture('truffle', 22, 22);
-
-  // pinecone
-  g.clear();
-  g.fillStyle(0x78350f, 1);
-  g.fillEllipse(12, 16, 18, 22);
-  g.fillStyle(0xb45309, 1);
-  for (let i = 0; i < 4; i++) {
-    g.fillTriangle(6, 8 + i * 5, 18, 8 + i * 5, 12, 13 + i * 5);
-  }
-  g.fillStyle(0xf59e0b, 1);
-  g.fillCircle(12, 4, 3);
-  g.generateTexture('pinecone', 24, 30);
-
-  // enemy_glutton
-  g.clear();
-  g.fillStyle(0x365314, 1);
-  g.fillEllipse(48, 48, 68, 56);
-  g.fillStyle(0x84cc16, 0.9);
-  g.fillEllipse(46, 54, 48, 38);
-  g.fillStyle(0x1a2e05, 1);
-  g.fillEllipse(66, 44, 32, 26);
-  g.fillStyle(0xfef08a, 1);
-  g.fillTriangle(60, 35, 64, 41, 62, 35);
-  g.fillTriangle(68, 34, 72, 40, 70, 34);
-  g.fillTriangle(62, 53, 66, 47, 64, 53);
-  g.fillTriangle(70, 52, 74, 46, 72, 52);
-  g.fillStyle(0xfef08a, 1);
-  g.fillCircle(58, 24, 8);
-  g.fillStyle(0xd90429, 1);
-  g.fillCircle(60, 24, 4);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(61, 23, 1.5);
-  g.fillStyle(0x4d7c0f, 1);
-  g.fillTriangle(20, 34, 4, 20, 26, 44);
-  g.generateTexture('enemy_glutton', 96, 88);
-
-  // enemy_bombardier
-  g.clear();
-  g.fillStyle(0x334155, 1);
-  g.fillTriangle(55, 34, 4, 14, 28, 56);
-  g.fillTriangle(65, 34, 116, 14, 92, 56);
-  g.fillStyle(0x475569, 1);
-  g.fillTriangle(55, 36, 14, 20, 32, 50);
-  g.fillTriangle(65, 36, 106, 20, 88, 50);
-
-  g.fillStyle(0x1e293b, 1);
-  g.fillEllipse(60, 38, 52, 26);
-  g.fillStyle(0xb45309, 1);
-  g.fillRoundedRect(42, 28, 36, 18, 4);
-
-  g.fillStyle(0x0f172a, 1);
-  g.fillCircle(78, 28, 13);
-  g.fillStyle(0x94a3b8, 1);
-  g.fillTriangle(84, 24, 102, 30, 84, 34);
-  g.fillTriangle(96, 30, 102, 36, 92, 33);
-  g.fillStyle(0xf59e0b, 1);
-  g.fillRoundedRect(76, 22, 14, 6, 2);
-  g.fillStyle(0x38bdf8, 1);
-  g.fillRect(80, 23, 5, 4);
-
-  g.fillStyle(0x0f172a, 1);
-  g.fillRoundedRect(22, 40, 24, 13, 3);
-  g.fillStyle(0xfacc15, 1);
-  g.fillRect(28, 40, 3, 13);
-  g.fillRect(34, 40, 3, 13);
-  g.fillStyle(0xef4444, 1);
-  g.fillCircle(46, 44, 3);
-  g.fillCircle(46, 50, 3);
-  g.fillStyle(0xf97316, 1);
-  g.fillTriangle(22, 43, 14, 46, 22, 49);
-
-  g.fillStyle(0x0f172a, 1);
-  g.fillRoundedRect(74, 40, 24, 13, 3);
-  g.fillStyle(0xfacc15, 1);
-  g.fillRect(80, 40, 3, 13);
-  g.fillRect(86, 40, 3, 13);
-  g.fillStyle(0xef4444, 1);
-  g.fillCircle(98, 44, 3);
-  g.fillCircle(98, 50, 3);
-  g.fillStyle(0xf97316, 1);
-  g.fillTriangle(74, 43, 66, 46, 74, 49);
-  g.generateTexture('enemy_bombardier', 120, 70);
-
-  // enemy_vulture_active
-  g.clear();
-  g.fillStyle(0x1c1917, 1);
-  g.fillTriangle(48, 48, 6, 20, 24, 66);
-  g.fillStyle(0x292524, 1);
-  g.fillTriangle(56, 48, 98, 20, 80, 66);
-  g.fillStyle(0x292524, 1);
-  g.fillEllipse(52, 54, 46, 42);
-  g.fillStyle(0xe2e8f0, 1);
-  g.fillEllipse(52, 38, 28, 14);
-  g.fillStyle(0xbe123c, 1);
-  g.fillRect(48, 26, 9, 14);
-  g.fillCircle(52, 22, 13);
-  g.fillStyle(0xd97706, 1);
-  g.fillTriangle(58, 20, 78, 25, 58, 28);
-  g.fillTriangle(74, 25, 78, 30, 70, 26);
-  g.fillStyle(0xdc2626, 1);
-  g.fillTriangle(44, 42, 60, 42, 52, 58);
-  g.fillStyle(0xffffff, 1);
-  g.fillRect(48, 44, 4, 4);
-  g.fillRect(52, 48, 4, 4);
-  g.fillStyle(0xef4444, 1);
-  g.fillCircle(58, 18, 4.5);
-  g.fillStyle(0x000000, 1);
-  g.fillCircle(59, 18, 2);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(60, 17, 1);
-  g.fillStyle(0xffffff, 1);
-  g.fillRoundedRect(42, 8, 20, 6, 2);
-  g.fillCircle(45, 4, 7);
-  g.fillCircle(52, 2, 8);
-  g.fillCircle(59, 4, 7);
-  g.fillStyle(0xf59e0b, 1);
-  g.fillRect(42, 12, 20, 2);
-  g.fillStyle(0x78350f, 1);
-  g.fillRect(17, 52, 5, 12);
-  g.fillStyle(0xcbd5e1, 1);
-  g.fillTriangle(17, 52, 22, 52, 19, 32);
-  g.fillStyle(0x78350f, 1);
-  g.fillRect(82, 52, 5, 12);
-  g.fillStyle(0xcbd5e1, 1);
-  g.fillRect(81, 36, 7, 16);
-  g.generateTexture('enemy_vulture_active', 104, 92);
-
-  // enemy_vulture_dormant
-  g.clear();
-  g.fillStyle(0x38bdf8, 0.25);
-  g.fillCircle(52, 48, 46);
-  g.fillStyle(0x38bdf8, 0.4);
-  g.fillCircle(52, 48, 36);
-  g.fillStyle(0x334155, 1);
-  g.fillCircle(52, 50, 28);
-  g.fillStyle(0x1e293b, 1);
-  g.fillEllipse(36, 52, 18, 34);
-  g.fillEllipse(68, 52, 18, 34);
-  g.fillStyle(0xf1f5f9, 1);
-  g.fillEllipse(52, 34, 24, 12);
-  g.fillStyle(0xf472b6, 1);
-  g.fillCircle(52, 24, 12);
-  g.lineStyle(2, 0x831843, 1);
-  g.beginPath();
-  g.arc(56, 23, 4, Math.PI, 0);
-  g.strokePath();
-  g.fillStyle(0xfb7185, 0.6);
-  g.fillCircle(58, 27, 4);
-  g.fillStyle(0xffffff, 1);
-  g.fillRoundedRect(38, 10, 18, 5, 2);
-  g.fillCircle(41, 6, 6);
-  g.fillCircle(47, 4, 7);
-  g.fillCircle(53, 6, 6);
-  g.fillStyle(0x38bdf8, 1);
-  g.fillRect(38, 13, 18, 2);
-  g.fillStyle(0xf59e0b, 1);
-  g.fillRect(40, 50, 24, 4);
-  g.fillCircle(65, 52, 6);
-  g.fillStyle(0xbae6fd, 0.85);
-  g.fillCircle(74, 16, 4);
-  g.fillCircle(82, 10, 6);
-  g.generateTexture('enemy_vulture_dormant', 104, 92);
-
-  // homing_missile
-  g.clear();
-  g.fillStyle(0xef4444, 1);
-  g.fillRect(6, 6, 18, 6);
-  g.fillStyle(0xffffff, 1);
-  g.fillTriangle(24, 6, 30, 9, 24, 12);
-  g.fillTriangle(6, 6, 2, 2, 8, 6);
-  g.fillTriangle(6, 12, 2, 16, 8, 12);
-  g.fillStyle(0xffd54f, 1);
-  g.fillCircle(3, 9, 3);
-  g.generateTexture('homing_missile', 32, 18);
-
-  // emporium_potion
-  g.clear();
-  g.fillStyle(0x38bdf8, 0.4);
-  g.fillRoundedRect(10, 18, 28, 30, 8);
-  g.fillStyle(0xffd700, 0.95);
-  g.fillRoundedRect(12, 24, 24, 22, 6);
-  g.fillStyle(0x64748b, 1);
-  g.fillRect(18, 8, 12, 10);
-  g.fillStyle(0xef4444, 1);
-  g.fillRect(16, 15, 16, 4);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(20, 28, 2);
-  g.fillCircle(28, 36, 1.5);
-  g.generateTexture('emporium_potion', 48, 54);
-
-  // backdrop_preview
-  g.clear();
-  g.fillStyle(0x78350f, 1);
-  g.fillRoundedRect(2, 2, 76, 52, 4);
-  g.fillStyle(0x38bdf8, 1);
-  g.fillRect(6, 6, 68, 44);
-  g.fillStyle(0xf472b6, 1);
-  g.fillCircle(40, 28, 16);
-  g.fillStyle(0x22c55e, 1);
-  g.fillEllipse(40, 45, 64, 16);
-  g.generateTexture('backdrop_preview', 80, 56);
-
-  // enemy_bat (Nocturnal swooping predator)
-  g.clear();
-  // Outstretched Scalloped Bat Wings
-  g.fillStyle(0x191024, 1);
-  // Left Wing
-  g.beginPath();
-  g.moveTo(42, 34);
-  g.lineTo(8, 10);
-  g.lineTo(14, 44);
-  g.lineTo(24, 38);
-  g.lineTo(32, 44);
-  g.lineTo(42, 38);
-  g.closePath();
-  g.fillPath();
-  // Right Wing
-  g.beginPath();
-  g.moveTo(54, 34);
-  g.lineTo(88, 10);
-  g.lineTo(82, 44);
-  g.lineTo(72, 38);
-  g.lineTo(64, 44);
-  g.lineTo(54, 38);
-  g.closePath();
-  g.fillPath();
-
-  // Leathery wing bones / ribs
-  g.lineStyle(2, 0x4c356b, 0.85);
-  g.lineBetween(40, 32, 10, 12);
-  g.lineBetween(10, 12, 14, 42);
-  g.lineBetween(10, 12, 24, 37);
-  g.lineBetween(10, 12, 32, 42);
-  g.lineBetween(56, 32, 86, 12);
-  g.lineBetween(86, 12, 82, 42);
-  g.lineBetween(86, 12, 72, 37);
-  g.lineBetween(86, 12, 64, 42);
-
-  // Bat Body & Head (Plump fluffy dark violet)
-  g.fillStyle(0x2a1b38, 1);
-  g.fillEllipse(48, 38, 30, 24);
-  g.fillCircle(48, 25, 14);
-
-  // Pointy Bat Ears
-  g.fillStyle(0x2a1b38, 1);
-  g.fillTriangle(38, 22, 34, 6, 46, 16);
-  g.fillTriangle(58, 22, 62, 6, 50, 16);
-  // Warm Inner Ears
-  g.fillStyle(0xf472b6, 0.7);
-  g.fillTriangle(39, 20, 36, 9, 44, 16);
-  g.fillTriangle(57, 20, 60, 9, 52, 16);
-
-  // Glowing Crimson Vampire Eyes
-  g.fillStyle(0xef4444, 1);
-  g.fillEllipse(43, 24, 4.5, 5);
-  g.fillEllipse(53, 24, 4.5, 5);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(44, 23, 1.6);
-  g.fillCircle(54, 23, 1.6);
-
-  // Little black nose & sharp white fangs
-  g.fillStyle(0x0f0b14, 1);
-  g.fillCircle(48, 28, 2.2);
-  g.fillStyle(0xffffff, 1);
-  g.fillTriangle(45, 30, 47, 30, 46, 35);
-  g.fillTriangle(49, 30, 51, 30, 50, 35);
-  g.generateTexture('enemy_bat', 96, 64);
-
-  // --- Dynamic Articulated Bat Components for Wing Flapping ---
-  // 1. enemy_bat_body (Standalone body with fluffy chest, ears, glowing eyes, fangs, little feet)
-  g.clear();
-  // Fluffy round bat body
-  g.fillStyle(0x221530, 1);
-  g.fillEllipse(32, 40, 28, 24);
-  // Soft belly shading
-  g.fillStyle(0x352349, 0.9);
-  g.fillEllipse(32, 42, 20, 16);
-
-  // Little bat feet / claws at the bottom
-  g.fillStyle(0x130a1c, 1);
-  g.fillCircle(27, 51, 2.5);
-  g.fillCircle(37, 51, 2.5);
-
-  // Bat Head
-  g.fillStyle(0x2a1b38, 1);
-  g.fillCircle(32, 27, 15);
-
-  // Pointy Bat Ears
-  g.fillStyle(0x2a1b38, 1);
-  g.fillTriangle(22, 24, 18, 8, 30, 18);
-  g.fillTriangle(42, 24, 46, 8, 34, 18);
-  // Pink Inner Ears
-  g.fillStyle(0xf472b6, 0.75);
-  g.fillTriangle(23, 22, 20, 11, 28, 18);
-  g.fillTriangle(41, 22, 44, 11, 36, 18);
-
-  // Glowing Crimson Vampire Eyes
-  g.fillStyle(0xef4444, 1);
-  g.fillEllipse(27, 26, 4.5, 5);
-  g.fillEllipse(37, 26, 4.5, 5);
-  g.fillStyle(0xffffff, 1);
-  g.fillCircle(28, 25, 1.6);
-  g.fillCircle(38, 25, 1.6);
-
-  // Cute bat nose
-  g.fillStyle(0x0f0b14, 1);
-  g.fillCircle(32, 30, 2.2);
-
-  // Sharp vampire fangs
-  g.fillStyle(0xffffff, 1);
-  g.fillTriangle(29, 32, 31, 32, 30, 37);
-  g.fillTriangle(33, 32, 35, 32, 34, 37);
-  g.generateTexture('enemy_bat_body', 64, 60);
-
-  // 2. enemy_bat_wing_left (Shoulder on right edge at x=44, y=26)
-  g.clear();
-  g.fillStyle(0x191024, 1);
-  g.beginPath();
-  g.moveTo(44, 26);
-  g.lineTo(6, 6);
-  g.lineTo(12, 42);
-  g.lineTo(22, 35);
-  g.lineTo(32, 41);
-  g.lineTo(44, 30);
-  g.closePath();
-  g.fillPath();
-
-  // Leathery wing ribs & highlights
-  g.lineStyle(2, 0x513873, 0.9);
-  g.lineBetween(44, 26, 8, 8);
-  g.lineBetween(8, 8, 12, 40);
-  g.lineBetween(8, 8, 22, 34);
-  g.lineBetween(8, 8, 32, 39);
-  // Subtle membrane shading
-  g.fillStyle(0x312046, 0.35);
-  g.fillTriangle(44, 26, 8, 8, 22, 34);
-  g.generateTexture('enemy_bat_wing_left', 48, 48);
-
-  // 3. enemy_bat_wing_right (Shoulder on left edge at x=4, y=26)
-  g.clear();
-  g.fillStyle(0x191024, 1);
-  g.beginPath();
-  g.moveTo(4, 26);
-  g.lineTo(42, 6);
-  g.lineTo(36, 42);
-  g.lineTo(26, 35);
-  g.lineTo(16, 41);
-  g.lineTo(4, 30);
-  g.closePath();
-  g.fillPath();
-
-  // Leathery wing ribs & highlights
-  g.lineStyle(2, 0x513873, 0.9);
-  g.lineBetween(4, 26, 40, 8);
-  g.lineBetween(40, 8, 36, 40);
-  g.lineBetween(40, 8, 26, 34);
-  g.lineBetween(40, 8, 16, 39);
-  // Subtle membrane shading
-  g.fillStyle(0x312046, 0.35);
-  g.fillTriangle(4, 26, 40, 8, 26, 34);
-  g.generateTexture('enemy_bat_wing_right', 48, 48);
-
-  // =========================================================================
-  // WORLD 5 FINAL BOSS: MALAKOR, THE SOVEREIGN SHADOW ROC
-  // =========================================================================
-  // 1. boss_roc_body (180x140 - Obsidian feathered titan torso, glowing chest core, fiery eyes)
-  g.clear();
-  // Ambient drop shadow
-  g.fillStyle(0x000000, 0.45);
-  g.fillEllipse(90, 80, 150, 95);
-  // Main torso mass (Deep abyssal obsidian & violet plumage)
-  g.fillStyle(0x180b26, 1);
-  g.fillEllipse(90, 75, 130, 90);
-  // Layered feather coats
-  g.fillStyle(0x2a1440, 0.9);
-  g.fillEllipse(90, 72, 110, 75);
-  g.fillStyle(0x3b1d5c, 0.8);
-  g.fillEllipse(90, 70, 90, 60);
-
-  // Armored neck & skull
-  g.fillStyle(0x1a092b, 1);
-  g.fillTriangle(90, 50, 135, 10, 70, 10);
-  // Crowned obsidian skull crest
-  g.fillStyle(0x11051c, 1);
-  g.fillTriangle(90, -5, 105, 25, 75, 25);
-  g.fillTriangle(115, 0, 125, 30, 95, 30);
-  g.fillTriangle(65, 0, 85, 30, 55, 30);
-
-  // Giant razor-sharp basalt beak
-  g.fillStyle(0x0f0b17, 1);
-  g.fillTriangle(90, 48, 125, 35, 90, 22);
-  g.fillStyle(0x475569, 1);
-  g.lineStyle(2, 0x64748b, 0.9);
-  g.lineBetween(90, 35, 125, 35);
-  // Hooked beak tip
-  g.fillTriangle(120, 35, 126, 42, 116, 38);
-
-  // Blazing predatory crimson eyes with slit pupils & purple corona glow
-  g.fillStyle(0x9333ea, 0.5);
-  g.fillCircle(82, 28, 9);
-  g.fillCircle(98, 28, 9);
-  g.fillStyle(0xef4444, 1);
-  g.fillCircle(82, 28, 6);
-  g.fillCircle(98, 28, 6);
-  g.fillStyle(0xfff176, 1);
-  g.fillCircle(82, 28, 3.5);
-  g.fillCircle(98, 28, 3.5);
-  // Slit pupils
-  g.fillStyle(0x000000, 1);
-  g.fillRect(81, 25, 2, 6);
-  g.fillRect(97, 25, 2, 6);
-
-  // Glowing Abyssal Chest Core (Vulnerable Weak Point)
-  g.fillStyle(0x7e22ce, 0.4);
-  g.fillCircle(90, 85, 26);
-  g.fillStyle(0xa855f7, 0.6);
-  g.fillCircle(90, 85, 18);
-  g.fillStyle(0xf43f5e, 0.85);
-  g.fillCircle(90, 85, 12);
-  g.fillStyle(0xfff176, 1);
-  g.fillCircle(90, 85, 6);
-  // Crackling core shield runes
-  g.lineStyle(2, 0x38bdf8, 0.8);
-  g.strokeCircle(90, 85, 20);
-
-  // Titanic talons
-  g.fillStyle(0x334155, 1);
-  g.fillTriangle(60, 115, 52, 132, 68, 122);
-  g.fillTriangle(72, 116, 68, 134, 78, 124);
-  g.fillTriangle(120, 115, 128, 132, 112, 122);
-  g.fillTriangle(108, 116, 112, 134, 102, 124);
-  g.generateTexture('boss_roc_body', 180, 140);
-
-  // 2. boss_roc_wing_l (Left Colossal Wing - 160x120)
-  g.clear();
-  g.fillStyle(0x130821, 1);
-  g.fillTriangle(150, 70, 10, 15, 75, 115);
-  g.fillStyle(0x27103d, 0.95);
-  g.fillTriangle(150, 70, 25, 25, 85, 105);
-  // Primary flight feathers
-  g.fillStyle(0x3e1a61, 0.9);
-  g.fillTriangle(20, 20, 5, 30, 45, 50);
-  g.fillTriangle(35, 45, 15, 60, 65, 70);
-  g.fillTriangle(50, 65, 30, 85, 80, 90);
-  // Void glowing aura rim
-  g.lineStyle(3, 0xc084fc, 0.75);
-  g.lineBetween(150, 70, 10, 15);
-  g.lineBetween(10, 15, 75, 115);
-  g.generateTexture('boss_roc_wing_l', 160, 120);
-
-  // 3. boss_roc_wing_r (Right Colossal Wing - 160x120)
-  g.clear();
-  g.fillStyle(0x130821, 1);
-  g.fillTriangle(10, 70, 150, 15, 85, 115);
-  g.fillStyle(0x27103d, 0.95);
-  g.fillTriangle(10, 70, 135, 25, 75, 105);
-  // Primary flight feathers
-  g.fillStyle(0x3e1a61, 0.9);
-  g.fillTriangle(140, 20, 155, 30, 115, 50);
-  g.fillTriangle(125, 45, 145, 60, 95, 70);
-  g.fillTriangle(110, 65, 130, 85, 80, 90);
-  // Void glowing aura rim
-  g.lineStyle(3, 0xc084fc, 0.75);
-  g.lineBetween(10, 70, 150, 15);
-  g.lineBetween(150, 15, 85, 115);
-  g.generateTexture('boss_roc_wing_r', 160, 120);
-
-  // 4. boss_void_orb (Targeting Dark-Matter Orb - 44x44)
-  g.clear();
-  g.fillStyle(0x7e22ce, 0.35);
-  g.fillCircle(22, 22, 20);
-  g.fillStyle(0x9333ea, 0.65);
-  g.fillCircle(22, 22, 15);
-  g.fillStyle(0x1e1528, 1);
-  g.fillCircle(22, 22, 10);
-  g.fillStyle(0xef4444, 1);
-  g.fillCircle(22, 22, 5);
-  g.lineStyle(2, 0xf43f5e, 0.9);
-  g.strokeCircle(22, 22, 12);
-  g.generateTexture('boss_void_orb', 44, 44);
-
-  // =========================================================================
-  // WORLD 5 FINAL TITAN: TITANORAPTOR, THE PRIMAL ANCESTOR (Avian Dinosaur)
-  // =========================================================================
-
-  // 1. boss_dino_body (Prehistoric Feathered Theropod / Pterosaur Titan - 200x150)
-  g.clear();
-  // Ambient drop shadow under belly
-  g.fillStyle(0x000000, 0.4);
-  g.fillEllipse(100, 138, 120, 24);
-
-  // Scaled muscular theropod body (Deep primeval emerald & obsidian scales)
-  g.fillStyle(0x143625, 1);
-  g.fillEllipse(100, 85, 110, 68);
-  g.fillStyle(0x235338, 1);
-  g.fillEllipse(98, 80, 96, 56);
-
-  // Warm golden-amber reptilian underbelly
-  g.fillStyle(0xd97706, 0.95);
-  g.fillEllipse(96, 92, 70, 36);
-  g.fillStyle(0xfbbf24, 0.9);
-  g.fillEllipse(94, 94, 52, 22);
-
-  // Primordial Feathered Neck Ruff & Quills
-  g.fillStyle(0xb91c1c, 1);
-  g.fillTriangle(70, 48, 52, 68, 76, 72);
-  g.fillTriangle(84, 42, 68, 65, 90, 70);
-  g.fillTriangle(98, 44, 88, 68, 108, 68);
-  g.fillTriangle(115, 46, 128, 68, 105, 72);
-
-  // Powerful S-curved raptor neck
-  g.fillStyle(0x1a432d, 1);
-  g.fillRoundedRect(72, 30, 46, 50, 16);
-
-  // Pterosaur / Theropod Cranial Crest (Vibrant prehistoric red & amber)
-  g.fillStyle(0xd97706, 1);
-  g.fillTriangle(90, 22, 50, -6, 78, 30);
-  g.fillStyle(0xef4444, 1);
-  g.fillTriangle(92, 20, 45, -12, 72, 26);
-  g.fillStyle(0xfde047, 0.9);
-  g.fillTriangle(85, 18, 52, -4, 75, 24);
-
-  // Fierce prehistoric dinosaur head
-  g.fillStyle(0x143625, 1);
-  g.fillRoundedRect(82, 16, 52, 34, 10);
-
-  // Long toothy raptor snout & jaws
-  g.fillStyle(0x1a432d, 1);
-  g.fillTriangle(120, 18, 158, 32, 120, 42);
-  g.fillStyle(0x0f281b, 1);
-  g.fillRect(116, 32, 38, 3); // jaw seam
-
-  // Sharp serrated white predatory teeth!
-  g.fillStyle(0xffffff, 1);
-  for (let i = 0; i < 5; i++) {
-    // Upper teeth
-    g.fillTriangle(122 + i * 6, 32, 125 + i * 6, 32, 123.5 + i * 6, 37);
-    // Lower teeth
-    g.fillTriangle(124 + i * 6, 35, 127 + i * 6, 35, 125.5 + i * 6, 30);
-  }
-
-  // Piercing amber reptilian eye with vertical slit pupil
-  g.fillStyle(0xf59e0b, 1);
-  g.fillCircle(108, 26, 7);
-  g.fillStyle(0xfef08a, 1);
-  g.fillCircle(108, 26, 4.5);
-  // Slit pupil
-  g.fillStyle(0x000000, 1);
-  g.fillRect(107, 21, 2, 10);
-  // Brow ridge
-  g.fillStyle(0x0f281b, 1);
-  g.fillTriangle(98, 19, 116, 19, 108, 22);
-
-  // Razor theropod sickle claws / talons
-  g.fillStyle(0x1e293b, 1);
-  g.fillTriangle(68, 118, 58, 140, 78, 128);
-  g.fillTriangle(80, 120, 74, 144, 88, 130);
-  g.fillTriangle(116, 118, 126, 140, 108, 128);
-  g.fillTriangle(104, 120, 110, 144, 96, 130);
-  // Sharp talon highlights
-  g.fillStyle(0x94a3b8, 1);
-  g.fillTriangle(60, 136, 58, 140, 66, 134);
-  g.fillTriangle(124, 136, 126, 140, 118, 134);
-
-  g.generateTexture('boss_dino_body', 200, 150);
-
-  // 2. boss_dino_wing_l (Left Prehistoric Wing with Clawed Digits - 160x120)
-  g.clear();
-  // Robust pterosaur wing spar
-  g.fillStyle(0x143625, 1);
-  g.fillTriangle(150, 70, 12, 15, 75, 115);
-  g.fillStyle(0x235338, 0.95);
-  g.fillTriangle(150, 70, 28, 26, 85, 105);
-  // Primitive flight feather quills along trailing edge
-  g.fillStyle(0xb91c1c, 0.9);
-  g.fillTriangle(22, 22, 8, 32, 48, 52);
-  g.fillTriangle(38, 48, 18, 62, 68, 72);
-  g.fillTriangle(54, 68, 34, 88, 84, 92);
-  // Sharp wing-finger claws at the joint!
-  g.fillStyle(0xf59e0b, 1);
-  g.fillTriangle(12, 15, -2, 6, 18, 10);
-  g.fillTriangle(12, 15, 2, 2, 22, 14);
-  g.generateTexture('boss_dino_wing_l', 160, 120);
-
-  // 3. boss_dino_wing_r (Right Prehistoric Wing with Clawed Digits - 160x120)
-  g.clear();
-  g.fillStyle(0x143625, 1);
-  g.fillTriangle(10, 70, 148, 15, 85, 115);
-  g.fillStyle(0x235338, 0.95);
-  g.fillTriangle(10, 70, 132, 26, 75, 105);
-  // Primitive flight feather quills
-  g.fillStyle(0xb91c1c, 0.9);
-  g.fillTriangle(138, 22, 152, 32, 112, 52);
-  g.fillTriangle(122, 48, 142, 62, 92, 72);
-  g.fillTriangle(106, 68, 126, 88, 76, 92);
-  // Sharp wing-finger claws
-  g.fillStyle(0xf59e0b, 1);
-  g.fillTriangle(148, 15, 162, 6, 142, 10);
-  g.fillTriangle(148, 15, 158, 2, 138, 14);
-  g.generateTexture('boss_dino_wing_r', 160, 120);
-
-  // 4. boss_dino_boulder (Volcanic Magma Rock Projectile - 44x44)
-  g.clear();
-  // Fire aura
-  g.fillStyle(0xd97706, 0.4);
-  g.fillCircle(22, 22, 20);
-  // Dark jagged basalt rock
-  g.fillStyle(0x1c1917, 1);
-  g.fillCircle(22, 22, 16);
-  // Glowing magma fissures
-  g.fillStyle(0xef4444, 1);
-  g.fillTriangle(14, 16, 28, 20, 20, 30);
-  g.fillStyle(0xfde047, 1);
-  g.fillCircle(21, 21, 5);
-  g.lineStyle(2, 0xf97316, 0.9);
-  g.strokeCircle(22, 22, 14);
-  g.generateTexture('boss_dino_boulder', 44, 44);
-
-  // --- 2.5D Scenery Props (Depth stones, boulders, and terrain accents) ---
-  // scenery_stone_moss (Smooth river boulder with volumetric highlight & velvet moss)
-  g.clear();
-  // Ambient ground contact shadow
-  g.fillStyle(0x000000, 0.3);
-  g.fillEllipse(40, 48, 68, 14);
-  // Main stone mass (cool slate grey)
-  g.fillStyle(0x475569, 1);
-  g.fillEllipse(40, 36, 64, 32);
-  // Volumetric upper light highlight
-  g.fillStyle(0x94a3b8, 0.7);
-  g.fillEllipse(36, 28, 48, 18);
-  // Lush forest moss cap on top
-  g.fillStyle(0x2e7d32, 0.95);
-  g.fillEllipse(36, 24, 52, 14);
-  g.fillStyle(0x66bb6a, 0.85);
-  g.fillEllipse(32, 21, 38, 8);
-  g.generateTexture('scenery_stone_moss', 80, 56);
-
-  // scenery_stone_crag (Rugged mountain rock crag with sharp stone facets)
-  g.clear();
-  g.fillStyle(0x000000, 0.35);
-  g.fillEllipse(48, 64, 82, 16);
-  // Dark base facet
-  g.fillStyle(0x334155, 1);
-  g.fillPoints([
-    new Phaser.Math.Vector2(10, 60),
-    new Phaser.Math.Vector2(24, 20),
-    new Phaser.Math.Vector2(52, 8),
-    new Phaser.Math.Vector2(84, 28),
-    new Phaser.Math.Vector2(88, 62),
-  ], true);
-  // Light sunlit facet
-  g.fillStyle(0x64748b, 1);
-  g.fillPoints([
-    new Phaser.Math.Vector2(24, 20),
-    new Phaser.Math.Vector2(52, 8),
-    new Phaser.Math.Vector2(56, 60),
-    new Phaser.Math.Vector2(10, 60),
-  ], true);
-  // Crisp ridge highlight line
-  g.lineStyle(2, 0xcbd5e1, 0.8);
-  g.lineBetween(52, 8, 24, 20);
-  g.lineBetween(52, 8, 56, 60);
-  g.generateTexture('scenery_stone_crag', 96, 72);
-
-  // scenery_stone_volcanic (Jagged obsidian rock with smoldering magma veins)
-  g.clear();
-  g.fillStyle(0x000000, 0.4);
-  g.fillEllipse(40, 56, 72, 16);
-  // Pitch-black obsidian body
-  g.fillStyle(0x18181b, 1);
-  g.fillPoints([
-    new Phaser.Math.Vector2(8, 52),
-    new Phaser.Math.Vector2(20, 16),
-    new Phaser.Math.Vector2(44, 6),
-    new Phaser.Math.Vector2(72, 22),
-    new Phaser.Math.Vector2(76, 54),
-  ], true);
-  // Basalt facet shading
-  g.fillStyle(0x27272a, 1);
-  g.fillPoints([
-    new Phaser.Math.Vector2(20, 16),
-    new Phaser.Math.Vector2(44, 6),
-    new Phaser.Math.Vector2(42, 52),
-    new Phaser.Math.Vector2(8, 52),
-  ], true);
-  // Glowing magma fissure crack
-  g.lineStyle(2.5, 0xef4444, 0.95);
-  g.lineBetween(44, 12, 38, 32);
-  g.lineBetween(38, 32, 52, 50);
-  g.lineStyle(1.5, 0xfbbf24, 1);
-  g.lineBetween(44, 12, 38, 32);
-  g.lineBetween(38, 32, 52, 50);
-  g.generateTexture('scenery_stone_volcanic', 80, 64);
-
-  // scenery_stone_pebbles (Cluster of smooth pebbles)
-  g.clear();
-  g.fillStyle(0x000000, 0.25);
-  g.fillEllipse(24, 26, 42, 10);
-  g.fillStyle(0x52525b, 1);
-  g.fillCircle(16, 20, 9);
-  g.fillStyle(0x71717a, 1);
-  g.fillCircle(14, 18, 5);
-  g.fillStyle(0x3f3f46, 1);
-  g.fillCircle(30, 22, 7);
-  g.fillStyle(0x52525b, 1);
-  g.fillCircle(29, 20, 4);
-  g.generateTexture('scenery_stone_pebbles', 48, 32);
-
-  // scenery_mushrooms (Forest red toadstools with white polka dots)
-  g.clear();
-  g.fillStyle(0x000000, 0.28);
-  g.fillEllipse(32, 42, 54, 10);
-  // Main stalk
-  g.fillStyle(0xf1f5f9, 1);
-  g.fillRoundedRect(25, 20, 14, 22, 6);
-  g.fillStyle(0xe2e8f0, 1);
-  g.fillRoundedRect(31, 20, 8, 22, 4);
-  // Main red cap
-  g.fillStyle(0xb91c1c, 1);
-  g.fillEllipse(32, 18, 44, 24);
-  g.fillStyle(0xdc2626, 1);
-  g.fillEllipse(30, 16, 40, 20);
-  g.fillStyle(0xef4444, 1);
-  g.fillEllipse(28, 13, 30, 12);
-  // White spots
-  g.fillStyle(0xffffff, 0.95);
-  g.fillCircle(24, 14, 3.5);
-  g.fillCircle(35, 12, 3);
-  g.fillCircle(42, 16, 2.8);
-  g.fillCircle(18, 18, 2.5);
-  g.fillCircle(30, 8, 2.8);
-  // Baby mushroom next to it
-  g.fillStyle(0xf1f5f9, 1);
-  g.fillRoundedRect(48, 28, 8, 14, 3);
-  g.fillStyle(0xb91c1c, 1);
-  g.fillEllipse(52, 26, 18, 12);
-  g.fillStyle(0xef4444, 1);
-  g.fillEllipse(51, 25, 16, 10);
-  g.fillStyle(0xffffff, 0.95);
-  g.fillCircle(50, 24, 2);
-  g.fillCircle(54, 26, 1.8);
-  g.generateTexture('scenery_mushrooms', 64, 48);
-
-  // scenery_fern (Graceful woodland fern fronds)
-  g.clear();
-  g.fillStyle(0x000000, 0.22);
-  g.fillEllipse(28, 50, 44, 8);
-  // Main stems
-  g.lineStyle(2.5, 0x14532d, 1);
-  g.beginPath();
-  g.moveTo(28, 50);
-  g.lineTo(12, 16);
-  g.moveTo(28, 50);
-  g.lineTo(44, 14);
-  g.moveTo(28, 50);
-  g.lineTo(28, 10);
-  g.strokePath();
-  // Fern pinnules/leaflets
-  const drawFernLeaves = (fx: number, fy: number, angleDeg: number, w: number, col: number) => {
-    g.fillStyle(col, 0.92);
-    g.fillEllipse(fx, fy, w, 6);
-  };
-  drawFernLeaves(18, 24, -30, 16, 0x15803d);
-  drawFernLeaves(22, 32, -30, 20, 0x16a34a);
-  drawFernLeaves(14, 18, -40, 12, 0x4ade80);
-  drawFernLeaves(38, 22, 30, 16, 0x15803d);
-  drawFernLeaves(34, 30, 30, 20, 0x16a34a);
-  drawFernLeaves(42, 16, 40, 12, 0x4ade80);
-  drawFernLeaves(28, 12, 0, 14, 0x22c55e);
-  drawFernLeaves(28, 20, 0, 18, 0x16a34a);
-  drawFernLeaves(28, 28, 0, 22, 0x15803d);
-  g.generateTexture('scenery_fern', 56, 56);
-
-  // scenery_flower_bush (Flowering lush bush)
-  g.clear();
-  g.fillStyle(0x000000, 0.25);
-  g.fillEllipse(32, 42, 56, 12);
-  // Foliage lobes
-  g.fillStyle(0x14532d, 1);
-  g.fillCircle(18, 30, 16);
-  g.fillCircle(46, 30, 16);
-  g.fillCircle(32, 22, 18);
-  g.fillStyle(0x16a34a, 1);
-  g.fillCircle(20, 26, 14);
-  g.fillCircle(44, 26, 14);
-  g.fillCircle(32, 18, 16);
-  g.fillStyle(0x4ade80, 0.7);
-  g.fillCircle(30, 15, 10);
-  // Flower blossoms
-  const flower = (bx: number, by: number, petalCol: number) => {
-    g.fillStyle(petalCol, 1);
-    g.fillCircle(bx - 3, by, 3);
-    g.fillCircle(bx + 3, by, 3);
-    g.fillCircle(bx, by - 3, 3);
-    g.fillCircle(bx, by + 3, 3);
-    g.fillStyle(0xfef08a, 1);
-    g.fillCircle(bx, by, 2.5);
-  };
-  flower(20, 20, 0xf472b6);
-  flower(44, 22, 0xf43f5e);
-  flower(32, 12, 0xfbbf24);
-  flower(30, 28, 0xa855f7);
-  flower(42, 34, 0x38bdf8);
-  g.generateTexture('scenery_flower_bush', 64, 48);
-
-  // scenery_hanging_vine (Hanging ivy foliage)
-  g.clear();
-  g.lineStyle(3, 0x14532d, 1);
-  g.beginPath();
-  g.moveTo(20, 0);
-  g.lineTo(16, 24);
-  g.lineTo(24, 48);
-  g.lineTo(18, 76);
-  g.strokePath();
-  const vineLeaf = (vx: number, vy: number, s: number) => {
-    g.fillStyle(0x15803d, 1);
-    g.fillEllipse(vx, vy, s * 1.4, s);
-    g.fillStyle(0x4ade80, 0.85);
-    g.fillEllipse(vx - 1, vy - 1, s * 0.9, s * 0.6);
-  };
-  vineLeaf(14, 12, 8);
-  vineLeaf(25, 20, 9);
-  vineLeaf(12, 32, 10);
-  vineLeaf(26, 42, 9);
-  vineLeaf(14, 54, 8);
-  vineLeaf(24, 64, 7);
-  vineLeaf(18, 74, 5);
-  g.generateTexture('scenery_hanging_vine', 40, 80);
-
-  // scenery_crystal (Mystic glowing crystal cluster)
-  g.clear();
-  g.fillStyle(0x000000, 0.35);
-  g.fillEllipse(24, 58, 42, 10);
-  // Basalt rock base
-  g.fillStyle(0x1e293b, 1);
-  g.fillRoundedRect(8, 48, 32, 12, 4);
-  // Main crystal
-  g.fillStyle(0x7e22ce, 1);
-  g.fillTriangle(24, 8, 14, 50, 34, 50);
-  g.fillStyle(0xa855f7, 1);
-  g.fillTriangle(24, 8, 20, 50, 34, 50);
-  g.fillStyle(0xe9d5ff, 0.8);
-  g.fillTriangle(24, 8, 22, 30, 26, 30);
-  // Left angled crystal
-  g.fillStyle(0x6b21a8, 1);
-  g.fillTriangle(12, 22, 6, 50, 20, 50);
-  g.fillStyle(0x9333ea, 1);
-  g.fillTriangle(12, 22, 13, 50, 20, 50);
-  // Right angled crystal
-  g.fillStyle(0x581c87, 1);
-  g.fillTriangle(36, 26, 28, 50, 42, 50);
-  g.fillStyle(0x7c3aed, 1);
-  g.fillTriangle(36, 26, 33, 50, 42, 50);
-  g.generateTexture('scenery_crystal', 48, 64);
-
-  // scenery_lantern (Garden lantern with glowing amber core)
-  g.clear();
-  g.fillStyle(0x000000, 0.3);
-  g.fillEllipse(20, 52, 28, 8);
-  // Wooden post & base
-  g.fillStyle(0x3e200c, 1);
-  g.fillRect(18, 24, 4, 30);
-  g.fillRoundedRect(12, 50, 16, 4, 2);
-  // Hanging arm
-  g.fillRect(10, 10, 18, 3);
-  g.fillRect(10, 10, 3, 10);
-  // Roof cap
-  g.fillStyle(0x271408, 1);
-  g.fillTriangle(10, 18, 2, 23, 18, 23);
-  // Glowing paper lantern
-  g.fillStyle(0xd97706, 1);
-  g.fillRoundedRect(4, 23, 12, 14, 3);
-  g.fillStyle(0xfde047, 1);
-  g.fillRoundedRect(5, 24, 10, 12, 2);
-  g.fillStyle(0xffffff, 0.95);
-  g.fillCircle(10, 30, 3);
-  g.generateTexture('scenery_lantern', 40, 56);
 
   // --- Farm & Countryside Scenery Props ---
   // scenery_anthill (Sandy loam anthill mound with crater entrance & busy ants)

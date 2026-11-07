@@ -95,6 +95,7 @@ interface Spot {
   eggFromMama?: boolean;
   nestStage?: number;
   nestGfx?: Phaser.GameObjects.Graphics;
+  nestImg?: Phaser.GameObjects.Image;
   nestRaidCooldown?: number;
 }
 
@@ -997,7 +998,7 @@ export class Bird {
     this.beakTwig.setVisible(this.state === 'buildNest');
 
     // -----------------------------------------------------------------
-    // 2.5D Volumetric Turning with Volume Conservation & Banking Roll
+    // True 3D Yaw Turning with Frontal 3D Model Swap & Dual-Wing Orbit
     // -----------------------------------------------------------------
     if (this.dir !== this.turnToDir) {
       this.turnFromDir = this.turnProgress < 0.5 ? this.turnFromDir : this.turnToDir;
@@ -1006,54 +1007,92 @@ export class Bird {
     }
 
     if (this.turnProgress < 1.0) {
-      // Fluid, natural turn transition (~0.18s)
-      this.turnProgress = Math.min(1.0, this.turnProgress + dt * 5.6);
+      // Smooth 3D yaw rotation (~0.24s) so the frontal 3D turn pose reads clearly
+      this.turnProgress = Math.min(1.0, this.turnProgress + dt * 4.2);
     }
 
     const p = this.turnProgress;
-    const turnSine = Math.sin(p * Math.PI); // 0 at ends, 1.0 at apex of turn
+    const turnSine = Math.sin(p * Math.PI); // 0 at ends, 1.0 at apex of turn (facing camera)
     const curDir = p < 0.5 ? this.turnFromDir : this.turnToDir;
+    const isTurningFront = turnSine > 0.62;
 
-    // 1. Volume Conservation on X:
-    // Torso maintains rounded frontal chest width (58% minimum width).
-    // NEVER squashes to paper-thin zero width!
-    const widthFactor = 1.0 - turnSine * 0.42;
+    const texKey = (this.mama && this.species.key !== 'phoenix') ? 'mama' : this.species.key;
+    const s = Math.min(2, Math.max(0, this.stage));
+    const profileKey = this.scene.textures.exists(`bird_${texKey}_${s}`) ? `bird_${texKey}_${s}` : `bird_${texKey}`;
+    const turnKey = this.scene.textures.exists(`bird_${texKey}_${s}_turn`) ? `bird_${texKey}_${s}_turn` : profileKey;
+
+    const targetBodyTex = isTurningFront ? turnKey : profileKey;
+    if (this.body.texture.key !== targetBodyTex) {
+      this.body.setTexture(targetBodyTex);
+    }
+
+    // Hide profile-only eyelid during frontal 3D yaw apex
+    if (isTurningFront) {
+      this.eyelid.setVisible(false);
+    }
+
+    // 1. 3D Yaw Volume Conservation on X & Y:
+    // During the frontal 3D pose, the spherical chest faces the camera directly with full 3D breadth!
+    const widthFactor = isTurningFront
+      ? 0.86 + (turnSine - 0.62) * 0.36
+      : 1.0 - turnSine * 0.28;
     this.flip.scaleX = curDir * widthFactor;
+    this.flip.scaleY = 1.0 + turnSine * 0.12;
 
-    // 2. Volume Conservation on Y (Spherical chest & belly expansion in 3D):
-    // Preserves 3D mass so the bird stays plump and round throughout the turn
-    this.flip.scaleY = 1.0 + turnSine * 0.16;
-
-    // 3. 3D Banking Roll (Tilts wings into the turn like a soaring bird):
+    // 2. 3D Banking Roll (Tilts wings into the turn like a real bird):
     if (flying && this.state !== 'rest') {
-      const bankRoll = -turnSine * 0.20 * this.turnToDir;
+      const bankRoll = -turnSine * 0.22 * this.turnToDir;
       this.spr.rotation += bankRoll;
     } else if (this.state === 'rest') {
-      // Cute playful little hop on the perch when turning around!
+      // Cute playful little 3D hop on the perch when turning around!
       this.body.y = -turnSine * 6;
     }
 
-    // 4. Dual-Wing 3D Volumetric Depth Parallax:
-    const s = Math.min(2, Math.max(0, this.stage));
+    // 3. Dual-Wing 3D Shoulder Orbit:
+    // In profile, both wings sit back from the chest; during the frontal 3D turn,
+    // left and right wings spread out on OPPOSITE shoulders flanking the 3D chest!
     const baseWingX = s === 0 ? -4 : s === 1 ? -6 : -8;
     const baseWingY = s === 0 ? 3 : s === 1 ? 4 : 5;
+    const shoulderSpread = s === 0 ? 9 : s === 1 ? 11 : 14;
 
-    this.wing.x = baseWingX + turnSine * 3;
-    if (this.wingBack) {
-      this.wingBack.x = (baseWingX - 2) - turnSine * 6;
-      this.wingBack.y = (baseWingY - 3) - turnSine * 2;
+    if (isTurningFront) {
+      this.wing.x = -shoulderSpread * turnSine;
+      this.wing.y = baseWingY - 1;
+      if (this.wingBack) {
+        this.wingBack.x = shoulderSpread * turnSine;
+        this.wingBack.y = baseWingY - 1;
+      }
+    } else {
+      this.wing.x = baseWingX + turnSine * 4;
+      this.wing.y = baseWingY;
+      if (this.wingBack) {
+        this.wingBack.x = (baseWingX - 2) - turnSine * 5;
+        this.wingBack.y = (baseWingY - 3) - turnSine * 1.5;
+      }
+    }
+
+    // Foreshorten carried twig in 3D when turning toward camera
+    if (this.state === 'buildNest') {
+      const baseTwigX = s === 0 ? 22 : s === 1 ? 28 : 33;
+      const baseTwigScale = s === 0 ? 0.75 : s === 1 ? 0.85 : 0.95;
+      this.beakTwig.x = baseTwigX * (1 - turnSine * 0.82);
+      this.beakTwig.scaleX = baseTwigScale * (1 - turnSine * 0.45);
+      this.beakTwig.scaleY = baseTwigScale;
     }
 
     const flapRate = this.stage === 0 ? 0.046 : this.stage === 1 ? 0.034 : 0.024;
     const flapAmp = this.stage === 0 ? 0.95 : this.stage === 1 ? 0.88 : 0.78;
 
-    this.body.y = 0;
+    this.body.y = this.state === 'rest' ? -turnSine * 5 : 0;
     this.bodyShadow.y = 7;
     this.body.setScale(1);
     this.bodyShadow.setScale(1);
     this.wing.setScale(1);
     this.wingShadow.setScale(1);
-    if (this.wingBack) this.wingBack.setScale(1);
+    if (this.wingBack) {
+      this.wingBack.setScale(isTurningFront ? -1 : 1, 1);
+      this.wingBack.setTint(isTurningFront ? 0xcbd5e1 : 0x71717a);
+    }
 
     const isDiving = this.state === 'seek' && Math.abs(this.spr.rotation) > 0.18;
 
@@ -1216,6 +1255,9 @@ export class Predator {
   kx = 0;
   ky = 0;
   dir = 1;
+  turnProgress = 1.0;
+  turnFromDir = 1;
+  turnToDir = 1;
   dying = false;
   gone = false;
   pause = 0;
@@ -1451,7 +1493,18 @@ export class Predator {
   }
 
   update(dt: number, t: number) {
-    this.flip.scaleX = this.dir;
+    if (this.dir !== this.turnToDir) {
+      this.turnFromDir = this.turnProgress < 0.5 ? this.turnFromDir : this.turnToDir;
+      this.turnToDir = this.dir;
+      this.turnProgress = 1.0 - this.turnProgress;
+    }
+    if (this.turnProgress < 1.0) {
+      this.turnProgress = Math.min(1.0, this.turnProgress + dt * 4.8);
+    }
+    const turnSine = Math.sin(this.turnProgress * Math.PI);
+    const curDir = this.turnProgress < 0.5 ? this.turnFromDir : this.turnToDir;
+    this.flip.scaleX = curDir * (1.0 - turnSine * 0.34);
+    this.flip.scaleY = 1.0 + turnSine * 0.14;
     this.wing.rotation = Math.sin(t * 0.03 + this.phase) * 0.9 - 0.2;
 
     if (this.dying) {
@@ -2883,26 +2936,39 @@ export class Pet {
     }
 
     const dir = Math.sign(dx);
+    if (dir !== 0 && dir !== this.turnToDir) {
+      this.turnFromDir = this.turnProgress < 0.5 ? this.turnFromDir : this.turnToDir;
+      this.turnToDir = dir;
+      this.turnProgress = 1.0 - this.turnProgress;
+    }
+    if (this.turnProgress < 1.0) {
+      this.turnProgress = Math.min(1.0, this.turnProgress + dt * 5.0);
+    }
+    const turnSine = Math.sin(this.turnProgress * Math.PI);
+    const curDir = this.turnProgress < 0.5 ? this.turnFromDir : this.turnToDir;
+
     const stepMove = Math.min(Math.abs(dx), speed * dt);
     this.img.x += dir * stepMove;
-    this.img.setFlipX(dir < 0);
+    this.img.setFlipX(curDir < 0);
 
     // Advance gait phase in proportion to actual distance moved
     const gaitSpeed = speed / 8.5;
     this.walkPhase += dt * gaitSpeed;
 
-    // 1. Stride Vertical Bounce (Paws planting and pushing off ground)
-    const strideBounce = Math.abs(Math.sin(this.walkPhase)) * 5.2;
+    // 1. Stride Vertical Bounce + 3D Turn Pivot Hop
+    const strideBounce = Math.abs(Math.sin(this.walkPhase)) * 5.2 + turnSine * 4.5;
     this.img.y = this.baseY - strideBounce;
 
     // 2. Dynamic Pitch / Forward Lean rocking with stride
-    const strideTilt = Math.sin(this.walkPhase) * 0.09 * dir;
+    const strideTilt = Math.sin(this.walkPhase) * 0.09 * curDir;
     this.img.rotation = strideTilt;
 
-    // 3. Squash and Stretch per stride (compression on foot-plant, stretch in air)
+    // 3. 3D Volume-Conserving Squash & Stretch per stride & turn
     const stretch = Math.sin(this.walkPhase * 2);
-    this.img.scaleX = this.baseScaleX * (1 - stretch * 0.07);
-    this.img.scaleY = this.baseScaleY * (1 + stretch * 0.08);
+    const turnWidth = 1.0 - turnSine * 0.32;
+    const turnHeight = 1.0 + turnSine * 0.14;
+    this.img.scaleX = this.baseScaleX * (1 - stretch * 0.07) * turnWidth;
+    this.img.scaleY = this.baseScaleY * (1 + stretch * 0.08) * turnHeight;
 
     // 4. Subtle Footstep Dust Motes on heavy foot-plant
     this.stepDustTimer -= dt;
@@ -3000,17 +3066,31 @@ export class Pet {
           }
           this.dir = nextDir;
           if (this.turnProgress < 1.0) {
-            this.turnProgress = Math.min(1.0, this.turnProgress + dt * 5.6);
+            this.turnProgress = Math.min(1.0, this.turnProgress + dt * 4.2);
           }
           const turnSine = Math.sin(this.turnProgress * Math.PI);
           const curDir = this.turnProgress < 0.5 ? this.turnFromDir : this.turnToDir;
+          const isTurningFront = turnSine > 0.62;
 
-          f.flip.scaleX = curDir * (1.0 - turnSine * 0.42);
-          f.flip.scaleY = 1.0 + turnSine * 0.16;
+          const targetMamaTex = isTurningFront && this.scene.textures.exists('bird_mama_2_turn')
+            ? 'bird_mama_2_turn'
+            : 'bird_mama_2';
+          if (f.body.texture.key !== targetMamaTex) {
+            f.body.setTexture(targetMamaTex);
+          }
+
+          f.flip.scaleX = curDir * (isTurningFront ? 0.86 + (turnSine - 0.62) * 0.36 : 1.0 - turnSine * 0.28);
+          f.flip.scaleY = 1.0 + turnSine * 0.12;
+          f.wing.x = isTurningFront ? -13 * turnSine : -8 + turnSine * 4;
+          if (f.wingBack) {
+            f.wingBack.x = isTurningFront ? 13 * turnSine : -10 - turnSine * 5;
+            f.wingBack.setScale(isTurningFront ? -1 : 1, 1);
+            f.wingBack.setTint(isTurningFront ? 0xcbd5e1 : 0x71717a);
+          }
 
           f.spr.x += (dx / dist) * speed * dt;
           f.spr.y += (dy / dist) * speed * dt;
-          const bankRoll = -turnSine * 0.20 * this.turnToDir;
+          const bankRoll = -turnSine * 0.22 * this.turnToDir;
           f.spr.rotation = Phaser.Math.Linear(f.spr.rotation, (dy / dist) * 0.25 * this.dir + bankRoll, 0.15);
         } else {
           // Reached sky waypoint
@@ -4718,54 +4798,92 @@ export class AviaryScene extends Phaser.Scene {
     }
     this.sunbeams = rays;
 
-    // 4. Distant Mountain Range (Atmospheric Depth Layer 1)
-    g.fillStyle(th.hillFar, 0.55);
-    g.fillPoints([
-      new Phaser.Math.Vector2(0, 560),
-      new Phaser.Math.Vector2(0, 485),
-      new Phaser.Math.Vector2(140, 415),
-      new Phaser.Math.Vector2(290, 465),
-      new Phaser.Math.Vector2(460, 395),
-      new Phaser.Math.Vector2(640, 450),
-      new Phaser.Math.Vector2(810, 385),
-      new Phaser.Math.Vector2(970, 435),
-      new Phaser.Math.Vector2(1130, 400),
-      new Phaser.Math.Vector2(W, 465),
-      new Phaser.Math.Vector2(W, 560),
-    ], true);
+    // 4. Distant 3D Faceted Mountain Range (Atmospheric Depth Layer 1)
+    const mPeaks = [
+      { xL: -20, xP: 140, yP: 405, xR: 310 },
+      { xL: 250, xP: 460, yP: 382, xR: 660 },
+      { xL: 590, xP: 810, yP: 372, xR: 1010 },
+      { xL: 930, xP: 1130, yP: 390, xR: W + 30 },
+    ];
+    for (const pk of mPeaks) {
+      // Shaded right mountain slope
+      g.fillStyle(th.hillFar, 0.62);
+      g.fillTriangle(pk.xP, pk.yP, pk.xP + 18, 565, pk.xR, 565);
+      // Sunlit left mountain slope
+      g.fillStyle(th.hillFar, 0.44);
+      g.fillTriangle(pk.xL, 565, pk.xP, pk.yP, pk.xP + 18, 565);
+      // Warm sunlit ridge highlight on left slope
+      g.fillStyle(0xffffff, 0.16);
+      g.fillTriangle(pk.xL + (pk.xP - pk.xL) * 0.35, 510, pk.xP, pk.yP, pk.xP + 8, 510);
+      // Crisp 3D ridge line
+      g.lineStyle(2, 0xffffff, 0.22);
+      g.lineBetween(pk.xP, pk.yP, pk.xP + 14, 520);
+    }
 
-    // 5. Midground Rolling Forest Hills (Atmospheric Depth Layer 2)
-    g.fillStyle(th.hillFar, 0.92);
-    g.fillEllipse(280, 560, 850, 190);
-    g.fillEllipse(960, 570, 920, 200);
+    // Soft atmospheric valley mist band at mountain base
+    g.fillStyle(th.sky2, 0.35);
+    g.fillRect(0, 495, W, 65);
 
-    g.fillStyle(th.hillNear, 1);
-    g.fillEllipse(120, 620, 720, 170);
-    g.fillEllipse(640, 630, 860, 160);
-    g.fillEllipse(1140, 620, 720, 170);
+    // 5. Midground 3D Volumetric Rolling Forest Hills (Atmospheric Depth Layer 2)
+    const draw3DHill = (hx: number, hy: number, hw: number, hh: number, baseCol: number, alpha = 1) => {
+      // Deep base mass
+      g.fillStyle(baseCol, alpha);
+      g.fillEllipse(hx, hy, hw, hh);
+      // Shaded lower-right belly
+      g.fillStyle(0x050e0a, 0.14 * alpha);
+      g.fillEllipse(hx + hw * 0.06, hy + hh * 0.08, hw * 0.92, hh * 0.85);
+      // Sunlit upper-left 3D crest
+      g.fillStyle(0xffffff, 0.12 * alpha);
+      g.fillEllipse(hx - hw * 0.08, hy - hh * 0.14, hw * 0.72, hh * 0.52);
+    };
 
-    // 6. Forest Floor Base
+    draw3DHill(280, 560, 860, 195, th.hillFar, 0.92);
+    draw3DHill(960, 570, 930, 205, th.hillFar, 0.92);
+
+    draw3DHill(120, 620, 740, 175, th.hillNear, 1);
+    draw3DHill(640, 630, 880, 165, th.hillNear, 1);
+    draw3DHill(1140, 620, 740, 175, th.hillNear, 1);
+
+    // 6. Contoured 3D Forest Floor Base
+    // Subtle dark horizon lip shadow
+    g.fillStyle(0x040b07, 0.25);
+    g.fillRect(0, 577, W, 5);
     g.fillStyle(th.ground, 1);
     g.fillRect(0, 580, W, 48);
+    // Sunlit upper turf bevel
+    g.fillStyle(0xffffff, 0.10);
+    g.fillRect(0, 580, W, 8);
     g.fillStyle(th.ground2, 1);
     g.fillRect(0, 598, W, 28);
+    // Deep foreground soil shadow band above toolbar
+    g.fillStyle(0x040a06, 0.22);
+    g.fillRect(0, 616, W, 12);
 
-    // 7. Ground Grass Tufts & Wildflowers
+    // 7. 3D Layered Ground Grass Tufts & Sculpted Wildflowers
     const cols = [th.ground2, th.hillNear, th.ground];
     for (let i = 0; i < 280; i++) {
       const x = Math.random() * W;
       const y = 578 + Math.random() * 46;
+      const h = 10 + Math.random() * 10;
+      g.fillStyle(0x040a06, 0.18);
+      g.fillTriangle(x + 1, y, x + 5, y, x + 4, y - h * 0.85);
       g.fillStyle(Phaser.Utils.Array.GetRandom(cols), 1);
-      g.fillTriangle(x, y, x + 4, y, x + 2, y - 10 - Math.random() * 10);
+      g.fillTriangle(x, y, x + 4.2, y, x + 2, y - h);
     }
     const petals = [0xff7aa2, 0xffffff, 0xffd23f, 0xb48cff];
     for (let i = 0; i < 32; i++) {
       const x = Math.random() * W;
       const y = 590 + Math.random() * 30;
-      g.fillStyle(Phaser.Utils.Array.GetRandom(petals), 1);
-      g.fillCircle(x, y, 4);
+      const pCol = Phaser.Utils.Array.GetRandom(petals);
+      g.fillStyle(0x000000, 0.22);
+      g.fillEllipse(x, y + 2.5, 9, 4);
+      g.fillStyle(pCol, 1);
+      g.fillCircle(x - 2.2, y, 2.4);
+      g.fillCircle(x + 2.2, y, 2.4);
+      g.fillCircle(x, y - 2.2, 2.4);
+      g.fillCircle(x, y + 2.2, 2.4);
       g.fillStyle(0xffe45e, 1);
-      g.fillCircle(x, y, 1.8);
+      g.fillCircle(x, y, 2.0);
     }
 
     // --- 2.5D Midground Depth Scenery Props (Driven by Level Layout) ---
@@ -4967,111 +5085,23 @@ export class AviaryScene extends Phaser.Scene {
   }
 
   drawNest(s: Spot) {
-    if (!s.nestGfx) {
-      s.nestGfx = this.add.graphics().setDepth(4);
+    if (s.nestGfx) {
+      s.nestGfx.clear();
     }
-    const g = s.nestGfx;
-    g.clear();
-    const stage = s.nestStage ?? 0;
+    const stage = Phaser.Math.Clamp(s.nestStage ?? 0, 0, 6);
 
     if (stage <= 0) {
-      // Natural empty branch fork - zero weird circles or indicators!
+      if (s.nestImg) {
+        s.nestImg.setVisible(false);
+      }
       return;
-    } else if (stage === 1) {
-      // Stage 1: First 3-4 rough brown twigs laid across the branch fork
-      g.lineStyle(3.5, 0x5a3418, 1);
-      g.lineBetween(s.x - 24, s.y + 6, s.x + 22, s.y + 2);
-      g.lineBetween(s.x - 18, s.y - 1, s.x + 16, s.y + 9);
-      g.lineBetween(s.x - 10, s.y + 11, s.x + 18, s.y - 2);
-    } else if (stage === 2) {
-      // Stage 2: Criss-crossed stick platform with pine needles
-      g.lineStyle(3.5, 0x4e2c14, 1);
-      g.lineBetween(s.x - 30, s.y + 8, s.x + 28, s.y + 3);
-      g.lineBetween(s.x - 26, s.y - 1, s.x + 24, s.y + 10);
-      g.lineBetween(s.x - 20, s.y + 12, s.x + 20, s.y - 2);
-      g.lineBetween(s.x - 8, s.y + 14, s.x + 15, s.y + 1);
-      g.lineStyle(2.2, 0x8a5528, 1);
-      g.lineBetween(s.x - 28, s.y + 6, s.x + 26, s.y + 2);
-      g.lineBetween(s.x - 16, s.y + 3, s.x + 22, s.y + 8);
-      // Small moss patch
-      g.fillStyle(0x4a7c59, 0.9);
-      g.fillCircle(s.x - 6, s.y + 6, 4);
-    } else if (stage === 3) {
-      // Stage 3: Shallow wicker outline rim forming circular bowl
-      g.fillStyle(0x3e200c, 0.85);
-      g.fillEllipse(s.x, s.y + 8, 64, 18);
-      g.lineStyle(3.2, 0x5a3418, 1);
-      g.lineBetween(s.x - 32, s.y + 7, s.x + 32, s.y + 7);
-      g.lineBetween(s.x - 28, s.y + 12, s.x + 28, s.y + 12);
-      g.lineStyle(2.2, 0x8f6234, 1);
-      for (let i = 0; i < 6; i++) {
-        g.lineBetween(s.x - 24 + i * 9.5, s.y + 13, s.x - 20 + i * 9.5, s.y + 3);
-      }
-      g.fillStyle(0x4a7c59, 0.95);
-      g.fillCircle(s.x - 12, s.y + 7, 4.5);
-    } else if (stage === 4) {
-      // Stage 4: Woven wooden bowl with rising sides and moss clumps
-      g.fillStyle(0x4e2c14, 1);
-      g.fillEllipse(s.x, s.y + 8, 76, 24);
-      g.fillStyle(0x7c4e28, 1);
-      g.fillEllipse(s.x, s.y + 4, 64, 17);
-      g.lineStyle(2.5, 0x3d210d, 1);
-      for (let i = 0; i < 7; i++) {
-        g.lineBetween(s.x - 30 + i * 10, s.y + 14, s.x - 24 + i * 10, s.y + 2);
-      }
-      g.lineStyle(2, 0x9c663b, 1);
-      g.lineBetween(s.x - 32, s.y + 6, s.x + 32, s.y + 6);
-      g.lineBetween(s.x - 26, s.y + 11, s.x + 26, s.y + 11);
-      g.fillStyle(0x4a7c59, 1);
-      g.fillCircle(s.x - 18, s.y + 8, 5);
-      g.fillCircle(s.x + 18, s.y + 7, 4.5);
-    } else if (stage === 5) {
-      // Stage 5: Deep thick woven cup with birch bark and velvety moss
-      g.fillStyle(0x3e200c, 1);
-      g.fillEllipse(s.x, s.y + 9, 82, 28);
-      g.fillStyle(0x6e3d1b, 1);
-      g.fillEllipse(s.x, s.y + 5, 72, 21);
-      g.lineStyle(2.5, 0x2b1507, 1);
-      for (let i = 0; i < 8; i++) {
-        g.lineBetween(s.x - 34 + i * 9.5, s.y + 16, s.x - 28 + i * 9.5, s.y + 3);
-        g.lineBetween(s.x - 28 + i * 9.5, s.y + 16, s.x - 34 + i * 9.5, s.y + 3);
-      }
-      g.lineStyle(2.2, 0x93592b, 1);
-      g.lineBetween(s.x - 35, s.y + 6, s.x + 35, s.y + 6);
-      g.lineBetween(s.x - 29, s.y + 12, s.x + 29, s.y + 12);
-      // Soft straw lining
-      g.fillStyle(0xc9a464, 1);
-      g.fillEllipse(s.x, s.y + 4, 52, 13);
-      // Moss accents
-      g.fillStyle(0x386641, 1);
-      g.fillCircle(s.x - 22, s.y + 8, 5);
-      g.fillCircle(s.x + 22, s.y + 7, 5);
+    }
+
+    const texKey = `nest_stage_${stage}`;
+    if (!s.nestImg || !s.nestImg.scene) {
+      s.nestImg = this.add.image(s.x, s.y + 5, texKey).setDepth(4);
     } else {
-      // Stage 6: Master Sanctuary Cup (Completed! Cozy golden-straw and down padding, NO eggs inside)
-      g.fillStyle(0x341a0a, 1);
-      g.fillEllipse(s.x, s.y + 10, 88, 32);
-      g.fillStyle(0x5e3316, 1);
-      g.fillEllipse(s.x, s.y + 6, 80, 25);
-      // Layered wicker braiding
-      g.lineStyle(2.5, 0x241105, 1);
-      for (let i = 0; i < 9; i++) {
-        g.lineBetween(s.x - 38 + i * 9.5, s.y + 18, s.x - 32 + i * 9.5, s.y + 3);
-        g.lineBetween(s.x - 32 + i * 9.5, s.y + 18, s.x - 38 + i * 9.5, s.y + 3);
-      }
-      g.lineStyle(2.5, 0x93592b, 1);
-      g.lineBetween(s.x - 38, s.y + 7, s.x + 38, s.y + 7);
-      g.lineBetween(s.x - 32, s.y + 13, s.x + 32, s.y + 13);
-      // Warm golden-straw down lining (cozy bed for Mama egg)
-      g.fillStyle(0xd9b87c, 1);
-      g.fillEllipse(s.x, s.y + 4, 60, 16);
-      g.fillStyle(0xf5e1a4, 1);
-      g.fillEllipse(s.x, s.y + 2, 46, 11);
-      // Lush forest moss rim
-      g.fillStyle(0x2d6a4f, 1);
-      g.fillCircle(s.x - 26, s.y + 8, 5.5);
-      g.fillCircle(s.x + 26, s.y + 8, 5.5);
-      g.fillCircle(s.x - 12, s.y + 12, 4.5);
-      g.fillCircle(s.x + 12, s.y + 12, 4.5);
+      s.nestImg.setPosition(s.x, s.y + 5).setTexture(texKey).setVisible(true);
     }
   }
 
@@ -5091,11 +5121,15 @@ export class AviaryScene extends Phaser.Scene {
     trunkGfx.clear();
     fgGfx.clear();
 
-    // Clean up old nest graphics
+    // Clean up old nest graphics & 3D nest images
     for (const s of this.spots) {
       if (s.nestGfx) {
         s.nestGfx.destroy();
         s.nestGfx = undefined;
+      }
+      if (s.nestImg) {
+        s.nestImg.destroy();
+        s.nestImg = undefined;
       }
     }
     this.spots = [];
@@ -5110,7 +5144,7 @@ export class AviaryScene extends Phaser.Scene {
       const y1 = y1Target + 8;
       const midX = (x0 + x1) / 2;
       const midY = (y0 + y1) / 2 - 12;
-      const steps = 12;
+      const steps = 16;
       const pts: { x: number; y: number; w: number }[] = [];
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
@@ -5121,67 +5155,108 @@ export class AviaryScene extends Phaser.Scene {
         pts.push({ x: px, y: py, w });
       }
 
+      let bShadow = 0x241105;
       let bOutline = 0x3e200c;
       let bBase = 0x6b3f1f;
-      let bLight = 0x93592b;
+      let bLight = 0x9c6234;
+      let bSpec = 0xc48246;
 
       if (isBirch || style === 'birch') {
-        bOutline = 0x334155;
-        bBase = 0xe2e8f0;
-        bLight = 0xf8fafc;
+        bShadow = 0x1e293b;
+        bOutline = 0x475569;
+        bBase = 0xcbd5e1;
+        bLight = 0xf1f5f9;
+        bSpec = 0xffffff;
       } else if (style === 'mangrove' || style === 'kapok') {
-        bOutline = 0x141a0b;
+        bShadow = 0x0b0f06;
+        bOutline = 0x1a2110;
         bBase = 0x334125;
         bLight = 0x5a6d36;
+        bSpec = 0x84a94c;
       } else if (style === 'sakura') {
-        bOutline = 0x1b0e0c;
+        bShadow = 0x120807;
+        bOutline = 0x271412;
         bBase = 0x4a2522;
         bLight = 0x7c3a2d;
+        bSpec = 0xa85544;
       } else if (style === 'pine') {
+        bShadow = 0x120d0a;
         bOutline = 0x221a14;
         bBase = 0x382d24;
         bLight = 0x5a483a;
+        bSpec = 0x7c6552;
       } else if (style === 'basalt') {
+        bShadow = 0x050408;
         bOutline = 0x09070c;
         bBase = 0x221f29;
         bLight = 0x484252;
+        bSpec = 0x71717a;
       }
 
+      // 0. 3D Branch Collar Socket at Trunk Junction
+      trunkGfx.fillStyle(bShadow, 0.65);
+      trunkGfx.fillEllipse(x0, y0 + 2, startW * 0.9, startW * 1.35);
+
+      // 1. Deep 3D Underside Cylinder Shadow
       for (let i = 0; i < pts.length - 1; i++) {
-        trunkGfx.lineStyle(pts[i].w + 3, bOutline, 1);
-        trunkGfx.lineBetween(pts[i].x, pts[i].y + 3, pts[i + 1].x, pts[i + 1].y + 3);
+        trunkGfx.lineStyle(pts[i].w + 4, bShadow, 0.85);
+        trunkGfx.lineBetween(pts[i].x, pts[i].y + 4, pts[i + 1].x, pts[i + 1].y + 4);
       }
+      // 2. Lower Shaded Cylinder Bark
+      for (let i = 0; i < pts.length - 1; i++) {
+        trunkGfx.lineStyle(pts[i].w + 2, bOutline, 1);
+        trunkGfx.lineBetween(pts[i].x, pts[i].y + 2, pts[i + 1].x, pts[i + 1].y + 2);
+      }
+      // 3. Core Cylindrical Wood Volume
       for (let i = 0; i < pts.length - 1; i++) {
         trunkGfx.lineStyle(pts[i].w, bBase, 1);
         trunkGfx.lineBetween(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y);
       }
+      // 4. Upper Sunlit 3D Cylindrical Bark Curve
       for (let i = 0; i < pts.length - 1; i++) {
-        trunkGfx.lineStyle(Math.max(2, pts[i].w * 0.35), bLight, 0.7);
-        trunkGfx.lineBetween(pts[i].x, pts[i].y - pts[i].w * 0.28, pts[i + 1].x, pts[i + 1].y - pts[i + 1].w * 0.28);
+        trunkGfx.lineStyle(Math.max(2.5, pts[i].w * 0.45), bLight, 0.85);
+        trunkGfx.lineBetween(pts[i].x, pts[i].y - pts[i].w * 0.22, pts[i + 1].x, pts[i + 1].y - pts[i + 1].w * 0.22);
+      }
+      // 5. Crisp Top Specular Bark Rim
+      for (let i = 0; i < pts.length - 1; i++) {
+        trunkGfx.lineStyle(Math.max(1.4, pts[i].w * 0.18), bSpec, 0.65);
+        trunkGfx.lineBetween(pts[i].x, pts[i].y - pts[i].w * 0.36, pts[i + 1].x, pts[i + 1].y - pts[i + 1].w * 0.36);
       }
 
       if (isBirch || style === 'birch') {
         trunkGfx.lineStyle(2, 0x1e293b, 0.85);
-        trunkGfx.lineBetween(midX - 4, midY - 2, midX + 4, midY - 2);
+        trunkGfx.lineBetween(midX - 5, midY - 2, midX + 5, midY - 2);
+        trunkGfx.lineBetween((x0 + midX) / 2 - 4, (y0 + midY) / 2 + 1, (x0 + midX) / 2 + 4, (y0 + midY) / 2 + 1);
       } else if (style === 'basalt') {
         trunkGfx.lineStyle(1.8, 0xef4444, 0.9);
         trunkGfx.lineBetween(x0, y0 - 2, x1, y1 - 2);
         trunkGfx.lineStyle(1.0, 0xfbbf24, 0.95);
         trunkGfx.lineBetween(x0, y0 - 2, x1, y1 - 2);
       } else if (style === 'mangrove' || style === 'kapok') {
-        trunkGfx.fillStyle(0x10b981, 0.8);
-        trunkGfx.fillCircle(midX - 10, midY - 6, 4);
-        trunkGfx.fillCircle(midX + 12, midY - 5, 3.5);
+        trunkGfx.fillStyle(0x10b981, 0.85);
+        trunkGfx.fillEllipse(midX - 10, midY - 5, 10, 5);
+        trunkGfx.fillEllipse(midX + 12, midY - 4, 8, 4.5);
       } else if (style === 'sakura') {
-        trunkGfx.fillStyle(0xfbcfe8, 0.9);
+        trunkGfx.fillStyle(0xfbcfe8, 0.92);
         trunkGfx.fillCircle(x1 - 8, y1 + 4, 4);
         trunkGfx.fillCircle(x1 + 8, y1 + 4, 4);
         trunkGfx.fillStyle(0xec4899, 1);
         trunkGfx.fillCircle(x1, y1 + 6, 3);
+      } else {
+        // 3D Wood knot & velvety moss cushion on oak bough
+        trunkGfx.fillStyle(bShadow, 0.85);
+        trunkGfx.fillEllipse(midX, midY + 1, 7, 4.5);
+        trunkGfx.fillStyle(0x2d6a4f, 0.88);
+        trunkGfx.fillEllipse(midX - 14, midY - pts[8].w * 0.35, 14, 5);
       }
 
+      // Rounded 3D Branch Tip Cap
+      trunkGfx.fillStyle(bOutline, 1);
+      trunkGfx.fillCircle(x1, y1 + 1, endW * 0.68);
       trunkGfx.fillStyle(bBase, 1);
-      trunkGfx.fillCircle(x1, y1, endW * 0.65);
+      trunkGfx.fillCircle(x1, y1, endW * 0.62);
+      trunkGfx.fillStyle(bLight, 0.85);
+      trunkGfx.fillCircle(x1 - 1, y1 - endW * 0.18, endW * 0.35);
     };
 
     // Draw all trees in current layout
