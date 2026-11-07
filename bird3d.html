@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Real 3D Songbird — proof of concept</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: linear-gradient(#7ec8f5, #d9f1ff 60%, #5a9b4a 60%); overflow: hidden; font-family: sans-serif; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    #hud { position: fixed; top: 12px; left: 12px; color: #fff; text-shadow: 0 1px 3px #000; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div id="hud">Real Three.js songbird · drag to orbit · scroll to zoom · auto-turns · wings flap</div>
+  <script type="module" src="/src/bird3d_viewer.ts"></script>
+</body>
+</html>
